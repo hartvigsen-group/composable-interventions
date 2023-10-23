@@ -7,7 +7,7 @@ import hashlib
 
 # Define parameters
 
-hparams = MEMITHyperParams.from_hparams('./hparams/MEMIT/llama.yaml')
+hparams = MEMITHyperParams.from_hparams('./hparams/MEMIT/llama_fast.yaml')
 
 prompts = ['Who was the designer of Lahti Town Hall?',
            'What role does Denny Herzig play in football?',
@@ -59,8 +59,11 @@ print(type(edited_model))
 
 # Check if model editing actually edited the model
 
-def generate_fingerprint(m): return hashlib.sha256(b''.join(
-    p.cpu().detach().numpy().tobytes() for p in m.parameters())).hexdigest()
+def generate_fingerprint(m):
+    hash_obj = hashlib.sha256()
+    [hash_obj.update(p.cpu().detach().numpy().tobytes()) for p in m.parameters()]
+    return hash_obj.hexdigest()
+
 
 print(
     f"Are models identical? {generate_fingerprint(model) == generate_fingerprint(edited_model)}")

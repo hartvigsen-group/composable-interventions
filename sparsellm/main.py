@@ -10,10 +10,14 @@ from sparsellm.lib.eval import eval_ppl, eval_zero_shot
 
 
 class LLMPruningAndValidation:
-    def __init__(self, args):
+    def __init__(self, args, model):
         self.args = args
         self.device = torch.device("cuda:0")
-        self.model = self.get_llm(args.model, args.cache_dir)
+        if model is None:
+            self.model = self.get_llm(args.model, args.cache_dir)
+        else:
+            self.model = model
+        self.model.seqlen = self.model.config.max_position_embeddings
         #self.original_model=copy.deepcopy(self.model)           ####Here i do copy for the model in cause the editing operation need the whole weights. Note: Prune process do not need this.
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
         np.random.seed(args.seed)
