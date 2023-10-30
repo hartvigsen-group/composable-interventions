@@ -34,11 +34,10 @@ parser.add_argument("--prune_method", type=str, default="wanda", choices=["magni
                     "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", "ablate_wanda_iter", "search"])
 parser.add_argument("--cache_dir", default="llm_weights", type=str )
 parser.add_argument('--use_variant', action="store_true", help="whether to use the wanda variant described in the appendix")
-parser.add_argument('--save', type=str, default=None, help='Path to save results.')
+parser.add_argument('--save', type=str, default="out/", help='Path to save results.')
 parser.add_argument('--save_model', type=str, default=None, help='Path to save the pruned model.')
 
 parser.add_argument("--eval_zero_shot", action="store_true")
-# Add all your argparse arguments here...
 args = parser.parse_args()
 
 # Init model
@@ -63,16 +62,25 @@ editable_model.edit(
 # print(metrics)
 # print(type(edited_model))
 
+# Save parameters
+torch.save(editable_model.state_dict(), 'out/checkpoint.pth')
+
+# Load the state_dict
+state_dict = torch.load('out/checkpoint.pth')
+
+# Update the model's state_dict
+model.load_state_dict(state_dict)
+
 # Check if model editing actually edited the model
-def generate_fingerprint(m):
-    hash_obj = hashlib.sha256()
-    [hash_obj.update(p.cpu().detach().numpy().tobytes()) for p in m.parameters()]
-    return hash_obj.hexdigest()
-print(
-    f"Are models identical? {generate_fingerprint(editable_model) == generate_fingerprint(model)}")
+# def generate_fingerprint(m):
+#     hash_obj = hashlib.sha256()
+#     [hash_obj.update(p.cpu().detach().numpy().tobytes()) for p in m.parameters()]
+#     return hash_obj.hexdigest()
+# print(
+#     f"Are models identical? {generate_fingerprint(editable_model) == generate_fingerprint(model)}")
 
 # Sparsify editable model
-pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
-pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
-pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
+pruning_and_validation = LLMPruningAndValidation(args, model)
+# pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
+# pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
 pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
