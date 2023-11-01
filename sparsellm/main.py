@@ -8,6 +8,12 @@ import copy
 from sparsellm.lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
 
+###GPTQ########
+from lib.gptq import *
+from lib.modelutils import *
+from lib.quant import *
+from lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
+DEV = torch.device('cuda:0')
 
 class LLMPruningAndValidation:
     def __init__(self, args, model):
@@ -34,7 +40,15 @@ class LLMPruningAndValidation:
         )
         model.seqlen = model.config.max_position_embeddings
         return model
-
+    def quantization(self):
+        args=self.args
+        if args.quant_method=='gptq':
+            model,quantizers=llamaQuanti(self.model,self.device,self.args)
+            #self.model=llama_pack3(model, quantizers)
+            self.model=model
+        else:
+            print("Not implemented Yet!")
+            assert False
     def get_Mask(self):
         args = self.args
         model = self.model
@@ -73,21 +87,23 @@ class LLMPruningAndValidation:
 
     def validate(self):
         args = self.args
-        model = self.model
+        model = self.model.to(self.device)
         tokenizer = self.tokenizer
         device = self.device
 
-        sparsity_ratio = check_sparsity(model)
-        print(f"sparsity sanity check {sparsity_ratio:.4f}")
-        ppl_test = eval_ppl(args, model, tokenizer, device)
+        if args.method=='quant':
+            ppl_test = llama_eval(model, device,args)
+            
+        elif args.method=='sparse':
+            ppl_test = eval_ppl(args, model, tokenizer, device)
         print(f"wikitext perplexity {ppl_test}")
 
         if not os.path.exists(args.save):
             os.makedirs(args.save)
-        save_filepath = os.path.join(args.save, f"log_{args.prune_method}.txt")
+        save_filepath = os.path.join(args.save, f"log.txt")
         with open(save_filepath, "w") as f:
             print("method\tactual_sparsity\tppl_test", file=f, flush=True)
-            print(f"{args.prune_method}\t{sparsity_ratio:.4f}\t{ppl_test:.4f}", file=f, flush=True)
+            print(f"{ppl_test:.4f}", file=f, flush=True)
 
         if args.eval_zero_shot:
             accelerate=False
@@ -105,11 +121,9 @@ class LLMPruningAndValidation:
             tokenizer.save_pretrained(args.save_model)
     def Edit(self):
         pass
-        #editing
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, help='LLaMA model')
     parser.add_argument('--seed', type=int, default=0, help='Seed for sampling the calibration data.')
@@ -124,10 +138,61 @@ if __name__ == '__main__':
     parser.add_argument('--save_model', type=str, default=None, help='Path to save the pruned model.')
 
     parser.add_argument("--eval_zero_shot", action="store_true")
+     ############For Quantization##########################################
+    parser.add_argument(
+        '--quant_method', type=str, default='gptq', choices=['gptq'],
+        help='Where to extract calibration data from.'
+    )
+    parser.add_argument(
+        '--dataset', type=str, choices=['wikitext2', 'ptb', 'c4'],
+        help='Where to extract calibration data from.'
+    )
+    parser.add_argument(
+        '--percdamp', type=float, default=.01,
+        help='Percent of the average Hessian diagonal to use for dampening.'
+    )
+    parser.add_argument(
+        '--nearest', action='store_true',
+        help='Whether to run the RTN baseline.'
+    ) 
+    parser.add_argument(
+        '--wbits', type=int, default=16, choices=[2, 3, 4, 8, 16],
+        help='#bits to use for quantization; use 16 for evaluating base model.'
+    )
+    parser.add_argument(
+        '--groupsize', type=int, default=-1,
+        help='Groupsize to use for quantization; default uses full row.'
+    )
+    parser.add_argument(
+        '--sym', action='store_true',
+        help='Whether to perform symmetric quantization.'
+    )
+    parser.add_argument(
+        '--new-eval', action='store_true',
+        help='Whether to use the new PTB and C4 eval.'
+    )
+
+    parser.add_argument(
+        '--act-order', action='store_true',
+        help='Whether to apply the activation order GPTQ heuristic'
+    )
+    parser.add_argument(
+        '--true-sequential', action='store_true',
+        help='Whether to run in true sequential model.'
+    )
+    parser.add_argument(
+        '--static-groups', action='store_true',
+        help='Whether to use static groups; recommended when using `--actorder` for more efficient inference.'
+    )
+
     # Add all your argparse arguments here...
     args = parser.parse_args()
-
+    
     pruning_and_validation = LLMPruningAndValidation(args)
-    pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
-    pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
-    pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    ##Test Sparse##########
+    #pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
+    #pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
+    #pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    ####Test Quantization###########
+    pruning_and_validation.quantization()
+    pruning_and_validation.validate()    
