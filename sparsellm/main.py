@@ -9,10 +9,10 @@ from sparsellm.lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, p
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
 
 ###GPTQ########
-from lib.gptq import *
-from lib.modelutils import *
-from lib.quant import *
-from lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
+from sparsellm.lib.gptq import *
+from sparsellm.lib.modelutils import *
+from sparsellm.lib.quant import *
+from sparsellm.lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
 DEV = torch.device('cuda:0')
 
 class LLMPruningAndValidation:
