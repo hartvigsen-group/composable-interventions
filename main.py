@@ -9,12 +9,16 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 import copy
 import hashlib
+import yaml
 
 # Set up editing parameters
 hparams = MEMITHyperParams.from_hparams('./hparams/MEMIT/llama_fast.yaml')
 
 # TODO: yaml file for sparsity
+with open("parameters.yaml", 'r') as stream:
+    parameters = yaml.load(stream)
 
+# TODO: add an edit loader
 prompts = ['Who was the designer of Lahti Town Hall?',
            'What role does Denny Herzig play in football?',
            'What city did Marl Young live when he died?']
@@ -63,10 +67,10 @@ editable_model.edit(
 # print(type(edited_model))
 
 # Save parameters
-torch.save(editable_model.state_dict(), 'out/checkpoint.pth')
+torch.save(editable_model.state_dict(), '/scratch/sux7mp/out/checkpoint.pth')
 
 # Load the state_dict
-state_dict = torch.load('out/checkpoint.pth')
+state_dict = torch.load('/scratch/sux7mp/out/checkpoint.pth')
 
 # Update the model's state_dict
 model.load_state_dict(state_dict)
