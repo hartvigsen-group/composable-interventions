@@ -20,7 +20,7 @@ class Config:
         with open(path, 'r') as stream:
             data = yaml.load(stream, Loader=yaml.SafeLoader)
             self.__dict__.update(data)
-args = Config('hparams/efficiency/sparsity.yaml')
+args = Config('hparams/efficiency/quant.yaml')
 
 # TODO: add an edit loader
 prompts = ['Who was the designer of Lahti Town Hall?',
@@ -75,10 +75,10 @@ editable_model = ModelEditWrapper(model, hparams)
 # torch.save(editable_model.state_dict(), '/scratch/sux7mp/out/checkpoint.pth')
 
 # Load the state_dict
-# state_dict = torch.load('/scratch/sux7mp/out/checkpoint.pth')
+state_dict = torch.load('/scratch/sux7mp/out/checkpoint.pth')
 
 # Update the model's state_dict
-# model.load_state_dict(state_dict)
+model.load_state_dict(state_dict)
 
 # Check if model editing actually edited the model
 # def generate_fingerprint(m):
@@ -90,6 +90,13 @@ editable_model = ModelEditWrapper(model, hparams)
 
 # Sparsify editable model
 pruning_and_validation = LLMPruningAndValidation(args, model)
-pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
-pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
+
+# Prune
+# pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
+# pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
+
+# Quant
+pruning_and_validation.quantization()
+
+# Validate
 pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
