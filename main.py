@@ -59,16 +59,17 @@ model = AutoModelForCausalLM.from_pretrained(
 # Make editable
 editable_model = ModelEditWrapper(model, hparams)
 
-# editable_model.edit(
-#     prompts=prompts,
-#     ground_truth=ground_truth,
-#     target_new=target_new,
-#     subject=subject,
-#     keep_original_weight=False
-# )
+metrics, _ = editable_model.edit(
+    prompts=prompts,
+    ground_truth=ground_truth,
+    target_new=target_new,
+    subject=subject,
+    keep_original_weight=False
+)
 
 # Check results
-# print(metrics)
+print(metrics)
+quit()
 # print(type(edited_model))
 
 # Save parameters
