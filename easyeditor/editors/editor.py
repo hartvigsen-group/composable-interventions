@@ -593,8 +593,7 @@ class ModelEditWrapper:
         self.base_editor = BaseEditor.from_hparams(hparams)
 
     def edit(self, *args, **kwargs):
-        metrics, edited_model, _ = self.base_editor.edit(*args, **kwargs)
-        self.model = edited_model  # Replace the internal model with the edited model
+        metrics, self.model, _ = self.base_editor.edit(*args, **kwargs) # Replace the internal model with the edited model
         return metrics, self.model  # Return metrics and the edited model
 
     def evaluate(self, *args, **kwargs):
