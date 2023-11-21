@@ -40,17 +40,20 @@ class BaseEditor:
     """Base editor for all methods"""
 
     @classmethod
-    def from_hparams(cls, hparams: HyperParams):
+    def from_hparams(cls,
+                model,
+                hparams: HyperParams):
 
-        return cls(hparams)
+        return cls(model, hparams)
 
     def __init__(self,
-                hparams: HyperParams,
+                model,
+                hparams: HyperParams
                  ):
 
         assert hparams is not None or print('Error: hparams is None.')
 
-
+        self.model = model
         self.model_name = hparams.model_name
         self.apply_algo = ALG_DICT[hparams.alg_name]
         self.alg_name = hparams.alg_name
@@ -70,7 +73,7 @@ class BaseEditor:
                 self.tok = GPT2Tokenizer.from_pretrained(self.model_name)
                 self.tok.pad_token_id = self.tok.eos_token_id
             elif 'llama' in self.model_name.lower():
-                self.model = LlamaForCausalLM.from_pretrained(self.model_name)
+                # self.model = LlamaForCausalLM.from_pretrained(self.model_name)
                 self.tok = LlamaTokenizer.from_pretrained(self.model_name)
                 self.tok.pad_token_id = self.tok.eos_token_id
             elif 'baichuan' in self.model_name.lower():
@@ -590,7 +593,7 @@ class BaseEditor:
 class ModelEditWrapper:
     def __init__(self, model, hparams):
         self.model = model
-        self.base_editor = BaseEditor.from_hparams(hparams)
+        self.base_editor = BaseEditor.from_hparams(self.model, hparams)
 
     def edit(self, *args, **kwargs):
         metrics, self.model, _ = self.base_editor.edit(*args, **kwargs) # Replace the internal model with the edited model

@@ -11,13 +11,14 @@ import copy
 import hashlib
 import yaml
 import hydra
-from utils import edit_generator
+from utils import edit_generator, save_ckpt_meta
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config):
     hparams=config
     args=config
+
     
     # Get edits to be made
     prompts, ground_truth, target_new, subject = edit_generator.get_edits(number_of_edits=config.number_of_edits)
@@ -29,9 +30,17 @@ def main(config):
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
+    
+    if config.load_ckpt:
+        # Load the state_dict
+        state_dict = torch.load(config.ckpt_path)
+
+        # Update the model's state_dict
+        model.load_state_dict(state_dict)
 
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
+
 
     if config.edit:
         # Check initial edit metrics
@@ -60,12 +69,6 @@ def main(config):
     # Save parameters
     # torch.save(editable_model.state_dict(), '/scratch/sux7mp/out/checkpoint.pth')
 
-    # Load the state_dict
-    # state_dict = torch.load('/scratch/sux7mp/out/checkpoint.pth')
-
-    # Update the model's state_dict
-    # model.load_state_dict(state_dict)
-
     # Check if model editing actually edited the model
     # def generate_fingerprint(m):
     #     hash_obj = hashlib.sha256()
@@ -90,7 +93,7 @@ def main(config):
     pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
 
     # Save
-    save_checkpoint_and_meta(editable_model, hparams, '/scratch/sux7mp/saved_models/')
+    save_ckpt_meta.save(editable_model, config, '/scratch/sux7mp/saved_models/')
 
 if __name__ == '__main__':
     main()

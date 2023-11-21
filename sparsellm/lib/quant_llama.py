@@ -125,7 +125,6 @@ def llama_sequential(model, dataloader, dev,args):
         inps, outs = outs, inps
 
     model.config.use_cache = use_cache
-    
     return quantizers
 
 @torch.no_grad()
