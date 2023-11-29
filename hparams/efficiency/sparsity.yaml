@@ -1,0 +1,12 @@
+model: decapoda-research/llama-7b-hf
+seed: 0
+nsamples: 128
+sparsity_ratio: 0.1
+sparsity_type: unstructured
+method: sparse
+prune_method: wanda
+cache_dir: /scratch/sux7mp/llm_weights
+use_variant: false
+save: out/
+save_model: null
+eval_zero_shot: false

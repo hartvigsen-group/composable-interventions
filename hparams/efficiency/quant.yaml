@@ -1,0 +1,10 @@
+model: decapoda-research/llama-7b-hf
+method: quant
+quant_method: gpqt
+seed: 0
+dataset: c4
+wbits: 4
+true-sequential: True
+act-order: True
+new-eval: True
+save: /scratch/sux7mp/out/llama_7b/unstructured/wanda/ 

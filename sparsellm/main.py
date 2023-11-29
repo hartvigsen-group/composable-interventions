@@ -14,7 +14,6 @@ from lib.modelutils import *
 from lib.quant import *
 from lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
 from awq.utils.lm_eval_adaptor import LMEvalAdaptor
-from lm_eval import evaluator
 DEV = torch.device('cuda:0')
 
 class LLMPruningAndValidation:

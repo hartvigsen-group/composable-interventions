@@ -251,7 +251,8 @@ def compute_locality_quality(
     locality_ground_truth: str,
     device,
 ) -> typing.Dict:
-
+    print('doing locality')
+    quit()
     if 't5' in model_name.lower():
         locality_correct = test_seq2seq_batch_prediction_acc(model, tok, hparams,
                                                                  prompt,
@@ -300,7 +301,7 @@ def compute_locality_quality(
         ])
         locality_correct = test_batch_prediction_acc(model, tok, hparams, inp_prompts, target_tok, device, locality=True)
     probs = locality_correct
-
+    print(f"probs {probs}")
     if type(probs) is not list:
         probs = [probs,]
 

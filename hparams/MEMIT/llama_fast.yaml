@@ -2,7 +2,7 @@ alg_name: "MEMIT"
 model_name: "decapoda-research/llama-7b-hf"
 stats_dir: "./data/stats"
 device: 0
-layers: [8]
+layers: [4, 5, 6, 7, 8]
 clamp_norm_factor: 4
 layer_selection: "all"
 fact_token: "subject_last"
