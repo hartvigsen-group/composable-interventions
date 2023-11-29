@@ -21,8 +21,18 @@ def main(config):
 
     
     # Get edits to be made
-    prompts, ground_truth, target_new, subject = edit_generator.get_edits(number_of_edits=config.number_of_edits)
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
 
+    for locality_key in locality_inputs.keys():
+        if isinstance(locality_inputs[locality_key]['prompt'], str):
+            locality_inputs[locality_key]['prompt'] = [locality_inputs[locality_key]['prompt'],]
+            locality_inputs[locality_key]['ground_truth'] = [locality_inputs[locality_key]['ground_truth'], ]
+        print(len(locality_inputs[locality_key]['prompt']))
+        print(len(locality_inputs[locality_key]['ground_truth']))
+        assert len(locality_inputs[locality_key]['prompt']) == len(locality_inputs[locality_key]['ground_truth']) \
+        == len(requests) or print('One Edit instance needs one locality input.....')
+    quit()
+    
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
@@ -50,6 +60,8 @@ def main(config):
             ground_truth=ground_truth,
             target_new=target_new,
             subject=subject,
+            rephrase_prompts=rephrase_prompt,
+            locality_inputs=locality_inputs,
             keep_original_weight=False
         )
         print(metrics)
@@ -60,11 +72,25 @@ def main(config):
             ground_truth=ground_truth,
             target_new=target_new,
             subject=subject,
+            rephrase_prompts=rephrase_prompt,
+            locality_inputs=locality_inputs,
             keep_original_weight=False
         )
 
         # Check results
         # print(metrics)
+
+    metrics = editable_model.evaluate(
+            model=editable_model,
+            prompts=prompts,
+            ground_truth=ground_truth,
+            target_new=target_new,
+            subject=subject,
+            rephrase_prompts=rephrase_prompt,
+            locality_inputs=locality_inputs,
+            keep_original_weight=False
+        )
+    print(metrics)
 
     # Save parameters
     # torch.save(editable_model.state_dict(), '/scratch/sux7mp/out/checkpoint.pth')
@@ -93,7 +119,8 @@ def main(config):
     pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
 
     # Save
-    save_ckpt_meta.save(editable_model, config, '/scratch/sux7mp/saved_models/')
+    if config.save_ckpt:
+        save_ckpt_meta.save(editable_model, config, '/scratch/sux7mp/saved_models/')
 
 if __name__ == '__main__':
     main()

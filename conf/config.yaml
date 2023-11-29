@@ -1,0 +1,61 @@
+number_of_edits: 10
+alg_name: "MEMIT"
+model_name: "decapoda-research/llama-7b-hf"
+stats_dir: "./data/stats"
+device: 0
+layers: [4, 5, 6, 7, 8]
+clamp_norm_factor: 4
+layer_selection: "all"
+fact_token: "subject_last"
+v_num_grad_steps: 25
+v_lr: 5e-1
+v_loss_layer: 31
+v_weight_decay: 1e-3
+kl_factor: 0.0625
+mom2_adjustment: true
+mom2_update_weight: 15000
+rewrite_module_tmp: "model.layers.{}.mlp.down_proj"
+layer_module_tmp: "model.layers.{}"
+mlp_module_tmp: "model.layers.{}.mlp"
+attn_module_tmp: "model.layers.{}.self_attn"
+ln_f_module: "model.norm"
+lm_head_module: "lm_head"
+mom2_dataset: "wikipedia"
+mom2_n_samples: 1000
+mom2_dtype: "float32"
+# model_parallel: false
+max_length: 40
+batch_size: 10
+model_parallel: False
+
+model: decapoda-research/llama-7b-hf
+seed: 0
+nsamples: 128
+sparsity_ratio: 0.1
+sparsity_type: unstructured
+prune_method: wanda
+quant_method: gptq
+dataset: c4
+percdamp: 0.01
+wbits: 8
+groupsize: -1
+sym: true
+nearest: false
+new_eval: false
+act_order: false
+true_sequential: false
+static_groups: false
+cache_dir: /scratch/sux7mp/llm_weights
+use_variant: false
+save: out/
+save_model: null
+eval_zero_shot: false
+
+edit: false
+compress: false
+method: quant
+
+load_ckpt: true
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231116_104515.pth
+
+save_ckpt: true
