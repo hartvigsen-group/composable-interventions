@@ -5,7 +5,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
 import copy
-from sparsellm.lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers
+from sparsellm.lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers,AverageBits
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
 from awq import AutoAWQForCausalLM
 ###GPTQ########
@@ -88,7 +88,11 @@ class LLMPruningAndValidation:
         sparsity_ratio = check_sparsity(self.model)
         print(f"sparsity sanity check {sparsity_ratio:.4f}")
         print("*" * 30)  
-
+    def average_bits(self):
+        print("*" * 30)
+        averageBits=AverageBits(self.model)
+        print(f"average Bits check {averageBits:.4f}")
+        print("*" * 30) 
     def foward(self,input):
         return self.model(input)
 
