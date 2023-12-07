@@ -1,4 +1,4 @@
-number_of_edits: 10
+number_of_edits: 100
 alg_name: "MEMIT"
 model_name: "decapoda-research/llama-7b-hf"
 stats_dir: "./data/stats"
@@ -25,7 +25,7 @@ mom2_n_samples: 1000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
-batch_size: 10
+batch_size: 100
 model_parallel: False
 
 model: decapoda-research/llama-7b-hf
@@ -51,11 +51,11 @@ save: out/
 save_model: null
 eval_zero_shot: false
 
-edit: false
+edit: true
 compress: false
-method: quant
+method: sparse # sparse or quant
 
 load_ckpt: true
-ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231116_104515.pth
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231130_081747.pth
 
 save_ckpt: true

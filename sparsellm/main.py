@@ -119,6 +119,7 @@ class LLMPruningAndValidation:
         if args.save_model:
             model.save_pretrained(args.save_model)
             tokenizer.save_pretrained(args.save_model)
+        return ppl_test
     def Edit(self):
         pass
 

@@ -11,7 +11,8 @@ import copy
 import hashlib
 import yaml
 import hydra
-from utils import edit_generator, save_ckpt_meta
+from utils import edit_generator, save_ckpt_meta, evals
+from torch.utils.tensorboard import SummaryWriter
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -19,19 +20,12 @@ def main(config):
     hparams=config
     args=config
 
+    # Initialize a writer
+    writer = SummaryWriter()
     
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
 
-    for locality_key in locality_inputs.keys():
-        if isinstance(locality_inputs[locality_key]['prompt'], str):
-            locality_inputs[locality_key]['prompt'] = [locality_inputs[locality_key]['prompt'],]
-            locality_inputs[locality_key]['ground_truth'] = [locality_inputs[locality_key]['ground_truth'], ]
-        print(len(locality_inputs[locality_key]['prompt']))
-        print(len(locality_inputs[locality_key]['ground_truth']))
-        assert len(locality_inputs[locality_key]['prompt']) == len(locality_inputs[locality_key]['ground_truth']) \
-        == len(requests) or print('One Edit instance needs one locality input.....')
-    quit()
     
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -40,7 +34,7 @@ def main(config):
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
-    
+
     if config.load_ckpt:
         # Load the state_dict
         state_dict = torch.load(config.ckpt_path)
@@ -54,17 +48,17 @@ def main(config):
 
     if config.edit:
         # Check initial edit metrics
-        metrics = editable_model.evaluate(
-            model=editable_model,
-            prompts=prompts,
-            ground_truth=ground_truth,
-            target_new=target_new,
-            subject=subject,
-            rephrase_prompts=rephrase_prompt,
-            locality_inputs=locality_inputs,
-            keep_original_weight=False
-        )
-        print(metrics)
+        # metrics = editable_model.evaluate(
+        #     model=editable_model,
+        #     prompts=prompts,
+        #     ground_truth=ground_truth,
+        #     target_new=target_new,
+        #     subject=subject,
+        #     # rephrase_prompts=rephrase_prompt,
+        #     locality_inputs=locality_inputs,
+        #     keep_original_weight=False
+        # )
+        # print(metrics)
 
         # Perform edits and check metrics
         editable_model.edit(
@@ -72,7 +66,7 @@ def main(config):
             ground_truth=ground_truth,
             target_new=target_new,
             subject=subject,
-            rephrase_prompts=rephrase_prompt,
+            # rephrase_prompts=rephrase_prompt,
             locality_inputs=locality_inputs,
             keep_original_weight=False
         )
@@ -80,17 +74,7 @@ def main(config):
         # Check results
         # print(metrics)
 
-    metrics = editable_model.evaluate(
-            model=editable_model,
-            prompts=prompts,
-            ground_truth=ground_truth,
-            target_new=target_new,
-            subject=subject,
-            rephrase_prompts=rephrase_prompt,
-            locality_inputs=locality_inputs,
-            keep_original_weight=False
-        )
-    print(metrics)
+
 
     # Save parameters
     # torch.save(editable_model.state_dict(), '/scratch/sux7mp/out/checkpoint.pth')
@@ -104,7 +88,7 @@ def main(config):
     #     f"Are models identical? {generate_fingerprint(editable_model) == generate_fingerprint(model)}")
 
     # Sparsify editable model
-    pruning_and_validation = LLMPruningAndValidation(args, model)
+    pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
 
     # Prune
     if config.compress and config.method == 'prune':
@@ -115,8 +99,30 @@ def main(config):
     if config.compress and config.method == 'quant':
         pruning_and_validation.quantization()
 
+    # metrics_data = editable_model.evaluate(
+    #         model=editable_model,
+    #         prompts=prompts,
+    #         ground_truth=ground_truth,
+    #         target_new=target_new,
+    #         subject=subject,
+    #         # rephrase_prompts=rephrase_prompt,
+    #         locality_inputs=locality_inputs,
+    #         keep_original_weight=False
+    #     )
+    # average_rewrite_acc, average_locality = evals.calculate_avg(metrics_data)
+    
+
+    locality_score = evals.F1_locality(model, locality_inputs, config, max_length=512)
+    success_score = evals.calculate_edit_accuracy(model, prompts, target_new, config, max_length=512)
+    writer.add_scalar("Rewrite accuracy", success_score, 1)
+    writer.add_scalar("Locality", locality_score, 1)
+    print(f"Locality: {locality_score}")
+    print(f"Success: {success_score}")
+    # quit()
+
     # Validate
-    pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    writer.add_scalar("PPL", ppl_test, 1)
 
     # Save
     if config.save_ckpt:

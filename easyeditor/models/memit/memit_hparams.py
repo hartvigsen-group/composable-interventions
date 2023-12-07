@@ -41,7 +41,7 @@ class MEMITHyperParams(HyperParams):
     stats_dir: str
 
     max_length: int = 30
-    batch_size: int = 1
+    batch_size: int = 100
 
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):

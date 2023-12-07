@@ -11,7 +11,7 @@ from typing import List
 import numpy as np
 import torch
 # from sklearn.feature_extraction.text import TfidfVectorizer
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, LlamaTokenizer
 from ..util import HyperParams
 from .portability_evaluate import compute_portability_quality
 
@@ -251,8 +251,7 @@ def compute_locality_quality(
     locality_ground_truth: str,
     device,
 ) -> typing.Dict:
-    print('doing locality')
-    quit()
+
     if 't5' in model_name.lower():
         locality_correct = test_seq2seq_batch_prediction_acc(model, tok, hparams,
                                                                  prompt,
@@ -411,8 +410,16 @@ def test_batch_prediction_acc(model, tok, hparams, prompts, target, device, loca
         # correct_id = correct_id[:, -1].squeeze()
         ans = ans.squeeze().detach().cpu().numpy().tolist()
 
-        if locality:
-            return ans
+        tokenizer = LlamaTokenizer.from_pretrained('decapoda-research/llama-7b-hf')
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        tokenizer.padding_side='left'
+        # print(ans)
+        # print('Outputs: ', [tokenizer.decode(x) for x in logits.detach().cpu().numpy().tolist()])
+        # print(target)
+        # print(np.mean(np.equal(ans, target)))
+
+        # if locality:
+        #     return ans
 
         return np.mean(np.equal(ans, target))
 
