@@ -21,7 +21,7 @@ attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
 mom2_dataset: "wikipedia"
-mom2_n_samples: 1000
+mom2_n_samples: 100000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
@@ -55,7 +55,7 @@ edit: true
 compress: false
 method: sparse # sparse or quant
 
-load_ckpt: true
+load_ckpt: false
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231130_081747.pth
 
 save_ckpt: true

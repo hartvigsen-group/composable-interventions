@@ -113,7 +113,7 @@ def main(config):
     
 
     locality_score = evals.F1_locality(model, locality_inputs, config, max_length=512)
-    success_score = evals.calculate_edit_accuracy(model, prompts, target_new, config, max_length=512)
+    success_score = evals.calculate_edit_accuracy(model, prompts, ground_truth, config, max_length=512)
     writer.add_scalar("Rewrite accuracy", success_score, 1)
     writer.add_scalar("Locality", locality_score, 1)
     print(f"Locality: {locality_score}")
