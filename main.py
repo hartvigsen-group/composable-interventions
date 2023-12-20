@@ -35,6 +35,12 @@ def main(config):
                 device_map="auto"
             )
 
+    # locality_score = evals.F1_locality(model, locality_inputs, config)
+    # success_score = evals.calculate_edit_accuracy(model, prompts, ground_truth, config)
+    # print(f"Locality: {locality_score}")
+    # print(f"Success: {success_score}")
+    # quit()
+
     if config.load_ckpt:
         # Load the state_dict
         state_dict = torch.load(config.ckpt_path)
@@ -112,12 +118,15 @@ def main(config):
     # average_rewrite_acc, average_locality = evals.calculate_avg(metrics_data)
     
 
-    locality_score = evals.F1_locality(model, locality_inputs, config, max_length=512)
-    success_score = evals.calculate_edit_accuracy(model, prompts, ground_truth, config, max_length=512)
+    locality_score = evals.F1_locality(model, locality_inputs, config)
+    success_score = evals.calculate_edit_accuracy(model, prompts, target_new, config)
+    generalization_score = evals.calculate_edit_accuracy(model, rephrase_prompts, target_new, config)
     writer.add_scalar("Rewrite accuracy", success_score, 1)
     writer.add_scalar("Locality", locality_score, 1)
-    print(f"Locality: {locality_score}")
+    writer.add_scalar("Generalization", generalization_score, 1)
     print(f"Success: {success_score}")
+    print(f"Locality: {locality_score}")
+    print(f"Generalization: {generalization_score}")
     # quit()
 
     # Validate

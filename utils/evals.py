@@ -1,6 +1,6 @@
 import torch
 from sklearn.metrics import f1_score, accuracy_score
-from transformers import LlamaTokenizer
+from transformers import AutoTokenizer
 
 
 def calculate_avg(data):
@@ -25,7 +25,7 @@ def calculate_avg(data):
     print(f'Average Locality: {average_locality}')
 
 
-def F1_locality(model, locality_inputs, config, max_length=512):
+def F1_locality(model, locality_inputs, config):
     """
     Compute the F1 score for locality inputs using a HuggingFace PyTorch model.
 
@@ -37,8 +37,10 @@ def F1_locality(model, locality_inputs, config, max_length=512):
     """
 
     # Get tokenizer
-    tokenizer = LlamaTokenizer.from_pretrained(config.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    max_length=config.max_length
 
     # Ensure model is in evaluation mode
     model.eval()
@@ -63,6 +65,15 @@ def F1_locality(model, locality_inputs, config, max_length=512):
         # Tokenize the ground truth for comparison
         ground_truth_ids = tokenizer(ground_truth, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.view(-1)
 
+        # Decode model output
+        decoded_prediction = tokenizer.decode(predictions, skip_special_tokens=True)
+
+        # Print for comparison
+        print(f"Prompt: {prompt}")
+        print(f"Model Output: {decoded_prediction}")
+        print(f"Ground Truth: {ground_truth}")
+        print("-" * 50)  # Separator for readability
+
         # Compute F1 score
         f1 = f1_score(ground_truth_ids.cpu().numpy(), predictions.cpu().numpy(), average='weighted')
         f1_scores.append(f1)
@@ -84,7 +95,7 @@ def calculate_edit_accuracy(model, prompts, target_new, config, max_length=512):
     """
 
     # Get tokenizer
-    tokenizer = LlamaTokenizer.from_pretrained(config.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name, clean_up_tokenization_spaces=True)
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
 
@@ -113,6 +124,16 @@ def calculate_edit_accuracy(model, prompts, target_new, config, max_length=512):
         # Flatten labels and predictions
         labels_flat = labels.view(-1)
         argmaxs_flat = argmaxs.view(-1)
+
+        # Decode model output and target
+        decoded_prediction = tokenizer.decode(argmaxs_flat, skip_special_tokens=True)
+        decoded_target = tokenizer.decode(labels_flat, skip_special_tokens=True)
+
+        # Print for comparison
+        # print(f"Prompt: {prompt}")
+        # print(f"Model Output: {decoded_prediction}")
+        # print(f"Target: {decoded_target}")
+        # print("-" * 50)  # Just for better readability
 
         # Update correct and total count
         correct += (labels_flat == argmaxs_flat).float().sum()

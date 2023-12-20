@@ -114,14 +114,14 @@ class LLMPruningAndValidation:
                 ppl_test=results
         elif args.method=='sparse':
             ppl_test = eval_ppl(args, model, tokenizer, device)
-        print(f"wikitext perplexity {ppl_test['results'][args.dataset]['word_perplexity']}")
+        print(f"wikitext perplexity {ppl_test}")
 
         if not os.path.exists(args.save):
             os.makedirs(args.save)
         save_filepath = os.path.join(args.save, f"log.txt")
         with open(save_filepath, "w") as f:
             print("method\tactual_sparsity\tppl_test", file=f, flush=True)
-            print(f"{ppl_test['results'][args.dataset]['word_perplexity']:.4f}", file=f, flush=True)
+            print(f"{ppl_test:.4f}", file=f, flush=True)
 
         if args.eval_zero_shot:
             accelerate=False

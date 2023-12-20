@@ -1,6 +1,8 @@
-number_of_edits: 100
+number_of_edits: 10
 alg_name: "MEMIT"
-model_name: "decapoda-research/llama-7b-hf"
+model_name: "meta-llama/Llama-2-7b-hf"
+model: "meta-llama/Llama-2-7b-hf"
+# model: decapoda-research/llama-7b-hf
 stats_dir: "./data/stats"
 device: 0
 layers: [4, 5, 6, 7, 8]
@@ -21,14 +23,13 @@ attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
 mom2_dataset: "wikipedia"
-mom2_n_samples: 100000
+mom2_n_samples: 1000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
 batch_size: 100
 model_parallel: False
 
-model: decapoda-research/llama-7b-hf
 seed: 0
 nsamples: 128
 sparsity_ratio: 0.1
