@@ -25,64 +25,97 @@ def calculate_avg(data):
     print(f'Average Locality: {average_locality}')
 
 
-def F1_locality(model, locality_inputs, config):
-    """
-    Compute the F1 score for locality inputs using a HuggingFace PyTorch model.
-
-    :param model: The HuggingFace PyTorch model to evaluate.
-    :param locality_inputs: A dictionary with 'prompt' and 'ground_truth' keys.
-    :param tokenizer: The tokenizer associated with the model.
-    :param max_length: Maximum sequence length for tokenization.
-    :return: The average F1 score for the inputs.
-    """
-
-    # Get tokenizer
+def F1_locality_logits(model, locality_inputs, config):
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.pad_token_id = tokenizer.eos_token_id
+    max_length = config.max_length
+    model.eval()  # Ensure model is in evaluation mode
 
-    max_length=config.max_length
-
-    # Ensure model is in evaluation mode
-    model.eval()
-
-    # List to store F1 scores for each batch
-    f1_scores = []
+    f1_scores = []  # List to store F1 scores for each batch
 
     for prompt, ground_truth in zip(locality_inputs['counterfact']['prompt'], locality_inputs['counterfact']['ground_truth']):
-        # Tokenize the prompt
         input_ids = tokenizer(prompt, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.to(model.device)
-
-        # Forward pass, disable gradient calculation
+        
         with torch.no_grad():
             outputs = model(input_ids)
-
-        # Get logits from the model outputs (assuming outputs are logits)
         logits = outputs.logits
 
-        # Convert logits to predictions
         predictions = torch.argmax(logits, dim=-1).view(-1)
+        predictions_no_pad = predictions[predictions != tokenizer.pad_token_id]
+        decoded_prediction = tokenizer.decode(predictions_no_pad, skip_special_tokens=True)
 
-        # Tokenize the ground truth for comparison
         ground_truth_ids = tokenizer(ground_truth, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.view(-1)
+        ground_truth_ids_no_pad = ground_truth_ids[ground_truth_ids != tokenizer.pad_token_id]
+        decoded_ground_truth = tokenizer.decode(ground_truth_ids_no_pad, skip_special_tokens=True)
 
-        # Decode model output
-        decoded_prediction = tokenizer.decode(predictions, skip_special_tokens=True)
-
-        # Print for comparison
         print(f"Prompt: {prompt}")
         print(f"Model Output: {decoded_prediction}")
-        print(f"Ground Truth: {ground_truth}")
+        print(f"Ground Truth: {decoded_ground_truth}")
         print("-" * 50)  # Separator for readability
 
-        # Compute F1 score
-        f1 = f1_score(ground_truth_ids.cpu().numpy(), predictions.cpu().numpy(), average='weighted')
+        num_same = len(set(predictions_no_pad.cpu().numpy()).intersection(set(ground_truth_ids_no_pad.cpu().numpy())))
+        if num_same == 0 or len(predictions_no_pad) == 0:
+            f1_scores.append(0)
+            continue
+        precision = num_same / len(predictions_no_pad)
+        recall = num_same / len(ground_truth_ids_no_pad)
+        print(precision, recall)
+        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+        print(f1)
         f1_scores.append(f1)
 
-    # Return the average F1 score across all batches
-    return sum(f1_scores) / len(f1_scores)
+    print(f1_scores)
+    quit()
+    return sum(f1_scores) / len(f1_scores) if f1_scores else 0
 
 
-def calculate_edit_accuracy(model, prompts, target_new, config, max_length=512):
+def F1_locality_generate(model, locality_inputs, config):
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    max_length = config.max_length
+
+    model.eval()  # Ensure model is in evaluation mode
+
+    f1_scores = []  # List to store F1 scores for each batch
+
+    for prompt, ground_truth in zip(locality_inputs['counterfact']['prompt'], locality_inputs['counterfact']['ground_truth']):
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
+        prompt_length = input_ids.size(1)  # Number of tokens in the prompt
+
+        with torch.no_grad():
+            generated_ids = model.generate(input_ids, temperature=1e-6, max_length=max_length)
+
+        ground_truth_ids = tokenizer(ground_truth, return_tensors="pt").input_ids.view(-1)
+        generated_ids = generated_ids[:, prompt_length:prompt_length+len(ground_truth_ids)-1]
+        decoded_prediction = tokenizer.decode(generated_ids[0], skip_special_tokens=True)
+
+        decoded_ground_truth = tokenizer.decode(ground_truth_ids, skip_special_tokens=True)
+
+        print(f"Prompt: {prompt}")
+        print(f"Model Output: {decoded_prediction}")
+        print(f"Ground Truth: {decoded_ground_truth}")
+        print("-" * 50)  # Separator for readability
+
+        # Convert generated IDs and ground truth IDs to sets for comparison
+        generated_set = set(generated_ids[0].cpu().numpy())
+        ground_truth_set = set(ground_truth_ids.cpu().numpy())
+        num_same = len(generated_set.intersection(ground_truth_set))
+        
+        if num_same == 0 or len(generated_set) == 0:
+            f1_scores.append(0)
+            continue
+        precision = num_same / len(generated_set)
+        recall = num_same / len(ground_truth_set)
+        print(precision, recall)
+        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+        print(f1)
+        f1_scores.append(f1)
+
+    return sum(f1_scores) / len(f1_scores) if f1_scores else 0
+
+
+
+def calculate_edit_accuracy_logits(model, prompts, target_new, config):
     """
     Calculate the edit accuracy for given lists of prompts and ground truths using a HuggingFace PyTorch model.
 
@@ -97,7 +130,7 @@ def calculate_edit_accuracy(model, prompts, target_new, config, max_length=512):
     # Get tokenizer
     tokenizer = AutoTokenizer.from_pretrained(config.model_name, clean_up_tokenization_spaces=True)
     tokenizer.pad_token_id = tokenizer.eos_token_id
-
+    max_length = config.max_length
 
     # Ensure model is in evaluation mode
     model.eval()
@@ -143,3 +176,35 @@ def calculate_edit_accuracy(model, prompts, target_new, config, max_length=512):
     accuracy = correct / total if total > 0 else 0
 
     return accuracy.item()
+
+def calculate_edit_accuracy(model, prompts, target_new, config):
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name, clean_up_tokenization_spaces=True)
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    max_length = config.max_length
+
+    model.eval()
+
+    total = 0
+    correct = 0
+
+    for prompt, target in zip(prompts, target_new):
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
+        prompt_length = input_ids.size(1)
+
+        with torch.no_grad():
+            generated_ids = model.generate(input_ids, max_length=max_length)
+        generated_part = generated_ids[0, prompt_length:]
+        decoded_prediction = tokenizer.decode(generated_part, skip_special_tokens=True)
+
+        labels = tokenizer(target, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.to(model.device)
+        labels_flat = labels.view(-1)
+
+        decoded_target = tokenizer.decode(labels_flat, skip_special_tokens=True)
+
+        # Compute edit accuracy
+        num_same = len(set(generated_part.cpu().numpy()).intersection(set(labels_flat.cpu().numpy())))
+        total += labels_flat.size(0)
+        correct += num_same
+
+    accuracy = correct / total if total > 0 else 0
+    return accuracy

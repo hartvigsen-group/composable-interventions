@@ -67,13 +67,13 @@ def main(config):
         # print(metrics)
 
         # Perform edits and check metrics
-        editable_model.edit(
+        editable_model.batch_edit(
             prompts=prompts,
             ground_truth=ground_truth,
             target_new=target_new,
             subject=subject,
             # rephrase_prompts=rephrase_prompt,
-            locality_inputs=locality_inputs,
+            # locality_inputs=locality_inputs,
             keep_original_weight=False
         )
 
@@ -118,9 +118,9 @@ def main(config):
     # average_rewrite_acc, average_locality = evals.calculate_avg(metrics_data)
     
 
-    locality_score = evals.F1_locality(model, locality_inputs, config)
+    locality_score = evals.F1_locality_generate(model, locality_inputs, config)
     success_score = evals.calculate_edit_accuracy(model, prompts, target_new, config)
-    generalization_score = evals.calculate_edit_accuracy(model, rephrase_prompts, target_new, config)
+    generalization_score = evals.calculate_edit_accuracy(model, rephrase_prompt, target_new, config)
     writer.add_scalar("Rewrite accuracy", success_score, 1)
     writer.add_scalar("Locality", locality_score, 1)
     writer.add_scalar("Generalization", generalization_score, 1)

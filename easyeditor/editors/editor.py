@@ -598,6 +598,10 @@ class ModelEditWrapper:
     def edit(self, *args, **kwargs):
         metrics, self.model, _ = self.base_editor.edit(*args, **kwargs) # Replace the internal model with the edited model
         return metrics, self.model  # Return metrics and the edited model
+    
+    def batch_edit(self, *args, **kwargs):
+        metrics, self.model, _ = self.base_editor.batch_edit(*args, **kwargs) # Replace the internal model with the edited model
+        return metrics, self.model  # Return metrics and the edited model
 
     def evaluate(self, *args, **kwargs):
         metrics = self.base_editor.evaluate(*args, **kwargs)
