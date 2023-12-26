@@ -22,7 +22,7 @@ def main(config):
 
     # Initialize a writer
     writer = SummaryWriter()
-    
+
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
 
@@ -116,22 +116,27 @@ def main(config):
     #         keep_original_weight=False
     #     )
     # average_rewrite_acc, average_locality = evals.calculate_avg(metrics_data)
-    
 
+    # print(evals.calculate_success_metrics(model, prompts, ground_truth, target_new, locality_inputs, rephrase_prompt, config))    
+    # quit()
+
+    success_score = evals.calculate_edit_accuracy_logits(model, prompts, target_new, config)
     locality_score = evals.F1_locality_generate(model, locality_inputs, config)
-    success_score = evals.calculate_edit_accuracy(model, prompts, target_new, config)
     generalization_score = evals.calculate_edit_accuracy(model, rephrase_prompt, target_new, config)
     writer.add_scalar("Rewrite accuracy", success_score, 1)
     writer.add_scalar("Locality", locality_score, 1)
     writer.add_scalar("Generalization", generalization_score, 1)
+
+
     print(f"Success: {success_score}")
     print(f"Locality: {locality_score}")
     print(f"Generalization: {generalization_score}")
-    # quit()
 
     # Validate
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     writer.add_scalar("PPL", ppl_test, 1)
+
+    # writer.add_hparams(config, {"Rewrite accuracy": success_score, "Locality": locality_score, "Generalization": generalization_score, "PPL": ppl_test})
 
     # Save
     if config.save_ckpt:

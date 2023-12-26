@@ -1,4 +1,4 @@
-number_of_edits: 100
+number_of_edits: 10
 alg_name: "MEMIT"
 model_name: "meta-llama/Llama-2-7b-chat-hf"
 model: "meta-llama/Llama-2-7b-chat-hf"
@@ -27,7 +27,7 @@ mom2_n_samples: 1000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
-batch_size: 100
+batch_size: 10
 model_parallel: False
 
 # FT
@@ -59,11 +59,11 @@ save: out/
 save_model: null
 eval_zero_shot: false
 
-edit: true
-compress: false
-method: sparse # sparse or quant
+edit: false
+compress: true
+method: prune # prune or quant
 
-load_ckpt: false
-ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231130_081747.pth
+load_ckpt: true
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
 
 save_ckpt: true

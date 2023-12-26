@@ -208,3 +208,60 @@ def calculate_edit_accuracy(model, prompts, target_new, config):
 
     accuracy = correct / total if total > 0 else 0
     return accuracy
+
+
+def calculate_success_metrics(model, prompts, ground_truth, target_new, locality_inputs, rephrase_prompt, config):
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name, clean_up_tokenization_spaces=True)
+    model.eval()
+
+    def get_probability(text, continuation):
+        input_ids = tokenizer.encode(text, return_tensors="pt").to(model.device)
+        continuation_ids = tokenizer.encode(continuation, add_special_tokens=False, return_tensors="pt").to(model.device)
+
+        # Check if continuation_ids are empty
+        if continuation_ids.nelement() == 0:
+            print(f"Error: Empty continuation_ids for continuation '{continuation}'")
+            return 0
+
+        # Ensure batch sizes match
+        if input_ids.size(0) != continuation_ids.size(0):
+            print(f"Error: Batch size mismatch. Input IDs batch size: {input_ids.size(0)}, Continuation IDs batch size: {continuation_ids.size(0)}")
+            return 0
+
+        # Debug prints
+        print("Input IDs:", input_ids)
+        print("Continuation IDs:", continuation_ids)
+
+        with torch.no_grad():
+            outputs = model(input_ids, labels=continuation_ids)
+        logits = outputs.logits[:, -len(continuation_ids[0]):]
+        return torch.softmax(logits, dim=-1)[0, -1, continuation_ids[0][-1]].item()
+
+
+    es_count, ps_count, ns_count = 0, 0, 0
+    total = len(prompts)
+
+    for i in range(total):
+        print(f"Processing prompt {i}: {prompts[i]}")  # Debug
+        es_prob_gt = get_probability(prompts[i], ground_truth[i])
+        es_prob_tn = get_probability(prompts[i], target_new[i])
+        if es_prob_tn > es_prob_gt:
+            es_count += 1
+
+        for rephrased in rephrase_prompt[i]:
+            print(f"Rephrased prompt: {rephrased}")  # Debug
+            ps_prob_gt = get_probability(rephrased, ground_truth[i])
+            if es_prob_tn > ps_prob_gt:
+                ps_count += 1
+
+        for related in locality_inputs['counterfact']['prompt']:
+            print(f"Related prompt: {related}")  # Debug
+            ns_prob_gt = get_probability(related, locality_inputs['counterfact']['ground_truth'][i])
+            if ns_prob_gt > es_prob_gt:
+                ns_count += 1
+
+    es = es_count / total
+    ps = ps_count / total
+    ns = ns_count / total
+
+    return es, ps, ns
