@@ -13,7 +13,7 @@ def get_edits(number_of_edits=3, file_path='data/counterfact/counterfact-edit.js
     # locality_prompt = []
     # locality_ground_truth = []
     locality_inputs = {
-    'common_key': {  'counterfact' 
+    'counterfact': {
         'prompt': [],
         'ground_truth': []
     }
@@ -26,17 +26,9 @@ def get_edits(number_of_edits=3, file_path='data/counterfact/counterfact-edit.js
         target_new.append(entry['target_new'])
         subject.append(entry['subject'])
         rephrase_prompt.append(['rephrase_prompt'])
-        # locality_prompt.append(['locality_prompt'])
-        # locality_ground_truth.append(['locality_ground_truth'])
-        
-        # key = entry['case_id']
-        # locality_inputs[key] = {
-        #     'prompt': entry['prompt'],
-        #     'ground_truth': entry['ground_truth']
-        # }
 
         locality_inputs['counterfact']['prompt'].append(entry['locality_prompt'])
-        locality_inputs['common_key']['ground_truth'].append(entry['locality_ground_truth'])
+        locality_inputs['counterfact']['ground_truth'].append(entry['locality_ground_truth'])
 
     return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
 

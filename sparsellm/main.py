@@ -7,13 +7,13 @@ from importlib.metadata import version
 import copy
 from sparsellm.lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers,AverageBits
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
-from awq import AutoAWQForCausalLM
+# from sparsellm.awq import AutoAWQForCausalLM
 ###GPTQ########
-from lib.gptq import *
-from lib.modelutils import *
-from lib.quant import *
-from lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
-from awq.utils.lm_eval_adaptor import LMEvalAdaptor
+from sparsellm.lib.gptq import *
+from sparsellm.lib.modelutils import *
+from sparsellm.lib.quant import *
+from sparsellm.lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
+# from sparsellm.awq.utils.lm_eval_adaptor import LMEvalAdaptor
 DEV = torch.device('cuda:0')
 
 class LLMPruningAndValidation:
@@ -116,16 +116,16 @@ class LLMPruningAndValidation:
                         num_fewshot=0,
                     )
                 ppl_test=results
-        elif args.method=='sparse':
+        elif args.method == 'sparse' or args.method == 'prune':
             ppl_test = eval_ppl(args, model, tokenizer, device)
-        print(f"wikitext perplexity {ppl_test['results'][args.dataset]['word_perplexity']}")
+        print(f"wikitext perplexity {ppl_test}")
 
         if not os.path.exists(args.save):
             os.makedirs(args.save)
         save_filepath = os.path.join(args.save, f"log.txt")
         with open(save_filepath, "w") as f:
             print("method\tactual_sparsity\tppl_test", file=f, flush=True)
-            print(f"{ppl_test['results'][args.dataset]['word_perplexity']:.4f}", file=f, flush=True)
+            print(f"{ppl_test:.4f}", file=f, flush=True)
 
         if args.eval_zero_shot:
             accelerate=False
@@ -141,6 +141,7 @@ class LLMPruningAndValidation:
         if args.save_model:
             model.save_pretrained(args.save_model)
             tokenizer.save_pretrained(args.save_model)
+        return ppl_test
     def Edit(self):
         pass
 
