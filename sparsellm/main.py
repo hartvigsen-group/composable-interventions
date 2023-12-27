@@ -116,7 +116,7 @@ class LLMPruningAndValidation:
                         num_fewshot=0,
                     )
                 ppl_test=results
-        elif args.method=='sparse':
+        elif args.method == 'sparse' or args.method == 'prune':
             ppl_test = eval_ppl(args, model, tokenizer, device)
         print(f"wikitext perplexity {ppl_test}")
 

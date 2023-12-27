@@ -1,8 +1,9 @@
 number_of_edits: 10
 alg_name: "MEMIT"
-model_name: "meta-llama/Llama-2-7b-chat-hf"
-model: "meta-llama/Llama-2-7b-chat-hf"
-# model: decapoda-research/llama-7b-hf
+model_name: "EleutherAI/pythia-14m"
+model: "EleutherAI/pythia-14m"
+# llama: meta-llama/Llama-2-7b-chat-hf
+# pythia: "EleutherAI/pythia-14m"
 stats_dir: "./data/stats"
 device: 0
 layers: [4, 5, 6, 7, 8]
@@ -23,7 +24,7 @@ attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
 mom2_dataset: "wikipedia"
-mom2_n_samples: 1000
+mom2_n_samples: 100000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
@@ -39,7 +40,7 @@ num_steps: 25
 # Compression
 seed: 0
 nsamples: 128
-sparsity_ratio: 0.1
+sparsity_ratio: 0.3
 sparsity_type: unstructured
 prune_method: wanda
 quant_method: gptq
@@ -60,10 +61,10 @@ save_model: null
 eval_zero_shot: false
 
 edit: false
-compress: true
+compress: True
 method: prune # prune or quant
 
-load_ckpt: true
+load_ckpt: false
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
 
-save_ckpt: true
+save_ckpt: false
