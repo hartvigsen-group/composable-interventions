@@ -7,10 +7,7 @@ def get_timestamp():
     # Generates a timestamp string
     return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-def save(model, config, checkpoint_dir):
-    # Create a timestamp
-    timestamp = get_timestamp()
-
+def save(model, config, timestamp, checkpoint_dir):
     # Ensure the directory exists
     os.makedirs(checkpoint_dir, exist_ok=True)
 

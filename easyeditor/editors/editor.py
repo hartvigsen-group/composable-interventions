@@ -86,11 +86,11 @@ class BaseEditor:
                 self.tok.unk_token_id = 64787
                 # self.tok.pad_token_id = self.tok.eos_token_id
             elif 'pythia' in self.model_name.lower():
-                self.model = GPTNeoXForCausalLM.from_pretrained(
-                      "EleutherAI/pythia-70m-deduped",
-                      revision="step3000",
-                      cache_dir="./pythia-70m-deduped/step3000",
-                )
+                # self.model = GPTNeoXForCausalLM.from_pretrained(
+                #       "EleutherAI/pythia-70m-deduped",
+                #       revision="step3000",
+                #       cache_dir="./pythia-70m-deduped/step3000",
+                # )
                 self.tok = AutoTokenizer.from_pretrained(
                       "EleutherAI/pythia-70m-deduped",
                       revision="step3000",
@@ -594,9 +594,15 @@ class ModelEditWrapper:
     def __init__(self, model, hparams):
         self.model = model
         self.base_editor = BaseEditor.from_hparams(self.model, hparams)
+        if not hasattr(self.model, 'model'):
+            self.model.model = self.model.gpt_neox
 
     def edit(self, *args, **kwargs):
         metrics, self.model, _ = self.base_editor.edit(*args, **kwargs) # Replace the internal model with the edited model
+        return metrics, self.model  # Return metrics and the edited model
+    
+    def batch_edit(self, *args, **kwargs):
+        metrics, self.model, _ = self.base_editor.batch_edit(*args, **kwargs) # Replace the internal model with the edited model
         return metrics, self.model  # Return metrics and the edited model
 
     def evaluate(self, *args, **kwargs):
