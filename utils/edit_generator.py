@@ -42,13 +42,11 @@ def get_edits(number_of_edits=3, file_path='data/counterfact/counterfact-edit.js
 
 def get_edits_mquake(number_of_edits=3, file_path='data/MQuAKE/MQuAKE-CF-3k.json'):
     """
-    Create data folder with strcutr:
+    Create data folder with strcutre:
     
-    data
-        --> MQuAKE
-            ---> MQuAKE-CF-3k.json
-            ---> MQuAKE-CF.json
-            ---> MQuAKE-CF-T.json
+    data/MQuAKE/MQuAKE-CF-3k.json
+    data/MQuAKE/MQuAKE-CF.json
+    data/MQuAKE/MQuAKE-CF-T.json
     """
     
     with open(file_path, 'r') as file:
@@ -73,3 +71,47 @@ def get_edits_mquake(number_of_edits=3, file_path='data/MQuAKE/MQuAKE-CF-3k.json
         multiHop_answers.append(json_element['new_answer'])
     
     return prompts, ground_truth, target_new, subject, accuracy_prompt, multiHop_prompts, multiHop_answers
+
+def get_edits_zsre(number_of_edits=3, train=True):
+    """
+    Download data folder from: https://drive.google.com/file/d/1WRo2SqqgNtZF11Vq0sF5nL_-bHi18Wi4/view
+    From the downloaded data folder move data/zsre to composable-interventions/data/zsre
+    
+    This returns zsre train or eval data based on the train boolean param
+    """
+    
+    if train:
+        file_path='data/zsre/zsre_mend_train.json'
+    else:
+        file_path='data/zsre/zsre_mend_eval.json'
+    
+    with open(file_path, 'r') as file:
+        json_data = json.load(file)
+    
+    prompts = []
+    ground_truth = []
+    target_new = []
+    subject = []
+    rephrase_prompt = []
+    locality_inputs = {
+    'common_key': {  'zsre' 
+        'prompt': [],
+        'ground_truth': []
+        }
+    }
+    
+    for entry in json_data[:number_of_edits]:
+        prompts.append(entry['src'])
+        ground_truth.append(entry['answers'][0])
+        target_new.append(entry['alt'])
+        subject.append(entry['subject'])
+        rephrase_prompt.append(['rephrase'])
+        
+        locality_inputs['zsre']['prompt'].append(entry['loc'].split("nq question:").strip())
+        locality_inputs['common_key']['ground_truth'].append(entry['loc_ans'])
+    
+    return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
+        
+    
+    
+    
