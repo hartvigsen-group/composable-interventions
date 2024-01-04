@@ -1,4 +1,5 @@
 from sparsellm.main import LLMPruningAndValidation
+from sparsellm.lib.prune import AverageBits
 from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
 import argparse
@@ -16,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_Mistral")
+@hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config):
     hparams=config
     args=config
@@ -29,7 +30,7 @@ def main(config):
     wandb.init(
         project="prototyping",
         config=config_dict,
-        mode="disabled" # "disabled" for dry-runs, "online" for logging
+        mode="online" # "disabled" for dry-runs, "online" for logging
     )
 
     # Get edits to be made
@@ -42,6 +43,8 @@ def main(config):
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
+
+    avgbits = AverageBits(model)
     
     if config.load_ckpt:
         # Load the state_dict
@@ -52,7 +55,6 @@ def main(config):
 
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
-
 
     if config.edit:
         editable_model.batch_edit(
@@ -76,6 +78,9 @@ def main(config):
     # Quant
     if config.compress and config.method == 'quant':
         pruning_and_validation.quantization()
+        print(next(model.parameters()).device)
+        model.to(f'cuda:{hparams.device}')
+        print(next(model.parameters()).device)
 
     # Calculate and log eval metrics
     success_score = evals.f1_accuracy_generate(model, prompts, target_new, config)
@@ -91,8 +96,12 @@ def main(config):
     print(f"Locality: {locality_score}")
 
     # Validate ppl
-    ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    # ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    avgbits = AverageBits(model)
+    print(avgbits)
+    quit()
     wandb.run.summary["PPL"] = ppl_test
+    wandb.run.summary["Average bits"] = avgbits
 
     wandb.log({
     "Rewrite accuracy": success_score,

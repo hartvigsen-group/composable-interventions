@@ -62,9 +62,9 @@ eval_zero_shot: false
 
 edit: True
 compress: False
-method: quant # prune or quant
+method: prune # prune or quant
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
 
-save_ckpt: False
+save_ckpt: True
