@@ -13,7 +13,7 @@ import yaml
 import hydra
 from omegaconf import OmegaConf
 from utils import edit_generator, save_ckpt_meta, evals
-from torch.utils.tensorboard import SummaryWriter
+import wandb
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -23,12 +23,17 @@ def main(config):
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
 
-    # Initialize a writer
-    writer = SummaryWriter(log_dir=f'runs/{timestamp}')
+    # Initialize W&B (Remove layer list since it can't handle lists)
+    config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
+    config_dict.pop('layers', None) # Remove the 'layers' key
+    wandb.init(
+        project="prototyping",
+        config=config_dict,
+        mode="disabled" # "disabled" for dry-runs, "online" for logging
+    )
 
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
-
     
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -37,7 +42,7 @@ def main(config):
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
-
+    
     if config.load_ckpt:
         # Load the state_dict
         state_dict = torch.load(config.ckpt_path)
@@ -72,27 +77,29 @@ def main(config):
     if config.compress and config.method == 'quant':
         pruning_and_validation.quantization()
 
-    # Calculate eval metrics
-    success_score = evals.calculate_edit_accuracy_logits(model, prompts, target_new, config)
-    locality_score = evals.F1_locality_generate(model, locality_inputs, config)
-    generalization_score = evals.calculate_edit_accuracy(model, rephrase_prompt, target_new, config)
-    writer.add_scalar("Rewrite accuracy", success_score, 1)
-    writer.add_scalar("Locality", locality_score, 1)
-    writer.add_scalar("Generalization", generalization_score, 1)
+    # Calculate and log eval metrics
+    success_score = evals.f1_accuracy_generate(model, prompts, target_new, config)
+    generalization_score = evals.f1_accuracy_generate(model, rephrase_prompt, target_new, config)
+    locality_score = evals.f1_locality_generate(model, locality_inputs, config)
+    wandb.run.summary["Rewrite accuracy"] = success_score
+    wandb.run.summary["Generalization"] = generalization_score
+    wandb.run.summary["Locality"] = locality_score
 
     # Print eval metrics
     print(f"Success: {success_score}")
-    print(f"Locality: {locality_score}")
     print(f"Generalization: {generalization_score}")
+    print(f"Locality: {locality_score}")
 
     # Validate ppl
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
-    writer.add_scalar("PPL", ppl_test, 1)
+    wandb.run.summary["PPL"] = ppl_test
 
-    # Save the hparams and metrics to tensorboard (Remove layer list since it can't handle lists)
-    config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
-    config_dict.pop('layers', None) # Remove the 'layers' key
-    writer.add_hparams(config_dict, {"Rewrite accuracy": success_score, "Locality": locality_score, "Generalization": generalization_score, "PPL": ppl_test})
+    wandb.log({
+    "Rewrite accuracy": success_score,
+    "Generalization": generalization_score,
+    "Locality": locality_score,
+    "PPL": ppl_test
+    })
 
     # Save checkpoint and metadata
     if config.save_ckpt:
