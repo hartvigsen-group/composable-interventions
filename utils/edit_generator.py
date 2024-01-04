@@ -25,7 +25,7 @@ def get_edits(number_of_edits=3, file_path='data/counterfact/counterfact-edit.js
         ground_truth.append(entry['ground_truth'])
         target_new.append(entry['target_new'])
         subject.append(entry['subject'])
-        rephrase_prompt.append(['rephrase_prompt'])
+        rephrase_prompt.append(entry['rephrase_prompt'])
 
         locality_inputs['counterfact']['prompt'].append(entry['locality_prompt'])
         locality_inputs['counterfact']['ground_truth'].append(entry['locality_ground_truth'])

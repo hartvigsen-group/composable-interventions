@@ -410,7 +410,7 @@ def test_batch_prediction_acc(model, tok, hparams, prompts, target, device, loca
         # correct_id = correct_id[:, -1].squeeze()
         ans = ans.squeeze().detach().cpu().numpy().tolist()
 
-        tokenizer = LlamaTokenizer.from_pretrained('decapoda-research/llama-7b-hf')
+        tokenizer = LlamaTokenizer.from_pretrained('meta-llama/Llama-2-7b-chat-hf')
         tokenizer.pad_token_id = tokenizer.eos_token_id
         tokenizer.padding_side='left'
         # print(ans)

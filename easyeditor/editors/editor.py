@@ -10,7 +10,7 @@ import numpy as np
 
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
-from transformers import LlamaTokenizer, LlamaForCausalLM
+from transformers import LlamaTokenizer, LlamaForCausalLM, LlamaTokenizerFast
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from transformers import GPT2TokenizerFast, GPT2Tokenizer
 from transformers import GPTNeoXForCausalLM
@@ -97,10 +97,14 @@ class BaseEditor:
                       cache_dir="./pythia-70m-deduped/step3000",
                 )
                 self.tok.pad_token_id = self.tok.eos_token_id
+            elif 'mistral' in self.model_name.lower():
+                self.tok = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-v0.1")
+                print(type(self.tok).__name__)
+                self.tok.pad_token_id = self.tok.eos_token_id
             else:
                 raise NotImplementedError
 
-            if self.tok is not None and (isinstance(self.tok, GPT2Tokenizer) or isinstance(self.tok, GPT2TokenizerFast) or isinstance(self.tok, LlamaTokenizer)) and (hparams.alg_name not in ['ROME', 'MEMIT']):
+            if self.tok is not None and (isinstance(self.tok, GPT2Tokenizer) or isinstance(self.tok, GPT2TokenizerFast) or isinstance(self.tok, LlamaTokenizerFast) or isinstance(self.tok, LlamaTokenizer)) and (hparams.alg_name not in ['ROME', 'MEMIT']):
                 LOG.info('AutoRegressive Model detected, set the padding side of Tokenizer to left...')
                 self.tok.padding_side = 'left'
         else:
