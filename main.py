@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config_SERAC")
 def main(config):
     hparams=config
     args=config
@@ -30,8 +30,26 @@ def main(config):
     wandb.init(
         project="prototyping",
         config=config_dict,
-        mode="online" # "disabled" for dry-runs, "online" for logging
+        mode="disabled" # "disabled" for dry-runs, "online" for logging
     )
+
+    if config.edit_train:
+        # edit methods that requires training extra modules
+        if config.alg_name =='SERAC':
+            from easyeditor import SERACTrainingHparams
+            from easyeditor import ZsreDataset
+            from easyeditor import EditTrainer
+            hparams.edit_config.archive = None
+            training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
+            print("warning! we need to decide the dataset to use for training serac")
+            train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)
+            eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval_debug.json', config=training_hparams)
+            trainer = EditTrainer(
+                config=training_hparams,
+                train_set=train_ds,
+                val_set=eval_ds
+            )
+            trainer.run()
 
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
@@ -44,7 +62,7 @@ def main(config):
                 device_map="auto"
             )
 
-    avgbits = AverageBits(model)
+    # avgbits = AverageBits(model)
     
     if config.load_ckpt:
         # Load the state_dict
@@ -66,9 +84,10 @@ def main(config):
             # locality_inputs=locality_inputs,
             keep_original_weight=False
         )
-
+    print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
+    
     # Sparsify editable model
-    pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
+    # pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
 
     # Prune
     if config.compress and config.method == 'prune':
@@ -95,6 +114,7 @@ def main(config):
     print(f"Generalization: {generalization_score}")
     print(f"Locality: {locality_score}")
 
+    exit()
     # Validate ppl
     # ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     avgbits = AverageBits(model)
