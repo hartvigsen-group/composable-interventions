@@ -33,3 +33,5 @@ method: prune # prune or quant
 seed: 0
 save_ckpt: false
 save: out/
+
+edit_train: false

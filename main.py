@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_SERAC")
+@hydra.main(version_base=None, config_path="conf", config_name="config_MEND")
 def main(config):
     hparams=config
     args=config
@@ -35,20 +35,22 @@ def main(config):
 
     if config.edit_train:
         # edit methods that requires training extra modules
+        from easyeditor import ZsreDataset
+        from easyeditor import EditTrainer
+        from easyeditor import SERACTrainingHparams, MENDTrainingHparams
         if config.alg_name =='SERAC':
-            from easyeditor import SERACTrainingHparams
-            from easyeditor import ZsreDataset
-            from easyeditor import EditTrainer
             training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
-            print("warning! we need to decide the dataset to use for training serac")
-            train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)
-            eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval_debug.json', config=training_hparams)
-            trainer = EditTrainer(
-                config=training_hparams,
-                train_set=train_ds,
-                val_set=eval_ds
-            )
-            trainer.run()
+        elif config.alg_name =='MEND':
+            training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
+        print("warning! we need to decide the dataset to use for training serac and mend")
+        train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)
+        eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval_debug.json', config=training_hparams)
+        trainer = EditTrainer(
+            config=training_hparams,
+            train_set=train_ds,
+            val_set=eval_ds
+        )
+        trainer.run()
 
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)

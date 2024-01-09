@@ -69,3 +69,5 @@ load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
 
 save_ckpt: True
+
+edit_train: false
