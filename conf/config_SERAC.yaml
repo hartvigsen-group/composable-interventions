@@ -1,0 +1,181 @@
+number_of_edits: 10
+alg_name: "SERAC"
+archive: ./results/models/SERAC/Llama-2-7b-chat-hf.bk
+model_name: meta-llama/Llama-2-7b-chat-hf
+model: meta-llama/Llama-2-7b-chat-hf
+device: 0
+
+
+
+
+# alg_name: "SERAC"
+# device: 0
+# archive: ./results/models/SERAC/Llama-2-7b-chat-hf.bk
+# model_name: meta-llama/Llama-2-7b-chat-hf
+
+model_class: LlamaForCausalLM
+small_name: Cheng98/llama-160m 
+tokenizer_class: LlamaTokenizer
+tokenizer_name: meta-llama/Llama-2-7b-chat-hf
+cls_name: distilbert-base-cased
+cls_class: AutoModel
+inner_params: []
+max_length: 40
+
+# Method
+alg: SERAC
+lr: 1e-5
+edit_lr: 1e-2
+seed: 0
+lr_lr: 0.0
+cedit: 0.1
+cloc: 1.0
+cbase: 1.0
+dropout: 0.0
+final_eval: True
+supervised: false
+train_base: False
+no_grad_layers: null
+soft_weighting: false
+checkpoint_grad: false
+cross_attend: false
+cos: false
+freeze: null
+square: true
+bound_embeds: false
+use_all_negatives: false
+freeze_cntr: false
+dist_heads: 1
+lora: null
+
+batch_size: 1
+model_save_pt: 500
+edit_bs: 1
+silent: False
+#max_epochs: 1
+max_iters: 10000
+log_interval: 500
+val_interval: 500
+early_stop_patience: 40000
+early_stop_key: "loss/total_edit_val"
+eval_only: False
+half: False
+save: False
+debug: False
+log_errors: False
+unlikelihood: True
+
+
+val_batch_size: 1
+accumulate_bs: 10
+val_steps: 500
+opt: Adam
+grad_clip: 100.
+
+# Output
+results_dir: ./results
+
+
+# https://github.com/zjunlp/EasyEdit/issues/123
+edit_train: True
+edit_train_config:
+  # alg_name: "SERAC"
+  model_name: meta-llama/Llama-2-7b-chat-hf
+
+  model_class: LlamaForCausalLM
+  small_name: Cheng98/llama-160m 
+  tokenizer_class: LlamaTokenizer
+  tokenizer_name: meta-llama/Llama-2-7b-chat-hf
+  cls_name: distilbert-base-cased
+  cls_class: AutoModel
+  inner_params: []
+
+  archive: null
+
+  # Method
+  alg: SERAC
+  lr: 1e-5
+  edit_lr: 1e-2
+  seed: 0
+  lr_lr: 0.0
+  cedit: 0.1
+  cloc: 1.0
+  cbase: 1.0
+  dropout: 0.0
+  final_eval: True
+  supervised: False
+  train_base: False
+  no_grad_layers: null
+  soft_weighting: False
+  checkpoint_grad: False
+  cross_attend: False
+  cos: False
+  freeze: null
+  square: True
+  bound_embeds: False
+  use_all_negatives: False
+  freeze_cntr: False
+  dist_heads: 1
+  lora: null
+
+  device: cuda:0
+  batch_size: 10
+  # model_save_pt: 1000
+  model_save_pt: 500
+  edit_bs: 1
+  silent: False
+  #max_epochs: 1
+  # max_iters: 100000
+  max_iters: 500
+  log_interval: 1000
+  val_interval: 1000
+  early_stop_patience: 30000
+  early_stop_key: "edit/acc_val"
+  eval_only: False
+  half: False
+  save: False
+  debug: False
+  log_errors: False
+  unlikelihood: True
+
+
+  val_batch_size: 1
+  accumulate_bs: 10
+  val_steps: 1000
+  opt: Adam
+  grad_clip: 100.
+
+  # Output
+  results_dir: results
+
+
+# # Compression
+# nsamples: 128
+# sparsity_ratio: 0.3
+# sparsity_type: unstructured
+# prune_method: wanda
+# quant_method: gptq
+# dataset: c4
+# percdamp: 0.01
+# wbits: 8
+# groupsize: -1
+# sym: true
+# nearest: false
+# new_eval: false
+# act_order: false
+# true_sequential: false
+# static_groups: false
+# cache_dir: /scratch/sux7mp/llm_weights
+# use_variant: false
+# save: out/
+# save_model: null
+# eval_zero_shot: false
+
+edit: True
+compress: False
+method: prune # prune or quant
+
+load_ckpt: False
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
+
+save_ckpt: True

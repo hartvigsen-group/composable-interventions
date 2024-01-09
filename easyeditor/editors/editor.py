@@ -117,6 +117,10 @@ class BaseEditor:
         # self.model.parallelize(device_map=device_map)
         if hasattr(hparams, 'device'):
             self.model.to(f'cuda:{hparams.device}')
+            # if 'cuda' not in hparams.device:
+            #     self.model.to(f'cuda:{hparams.device}')
+            # else:
+            #     self.model.to(hparams.device)
 
         self.hparams = hparams
 
