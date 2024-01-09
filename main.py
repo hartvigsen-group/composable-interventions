@@ -39,7 +39,6 @@ def main(config):
             from easyeditor import SERACTrainingHparams
             from easyeditor import ZsreDataset
             from easyeditor import EditTrainer
-            hparams.edit_config.archive = None
             training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
             print("warning! we need to decide the dataset to use for training serac")
             train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)

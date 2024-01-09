@@ -77,9 +77,9 @@ results_dir: ./results
 
 
 # https://github.com/zjunlp/EasyEdit/issues/123
-edit_train: False
+edit_train: True
 edit_train_config:
-  alg_name: "SERAC"
+  # alg_name: "SERAC"
   model_name: meta-llama/Llama-2-7b-chat-hf
 
   model_class: LlamaForCausalLM
