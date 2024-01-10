@@ -1,9 +1,13 @@
 import json
 
-def get_edits(number_of_edits=3, file_path='data/counterfact/counterfact-edit.json'):
+def get_edits(number_of_edits=3, edit_set=1, file_path='data/counterfact/counterfact-edit.json'):
     # Assuming your JSON data is stored in a file named 'data.json'
     with open(file_path, 'r') as file:
         json_data = json.load(file)
+
+    # Calculate start and end indices for the edits
+    start_index = (edit_set - 1) * number_of_edits
+    end_index = start_index + number_of_edits
 
     prompts = []
     ground_truth = []
@@ -20,7 +24,7 @@ def get_edits(number_of_edits=3, file_path='data/counterfact/counterfact-edit.js
 }
 
     # Extracting the first N edits
-    for entry in json_data[:number_of_edits]:
+    for entry in json_data[start_index:end_index]:
         prompts.append(entry['prompt'])
         ground_truth.append(entry['ground_truth'])
         target_new.append(entry['target_new'])

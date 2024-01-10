@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_MEND")
+@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
 def main(config):
     hparams=config
     args=config
@@ -30,7 +30,8 @@ def main(config):
     wandb.init(
         project="prototyping",
         config=config_dict,
-        mode="disabled" # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
+        tags=["exp_none"] # List of tags
     )
 
     if config.edit_train:
@@ -53,8 +54,8 @@ def main(config):
         trainer.run()
 
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
-    
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits, edit_set=config.edit_set)
+
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
@@ -85,10 +86,11 @@ def main(config):
             # locality_inputs=locality_inputs,
             keep_original_weight=False
         )
-    print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
+    if config.alg_name =='SERAC':
+        print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
     
     # Sparsify editable model
-    # pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
+    pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
 
     # Prune
     if config.compress and config.method == 'prune':
@@ -115,12 +117,11 @@ def main(config):
     print(f"Generalization: {generalization_score}")
     print(f"Locality: {locality_score}")
 
-    exit()
     # Validate ppl
-    # ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     avgbits = AverageBits(model)
     print(avgbits)
-    quit()
+
     wandb.run.summary["PPL"] = ppl_test
     wandb.run.summary["Average bits"] = avgbits
 

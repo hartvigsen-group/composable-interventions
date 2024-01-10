@@ -1,4 +1,5 @@
-number_of_edits: 10
+number_of_edits: 50
+edit_set: 2
 alg_name: "MEMIT"
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
@@ -25,11 +26,11 @@ attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
 mom2_dataset: "wikipedia"
-mom2_n_samples: 1000
+mom2_n_samples: 10000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
-batch_size: 10
+batch_size: 50
 model_parallel: False
 
 # # FT
@@ -61,7 +62,7 @@ save: out/
 save_model: null
 eval_zero_shot: false
 
-edit: True
+edit: False
 compress: False
 method: prune # prune or quant
 
