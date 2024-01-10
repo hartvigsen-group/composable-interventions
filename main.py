@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
 def main(config):
     hparams=config
     args=config
@@ -30,12 +30,32 @@ def main(config):
     wandb.init(
         project="prototyping",
         config=config_dict,
-        mode="online" # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
+        tags=["exp_none"] # List of tags
     )
 
+    if config.edit_train:
+        # edit methods that requires training extra modules
+        from easyeditor import ZsreDataset
+        from easyeditor import EditTrainer
+        from easyeditor import SERACTrainingHparams, MENDTrainingHparams
+        if config.alg_name =='SERAC':
+            training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
+        elif config.alg_name =='MEND':
+            training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
+        print("warning! we need to decide the dataset to use for training serac and mend")
+        train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)
+        eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval_debug.json', config=training_hparams)
+        trainer = EditTrainer(
+            config=training_hparams,
+            train_set=train_ds,
+            val_set=eval_ds
+        )
+        trainer.run()
+
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits)
-    
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits, edit_set=config.edit_set)
+
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
@@ -44,7 +64,7 @@ def main(config):
                 device_map="auto"
             )
 
-    avgbits = AverageBits(model)
+    # avgbits = AverageBits(model)
     
     if config.load_ckpt:
         # Load the state_dict
@@ -66,7 +86,9 @@ def main(config):
             # locality_inputs=locality_inputs,
             keep_original_weight=False
         )
-
+    if config.alg_name =='SERAC':
+        print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
+    
     # Sparsify editable model
     pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
 
@@ -96,10 +118,10 @@ def main(config):
     print(f"Locality: {locality_score}")
 
     # Validate ppl
-    # ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     avgbits = AverageBits(model)
     print(avgbits)
-    quit()
+
     wandb.run.summary["PPL"] = ppl_test
     wandb.run.summary["Average bits"] = avgbits
 

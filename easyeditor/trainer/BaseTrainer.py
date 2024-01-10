@@ -93,7 +93,7 @@ class BaseTrainer:
 
 
         model_dir = os.path.join(config.results_dir, "models", config.alg)
-        if (not (self.config.debug and not self.config.save) and not os.path.exists(model_dir)):
+        if not (self.config.debug and not self.config.save) and not os.path.exists(model_dir):
             os.makedirs(model_dir)
         safe_model_name = self.config.model_name.split("/")[-1]  # Make sure no slashes
         self.save_path = f"{model_dir}/{safe_model_name}"
@@ -156,6 +156,7 @@ class BaseTrainer:
 
 
         self.global_iter = 0
+        self.epoches = max(1,self.epoches) # avoid the max iter smaller than train_set len
         for epoch in range(self.epoches):
             for i, batch in enumerate(self.train_loader):
                 self.global_iter += 1
