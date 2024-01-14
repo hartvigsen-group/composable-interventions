@@ -63,8 +63,6 @@ def get_c4(nsamples, seed, seqlen, tokenizer):
     valenc = tokenizer(' '.join(valdata[:1100]['text']), return_tensors='pt')
     valenc = valenc.input_ids[:, :(256 * seqlen)]
     valenc = TokenizerWrapper(valenc)
-    torch.save(trainloader, '/home/sux7mp/development/composable-interventions/data/trainloader.pth')
-    torch.save(valenc, '/home/sux7mp/development/composable-interventions/data/valenc.pth')
     return trainloader, valenc
 
 # Function to select the appropriate loader based on dataset name
