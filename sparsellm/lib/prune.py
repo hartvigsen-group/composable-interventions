@@ -28,11 +28,48 @@ def find_layers(module, layers=[nn.Linear], name=''):
             child, layers=layers, name=name + '.' + name1 if name != '' else name1
         ))
     return res
+
+def check_sparsity(model):
+    use_cache = model.config.use_cache 
+    model.config.use_cache = False 
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers
+    count = 0 
+    total_params = 0
+    for i in range(len(layers)):
+        layer = layers[i]
+        subset = find_layers(layer)
+
+        sub_count = 0
+        sub_params = 0
+        for name in subset:
+            W = subset[name].weight.data
+            count += (W==0).sum().item()
+            total_params += W.numel()
+
+            sub_count += (W==0).sum().item()
+            sub_params += W.numel()
+
+        print(f"layer {i} sparsity {float(sub_count)/sub_params:.6f}")
+
+    model.config.use_cache = use_cache 
+    return float(count)/total_params 
+
 def AverageBits(model):
     use_cache = model.config.use_cache 
     model.config.use_cache = False 
 
-    layers = model.model.layers
+    #layers = model.model.layers
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers
     count = 0 
     total_params = 0
     for i in range(len(layers)):
@@ -55,37 +92,18 @@ def AverageBits(model):
 
     model.config.use_cache = use_cache 
     return float(count)/total_params 
-    
-def check_sparsity(model):
-    use_cache = model.config.use_cache 
-    model.config.use_cache = False 
 
-    layers = model.model.layers
-    count = 0 
-    total_params = 0
-    for i in range(len(layers)):
-        layer = layers[i]
-        subset = find_layers(layer)
-
-        sub_count = 0
-        sub_params = 0
-        for name in subset:
-            W = subset[name].weight.data
-            count += (W==0).sum().item()
-            total_params += W.numel()
-
-            sub_count += (W==0).sum().item()
-            sub_params += W.numel()
-
-        print(f"layer {i} sparsity {float(sub_count)/sub_params:.6f}")
-
-    model.config.use_cache = use_cache 
-    return float(count)/total_params 
 
 def prepare_calibration_input(model, dataloader, device):
     use_cache = model.config.use_cache
     model.config.use_cache = False
-    layers = model.model.layers
+    #layers = model.model.layers
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers
 
     # dev = model.hf_device_map["model.embed_tokens"]
     if "model.embed_tokens" in model.hf_device_map:
@@ -100,13 +118,17 @@ def prepare_calibration_input(model, dataloader, device):
         def __init__(self, module):
             super().__init__()
             self.module = module
-        def forward(self, inp, **kwargs):
+        def forward(self, inp=None, **kwargs):
+            #print(inp)
+            #print(**kwargs)
             inps[cache['i']] = inp
             cache['i'] += 1
             cache['attention_mask'] = kwargs['attention_mask']
             cache['position_ids'] = kwargs['position_ids']
             raise ValueError
+    #print(layers[0])
     layers[0] = Catcher(layers[0])
+    #print(model)
     for batch in dataloader:
         try:
             model(batch[0].to(device))
@@ -130,7 +152,13 @@ def return_given_alpha(alpha, sort_res, W_metric, tmp_metric, sum_before):
     return W_mask, cur_sparsity
 
 def prune_magnitude(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
-    layers = model.model.layers 
+    #layers = model.model.layers
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers 
     Masks={}
     for i in range(len(layers)):
         layer = layers[i]
@@ -158,12 +186,17 @@ def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0
     model.config.use_cache = False 
 
     print("loading calibdation data")
-    dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
+    dataloader, _ = get_loaders(args.dataset,nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
     print("dataset loading complete")
     with torch.no_grad():
         inps, outs, attention_mask, position_ids = prepare_calibration_input(model, dataloader, device)
 
-    layers = model.model.layers
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers
     Masks={}
     for i in range(len(layers)):
         layer = layers[i]
@@ -186,7 +219,7 @@ def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0
         for name in wrapped_layers:
             handles.append(subset[name].register_forward_hook(add_batch(name)))
         for j in range(args.nsamples):
-            print("layer at",i,"samplings at",j)
+            #print("layer at",i,"samplings at",j)
             with torch.no_grad():
                 outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
         for h in handles:
@@ -251,7 +284,12 @@ def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     use_cache = model.config.use_cache
     model.config.use_cache = False
-    layers = model.model.layers
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers
 
     if "model.embed_tokens" in model.hf_device_map:
         dev = model.hf_device_map["model.embed_tokens"]
@@ -351,7 +389,12 @@ def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     use_cache = model.config.use_cache
     model.config.use_cache = False
-    layers = model.model.layers
+    if model.config.model_type=='gptj':
+        layers=model.transformer.h
+    elif model.config.model_type=='gpt_neox':
+        layers=model.gpt_neox.layers
+    else:
+        layers = model.model.layers
 
     if "model.embed_tokens" in model.hf_device_map:
         dev = model.hf_device_map["model.embed_tokens"]

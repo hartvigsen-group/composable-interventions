@@ -1,4 +1,4 @@
-from sparsellm.main import LLMPruningAndValidation
+from main_quantize import LLMPruningAndValidation
 from sparsellm.lib.prune import AverageBits
 from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
@@ -31,7 +31,7 @@ def main(config):
         project="prototyping",
         config=config_dict,
         mode="online", # "disabled" for dry-runs, "online" for logging
-        tags=["exp_none"] # List of tags
+        tags=["exp_wanda35"] # List of tags
     )
 
     if config.edit_train:
@@ -64,7 +64,6 @@ def main(config):
                 device_map="auto"
             )
 
-    # avgbits = AverageBits(model)
     
     if config.load_ckpt:
         # Load the state_dict
@@ -119,11 +118,19 @@ def main(config):
 
     # Validate ppl
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
-    avgbits = AverageBits(model)
-    print(avgbits)
+    avgbits = pruning_and_validation.average_bits()
+    pruning_and_validation.sparsity_check()
+    if args.method != 'quant':
+        flops = pruning_and_validation.FLOPs()
+    else: flops = -1
+    if args.method == 'quant':
+        latency = pruning_and_validation.CalculateLatency()
+    else: latency = -1
 
     wandb.run.summary["PPL"] = ppl_test
     wandb.run.summary["Average bits"] = avgbits
+    wandb.run.summary["FLOPs"] = flops
+    wandb.run.summary["Latency"] = latency
 
     wandb.log({
     "Rewrite accuracy": success_score,
