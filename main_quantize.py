@@ -334,8 +334,11 @@ class LLMPruningAndValidation:
         if args.save_model:
             model.save_pretrained(args.save_model)
             tokenizer.save_pretrained(args.save_model)
+        return ppl_test
+
     def Edit(self):
         pass
+    
 def get_args(parser):
     parser.add_argument('--model', type=str, help='LLaMA model')
     parser.add_argument('--seed', type=int, default=0, help='Seed for sampling the calibration data.')

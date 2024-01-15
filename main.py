@@ -31,7 +31,7 @@ def main(config):
         project="prototyping",
         config=config_dict,
         mode="online", # "disabled" for dry-runs, "online" for logging
-        tags=["exp_wanda35"] # List of tags
+        tags=["exp_wanda25"] # List of tags
     )
 
     if config.edit_train:
@@ -99,9 +99,7 @@ def main(config):
     # Quant
     if config.compress and config.method == 'quant':
         pruning_and_validation.quantization()
-        print(next(model.parameters()).device)
         model.to(f'cuda:{hparams.device}')
-        print(next(model.parameters()).device)
 
     # Calculate and log eval metrics
     success_score = evals.f1_accuracy_generate(model, prompts, target_new, config)
