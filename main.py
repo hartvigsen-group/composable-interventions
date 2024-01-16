@@ -30,8 +30,8 @@ def main(config):
     wandb.init(
         project="prototyping",
         config=config_dict,
-        mode="online", # "disabled" for dry-runs, "online" for logging
-        tags=["exp_wanda25"] # List of tags
+        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        tags=[config.tag] # List of tags
     )
 
     if config.edit_train:
@@ -54,7 +54,7 @@ def main(config):
         trainer.run()
 
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits, edit_set=config.edit_set)
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -121,7 +121,7 @@ def main(config):
     if args.method != 'quant':
         flops = pruning_and_validation.FLOPs()
     else: flops = -1
-    if args.method == 'quant':
+    if args.method != 'prune':
         latency = pruning_and_validation.CalculateLatency()
     else: latency = -1
 

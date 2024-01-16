@@ -88,6 +88,7 @@ class LLMPruningAndValidation:
         if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':
+                self.model4Quant=model
                 self.model4Quant.model=model
                 self.model4Quant.model.seqlen=self.model4Quant.model.config.max_position_embeddings
             #else:    
