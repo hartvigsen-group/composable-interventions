@@ -30,7 +30,7 @@ def main(config):
     wandb.init(
         project="prototyping",
         config=config_dict,
-        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
