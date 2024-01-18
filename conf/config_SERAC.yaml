@@ -3,6 +3,7 @@ alg_name: "SERAC"
 archive: ./results/models/SERAC/Llama-2-7b-chat-hf.bk
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
+tag: seractest
 device: 0
 
 

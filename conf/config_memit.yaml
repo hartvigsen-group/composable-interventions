@@ -1,12 +1,14 @@
 number_of_edits: 50
-edit_set: 2
+edit_set: 1
 alg_name: "MEMIT"
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
+edit_dataset: "zsre"
 stats_dir: "./data/stats"
 device: 0
+tag: "default"
 
 layers: [4, 5, 6, 7, 8]
 clamp_norm_factor: 4
@@ -26,7 +28,7 @@ attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
 mom2_dataset: "wikipedia"
-mom2_n_samples: 100000
+mom2_n_samples: 10000
 mom2_dtype: "float32"
 # model_parallel: false
 max_length: 40
@@ -44,7 +46,7 @@ seed: 0
 nsamples: 128
 sparsity_ratio: 0.3
 sparsity_type: unstructured
-prune_method: wanda
+prune_method: sparsegpt # wanda or sparsegpt
 quant_method: gptq
 dataset: c4
 percdamp: 0.01
@@ -63,7 +65,7 @@ save_model: null
 eval_zero_shot: false
 
 edit: False
-compress: True
+compress: False
 method: prune # prune or quant
 
 load_ckpt: False

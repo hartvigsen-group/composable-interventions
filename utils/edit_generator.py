@@ -1,6 +1,18 @@
 import json
 
-def get_edits(number_of_edits=3, edit_set=1, file_path='data/counterfact/counterfact-edit.json'):
+
+def get_edits(dataset, *args, **kwargs):
+        if dataset == 'zsre':
+            return get_edits_zsre(*args, **kwargs)
+        elif dataset == 'mquake':
+            return get_edits_mquake(*args, **kwargs)
+        elif dataset == 'counterfact':
+            return get_edits_counterfact(*args, **kwargs)
+        else:
+            raise ValueError(f"Unknown dataset: {dataset}")
+        
+
+def get_edits_counterfact(number_of_edits=3, edit_set=1, file_path='data/counterfact/counterfact-edit.json'):
     # Assuming your JSON data is stored in a file named 'data.json'
     with open(file_path, 'r') as file:
         json_data = json.load(file)
@@ -17,7 +29,7 @@ def get_edits(number_of_edits=3, edit_set=1, file_path='data/counterfact/counter
     # locality_prompt = []
     # locality_ground_truth = []
     locality_inputs = {
-    'counterfact': {
+    'data': {
         'prompt': [],
         'ground_truth': []
     }
@@ -31,8 +43,8 @@ def get_edits(number_of_edits=3, edit_set=1, file_path='data/counterfact/counter
         subject.append(entry['subject'])
         rephrase_prompt.append(entry['rephrase_prompt'])
 
-        locality_inputs['counterfact']['prompt'].append(entry['locality_prompt'])
-        locality_inputs['counterfact']['ground_truth'].append(entry['locality_ground_truth'])
+        locality_inputs['data']['prompt'].append(entry['locality_prompt'])
+        locality_inputs['data']['ground_truth'].append(entry['locality_ground_truth'])
 
     return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
 
@@ -68,7 +80,7 @@ def get_edits_mquake(number_of_edits=3, file_path='data/MQuAKE/MQuAKE-CF-3k.json
     
     return prompts, ground_truth, target_new, subject, accuracy_prompt, multiHop_prompts, multiHop_answers
 
-def get_edits_zsre(number_of_edits=3, train=True):
+def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
     """
     Download data folder from: https://drive.google.com/file/d/1WRo2SqqgNtZF11Vq0sF5nL_-bHi18Wi4/view
     From the downloaded data folder move data/zsre to composable-interventions/data/zsre
@@ -84,27 +96,31 @@ def get_edits_zsre(number_of_edits=3, train=True):
     with open(file_path, 'r') as file:
         json_data = json.load(file)
     
+    # Calculate start and end indices for the edits
+    start_index = (edit_set - 1) * number_of_edits
+    end_index = start_index + number_of_edits
+
     prompts = []
     ground_truth = []
     target_new = []
     subject = []
     rephrase_prompt = []
     locality_inputs = {
-    'common_key': {  'zsre' 
+    'data': {
         'prompt': [],
         'ground_truth': []
-        }
     }
+}
     
-    for entry in json_data[:number_of_edits]:
+    for entry in json_data[start_index:end_index]:
         prompts.append(entry['src'])
         ground_truth.append(entry['answers'][0])
         target_new.append(entry['alt'])
         subject.append(entry['subject'])
-        rephrase_prompt.append(['rephrase'])
+        rephrase_prompt.append(entry['rephrase'])
         
-        locality_inputs['zsre']['prompt'].append(entry['loc'].split("nq question:").strip())
-        locality_inputs['common_key']['ground_truth'].append(entry['loc_ans'])
+        locality_inputs['data']['prompt'].append(entry['loc'].split("nq question:")[1].strip())
+        locality_inputs['data']['ground_truth'].append(entry['loc_ans'])
     
     return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
         

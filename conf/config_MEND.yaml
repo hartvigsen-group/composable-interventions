@@ -1,6 +1,6 @@
 number_of_edits: 10
 alg_name: "MEND"
-archive: results/SERAC/llama-2-7b.bk
+# archive: results/SERAC/llama-2-7b.bk
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
 device: 0
@@ -8,6 +8,7 @@ archive: ./results/models/MEND/llama-2-7b-ZsRE
 model_class: LlamaForCausalLM
 tokenizer_class: LlamaTokenizer
 tokenizer_name: meta-llama/Llama-2-7b-chat-hf
+tag: mendtest
 # Model
 
 inner_params:

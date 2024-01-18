@@ -28,10 +28,10 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="prototyping",
+        project="prototype",
         config=config_dict,
-        mode="online", # "disabled" for dry-runs, "online" for logging
-        tags=["exp_wanda35"] # List of tags
+        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        tags=[config.tag] # List of tags
     )
 
     if config.edit_train:
@@ -54,7 +54,7 @@ def main(config):
         trainer.run()
 
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(number_of_edits=config.number_of_edits, edit_set=config.edit_set)
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -99,9 +99,7 @@ def main(config):
     # Quant
     if config.compress and config.method == 'quant':
         pruning_and_validation.quantization()
-        print(next(model.parameters()).device)
         model.to(f'cuda:{hparams.device}')
-        print(next(model.parameters()).device)
 
     # Calculate and log eval metrics
     success_score = evals.f1_accuracy_generate(model, prompts, target_new, config)
@@ -120,10 +118,10 @@ def main(config):
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     avgbits = pruning_and_validation.average_bits()
     pruning_and_validation.sparsity_check()
-    if args.method != 'quant':
+    if args.method != 'quant' or args.compress == False:
         flops = pruning_and_validation.FLOPs()
     else: flops = -1
-    if args.method == 'quant':
+    if args.method == 'quant' or args.compress == False:
         latency = pruning_and_validation.CalculateLatency()
     else: latency = -1
 
