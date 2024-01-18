@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
+@hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(config):
     hparams=config
     args=config
@@ -44,7 +44,7 @@ def main(config):
         elif config.alg_name =='MEND':
             training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
         print("warning! we need to decide the dataset to use for training serac and mend")
-        train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)
+        train_ds = ZsreDataset('./data/zsre/zsre_mend_train.json', config=training_hparams)
         eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval.json', config=training_hparams)
         trainer = EditTrainer(
             config=training_hparams,

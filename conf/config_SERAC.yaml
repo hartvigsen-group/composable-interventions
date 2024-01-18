@@ -1,4 +1,4 @@
-number_of_edits: 10
+number_of_edits: 50
 alg_name: "SERAC"
 archive: ./results/models/SERAC/Llama-2-7b-chat-hf.bk
 model_name: meta-llama/Llama-2-7b-chat-hf
@@ -121,13 +121,11 @@ edit_train_config:
 
   device: cuda:0
   batch_size: 10
-  # model_save_pt: 1000
-  model_save_pt: 500
+  model_save_pt: 1000
   edit_bs: 1
   silent: False
   #max_epochs: 1
-  # max_iters: 100000
-  max_iters: 500
+  max_iters: 100000
   log_interval: 1000
   val_interval: 1000
   early_stop_patience: 30000
