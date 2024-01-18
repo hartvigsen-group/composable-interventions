@@ -28,9 +28,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="prototyping",
+        project="prototype",
         config=config_dict,
-        mode="online", # "disabled" for dry-runs, "online" for logging
+        mode="disabled", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -45,7 +45,7 @@ def main(config):
             training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
         print("warning! we need to decide the dataset to use for training serac and mend")
         train_ds = ZsreDataset('./data/zsre/zsre_mend_train_10000.json', config=training_hparams)
-        eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval_debug.json', config=training_hparams)
+        eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval.json', config=training_hparams)
         trainer = EditTrainer(
             config=training_hparams,
             train_set=train_ds,
@@ -118,10 +118,10 @@ def main(config):
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     avgbits = pruning_and_validation.average_bits()
     pruning_and_validation.sparsity_check()
-    if args.method != 'quant':
+    if args.method != 'quant' or args.compress == False:
         flops = pruning_and_validation.FLOPs()
     else: flops = -1
-    if args.method != 'prune':
+    if args.method == 'quant' or args.compress == False:
         latency = pruning_and_validation.CalculateLatency()
     else: latency = -1
 

@@ -247,7 +247,7 @@ class LLMPruningAndValidation:
         print(f"sparsity sanity check {sparsity_ratio:.4f}")
         print("*" * 30)
     def FLOPs(self):
-        assert self.args.method!='quant'
+        # assert self.args.method!='quant'
         batch_size, max_seq_length = 1, 128
         if self.args.sparsity_ratio > 0 and self.args.compress:
             is_sparse = True
@@ -270,11 +270,13 @@ class LLMPruningAndValidation:
         dataset = load_dataset('lambada', split='validation[:1000]')
         evaluator = Evaluator(dataset, self.tokenizer)
         quant_dir=self.args.save_model
-        assert self.args.method=='quant'
+        # assert self.args.method=='quant'
         if self.args.quant_method=='autogptq':
             model = AutoGPTQForCausalLM.from_quantized(quant_dir, device="cuda:0")
         elif self.args.quant_method=='autoawq':
             model = AutoAWQForCausalLM.from_quantized(quant_dir,"", fuse_layers=False)
+        else:
+            model = self.model
         acc_smoothquant, lantecy = evaluator.evaluate(model)
         print(f'per-sample lantecy: {lantecy:.3f} ms')
         return lantecy
