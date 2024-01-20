@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
 def main(config):
     hparams=config
     args=config
@@ -85,6 +85,9 @@ def main(config):
             # locality_inputs=locality_inputs,
             keep_original_weight=False
         )
+        for p in editable_model.model.parameters():
+            p.requires_grad_()
+            
     if config.alg_name =='SERAC':
         print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
     
@@ -102,17 +105,27 @@ def main(config):
         model.to(f'cuda:{hparams.device}')
 
     # Calculate and log eval metrics
-    success_score = evals.f1_accuracy_generate(model, prompts, target_new, config)
-    generalization_score = evals.f1_accuracy_generate(model, rephrase_prompt, target_new, config)
-    locality_score = evals.f1_locality_generate(model, locality_inputs, config)
+    success_score, success_recall = evals.f1_accuracy_generate(model, prompts, target_new, config)
+    generalization_score, gen_recall = evals.f1_accuracy_generate(model, rephrase_prompt, target_new, config)
     wandb.run.summary["Rewrite accuracy"] = success_score
     wandb.run.summary["Generalization"] = generalization_score
-    wandb.run.summary["Locality"] = locality_score
+
+
+    if config.edit_dataset == "mquake":  # a hacky way to smuggle the mquake single hop prompts as "locality inputs"
+        locality_score, local_recall = evals.f1_accuracy_generate(model, locality_inputs[0], locality_inputs[1], config)
+        wandb.run.summary["Locality"] = locality_score
+    else:
+        locality_score, local_recall = evals.f1_locality_generate(model, locality_inputs, config)
+        wandb.run.summary["Locality"] = locality_score
 
     # Print eval metrics
     print(f"Success: {success_score}")
     print(f"Generalization: {generalization_score}")
-    print(f"Locality: {locality_score}")
+    print(f"Locality/one hop: {locality_score}")
+
+    print(f"Success recall: {success_recall}")
+    print(f"Generalization recall: {gen_recall}")
+    print(f"Locality/one hop recall: {local_recall}")
 
     # Validate ppl
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
@@ -134,7 +147,10 @@ def main(config):
     "Rewrite accuracy": success_score,
     "Generalization": generalization_score,
     "Locality": locality_score,
-    "PPL": ppl_test
+    "PPL": ppl_test,
+    "Success recall": success_recall,
+    "Generalization recall": gen_recall,
+    "Local recall": local_recall
     })
 
     # Save checkpoint and metadata
