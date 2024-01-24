@@ -28,9 +28,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="prototype",
+        project="counterfact_extra",
         config=config_dict,
-        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -72,6 +72,20 @@ def main(config):
         # Update the model's state_dict
         model.load_state_dict(state_dict)
 
+    if config.compress_first:
+        # Sparsify editable model
+        pruning_and_validation = LLMPruningAndValidation(args, model)
+
+        # Prune
+        if config.compress and config.method == 'prune':
+            pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
+            pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
+
+        # Quant
+        if config.compress and config.method == 'quant':
+            pruning_and_validation.quantization()
+            model.to(f'cuda:{hparams.device}')
+    
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
 
@@ -88,6 +102,7 @@ def main(config):
         for p in editable_model.model.parameters():
             p.requires_grad_()
             
+
     if config.alg_name =='SERAC':
         print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
     
@@ -127,8 +142,10 @@ def main(config):
     print(f"Generalization recall: {gen_recall}")
     print(f"Locality/one hop recall: {local_recall}")
 
-    # Validate ppl
+    # Metrics and evaluation
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    ppl_edits = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=True)
+    ppl_edits_unmasked = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=False)
     avgbits = pruning_and_validation.average_bits()
     pruning_and_validation.sparsity_check()
     if args.method != 'quant' or args.compress == False:
@@ -138,6 +155,7 @@ def main(config):
         latency = pruning_and_validation.CalculateLatency()
     else: latency = -1
 
+    # Save to WandB
     wandb.run.summary["PPL"] = ppl_test
     wandb.run.summary["Average bits"] = avgbits
     wandb.run.summary["FLOPs"] = flops
@@ -148,6 +166,8 @@ def main(config):
     "Generalization": generalization_score,
     "Locality": locality_score,
     "PPL": ppl_test,
+    "PPL edits": ppl_edits,
+    "PPl edits unmasked": ppl_edits_unmasked,
     "Success recall": success_recall,
     "Generalization recall": gen_recall,
     "Local recall": local_recall

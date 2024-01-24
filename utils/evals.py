@@ -1,6 +1,7 @@
 import torch
 from sklearn.metrics import f1_score, accuracy_score
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch.nn.functional as F
 
 
 def calculate_recall(generated_ids, ground_truth_ids, exclude_tokens_tensor, prompt, ground_truth):
@@ -150,36 +151,40 @@ def f1_accuracy_generate(model, prompts, target_new, config):
         f1_scores.append(f1)
     return sum(f1_scores) / len(f1_scores), sum(recall_scores) / len(recall_scores) if f1_scores else 0
 
-def ppl_edit(model, prompt, response, config):
+
+def ppl_responses(model, prompts, responses, config, mask_prompt=True):
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
+    model.eval()
 
-    # Tokenize prompt and response
-    inputs = tokenizer(prompt, return_tensors='pt')
-    with torch.no_grad():
-        # Generate response tokens from the prompt
-        prompt_length = len(tokenizer.encode(prompt))
-        response_ids = tokenizer.encode(response, return_tensors='pt')
-        input_ids = torch.cat([inputs.input_ids, response_ids[:, 1:]], dim=-1).to(device)
+    total_loss = 0
+    total_response_tokens = 0
 
-        # Get model outputs
-        outputs = model(input_ids)
-        lm_logits = outputs.logits
+    for prompt, response in zip(prompts, responses):
+        # Tokenize prompt and response
+        prompt_encodings = tokenizer(prompt, add_special_tokens=True, return_tensors='pt')
+        response_encodings = tokenizer(response, add_special_tokens=True, return_tensors='pt')
 
-        # Shift logits and labels for next token prediction
-        shift_logits = lm_logits[:, :-1, :].contiguous()
-        shift_labels = input_ids[:, 1:]
+        # Concatenate prompt and response tokens
+        input_ids = torch.cat([prompt_encodings.input_ids, response_encodings.input_ids[:, :]], dim=-1).to(device)
 
-        # Compute loss
-        loss_fct = nn.CrossEntropyLoss()
-        loss = loss_fct(shift_logits.reshape(-1, shift_logits.size(-1)), shift_labels.reshape(-1))
+        # Prepare target_ids with prompt tokens masked
+        target_ids = input_ids.clone()
+        prompt_length = prompt_encodings.input_ids.size(1)
+        if mask_prompt:
+            target_ids[:, :prompt_length] = -100  # Masking prompt tokens
 
-        # Calculate negative log likelihood
-        neg_log_likelihood = loss.item() * (input_ids.size(1) - 1)
+        # Calculate loss for response tokens
+        with torch.no_grad():
+            outputs = model(input_ids, labels=target_ids)
+            neg_log_likelihood = outputs.loss * (input_ids.size(1) - prompt_length)
+        
+        total_loss += neg_log_likelihood.item()
+        total_response_tokens += (input_ids.size(1) - prompt_length)
+        # print(torch.exp(torch.tensor(neg_log_likelihood / (input_ids.size(1) - prompt_length), device=device)))
+    # Calculate average perplexity
+    avg_perplexity = torch.exp(torch.tensor(total_loss / total_response_tokens, device=device))
 
-        # Compute perplexity
-        ppl = torch.exp(torch.tensor(neg_log_likelihood) / (input_ids.size(1) - 1))
 
-    return ppl.item()
-    
+    return avg_perplexity.item()
