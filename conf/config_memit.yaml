@@ -5,7 +5,7 @@ model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
-edit_dataset: "counterfact"
+edit_dataset: "mquake"
 stats_dir: "./data/stats"
 device: 0
 tag: "default"
