@@ -5,12 +5,12 @@ model_name: EleutherAI/pythia-1b
 model: EleutherAI/pythia-1b
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
-edit_dataset: "counterfact"
+edit_dataset: "zsre"
 stats_dir: "./data/stats"
 device: 0
 tag: "default"
 
-layers: [3, 4]
+layers: [2, 3, 4]
 clamp_norm_factor: 0.75
 layer_selection: "all"
 fact_token: "subject_last"

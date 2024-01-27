@@ -28,9 +28,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="mquake_extra",
+        project="pythia_1b_zsre",
         config=config_dict,
-        mode="online", # "disabled" for dry-runs, "online" for logging
+        mode="disabled", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -119,6 +119,11 @@ def main(config):
         pruning_and_validation.quantization()
         model.to(f'cuda:{hparams.device}')
 
+    # Save checkpoint and metadata
+    if config.save_ckpt:
+        save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
+        quit()
+
     # Calculate and log eval metrics
     success_score, success_recall = evals.f1_accuracy_generate(model, prompts, target_new, config)
     generalization_score, gen_recall = evals.f1_accuracy_generate(model, rephrase_prompt, target_new, config)
@@ -172,10 +177,6 @@ def main(config):
     "Generalization recall": gen_recall,
     "Local recall": local_recall
     })
-
-    # Save checkpoint and metadata
-    if config.save_ckpt:
-        save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
 
 if __name__ == '__main__':
     main()
