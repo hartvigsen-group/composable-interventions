@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
+@hydra.main(version_base=None, config_path="conf", config_name="config_memit_pythia")
 def main(config):
     hparams=config
     args=config
@@ -28,7 +28,7 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="pythia_1b_zsre",
+        project="AK_pythia_2.8b_counterfact",
         config=config_dict,
         mode="disabled", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
@@ -122,7 +122,6 @@ def main(config):
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
-        quit()
 
     # Calculate and log eval metrics
     success_score, success_recall = evals.f1_accuracy_generate(model, prompts, target_new, config)

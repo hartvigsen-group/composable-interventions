@@ -1,8 +1,8 @@
 number_of_edits: 50
 edit_set: 1
 alg_name: "MEMIT"
-model_name: EleutherAI/pythia-1b
-model: EleutherAI/pythia-1b
+model_name: EleutherAI/pythia-2.8b
+model: EleutherAI/pythia-2.8b
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
 edit_dataset: "zsre"
@@ -10,7 +10,7 @@ stats_dir: "./data/stats"
 device: 0
 tag: "default"
 
-layers: [2, 3, 4]
+layers: [4, 5, 6, 7, 8]
 clamp_norm_factor: 0.75
 layer_selection: "all"
 fact_token: "subject_last"
