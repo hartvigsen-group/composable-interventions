@@ -1,12 +1,12 @@
 number_of_edits: 50
 edit_set: 1
 alg_name: "MEMIT"
-model_name: EleutherAI/pythia-2.8b
-model: EleutherAI/pythia-2.8b
+model_name: EleutherAI/pythia-6.9b
+model: EleutherAI/pythia-6.9b
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
-edit_dataset: "zsre"
-stats_dir: "./data/stats"
+edit_dataset: "counterfact"
+stats_dir: "/scratch/sux7mp/stats"
 device: 0
 tag: "default"
 

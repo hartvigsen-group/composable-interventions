@@ -28,9 +28,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_pythia_2.8b_counterfact",
+        project="AK_pythia_6.9b_counterfact",
         config=config_dict,
-        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -148,14 +148,18 @@ def main(config):
 
     # Metrics and evaluation
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
+    print('Starting PPL edit evals...')
     ppl_edits = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=True)
     ppl_edits_unmasked = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=False)
+    print('Starting Avg bits eval...')
     avgbits = pruning_and_validation.average_bits()
-    pruning_and_validation.sparsity_check()
+    # pruning_and_validation.sparsity_check()
     if args.method != 'quant' or args.compress == False:
+        print('Starting FLOPs eval...')
         flops = pruning_and_validation.FLOPs()
     else: flops = -1
     if args.method == 'quant' or args.compress == False:
+        print('Starting latency eval...')
         latency = pruning_and_validation.CalculateLatency()
     else: latency = -1
 

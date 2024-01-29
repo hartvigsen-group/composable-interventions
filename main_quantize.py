@@ -334,9 +334,9 @@ class LLMPruningAndValidation:
             print("zero_shot evaluation results")
             print(results)
 
-        if args.save_model:
-            model.save_pretrained(args.save_model)
-            tokenizer.save_pretrained(args.save_model)
+        # if args.save_model:
+        #     model.save_pretrained(args.save_model)
+        #     tokenizer.save_pretrained(args.save_model)
         return ppl_test
 
     def Edit(self):
