@@ -1,8 +1,8 @@
 number_of_edits: 50
 edit_set: 1
 alg_name: "MEMIT"
-model_name: EleutherAI/pythia-6.9b
-model: EleutherAI/pythia-6.9b
+model_name: EleutherAI/pythia-160m
+model: EleutherAI/pythia-160m
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
 edit_dataset: "counterfact"
@@ -10,13 +10,13 @@ stats_dir: "/scratch/sux7mp/stats"
 device: 0
 tag: "default"
 
-layers: [4, 5, 6, 7, 8]
+layers: [2, 3, 4]
 clamp_norm_factor: 0.75
 layer_selection: "all"
 fact_token: "subject_last"
 v_num_grad_steps: 25
 v_lr: 5e-1
-v_loss_layer: 15
+v_loss_layer: 11
 v_weight_decay: 0.5
 kl_factor: 0.0625
 mom2_adjustment: true
