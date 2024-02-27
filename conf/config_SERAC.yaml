@@ -1,9 +1,11 @@
 number_of_edits: 50
+edit_set: 1
 alg_name: "SERAC"
 archive: ./results/models/SERAC/Llama-2-7b-chat-hf.bk
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
 tag: seractest
+edit_dataset: "counterfact"
 device: 0
 
 
@@ -49,19 +51,19 @@ freeze_cntr: false
 dist_heads: 1
 lora: null
 
-batch_size: 1
+batch_size: 50
 model_save_pt: 500
-edit_bs: 1
+edit_bs: 50
 silent: False
 #max_epochs: 1
-max_iters: 10000
+max_iters: 100 #10000
 log_interval: 500
 val_interval: 500
-early_stop_patience: 40000
+early_stop_patience: 40 #40000
 early_stop_key: "loss/total_edit_val"
 eval_only: False
 half: False
-save: False
+# save: False
 debug: False
 log_errors: False
 unlikelihood: True
@@ -69,7 +71,7 @@ unlikelihood: True
 
 val_batch_size: 1
 accumulate_bs: 10
-val_steps: 500
+val_steps: 5 #500
 opt: Adam
 grad_clip: 100.
 
@@ -78,7 +80,7 @@ results_dir: ./results
 
 
 # https://github.com/zjunlp/EasyEdit/issues/123
-edit_train: True
+
 edit_train_config:
   # alg_name: "SERAC"
   model_name: meta-llama/Llama-2-7b-chat-hf
@@ -120,15 +122,15 @@ edit_train_config:
   lora: null
 
   device: cuda:0
-  batch_size: 10
+  batch_size: 50 # 10
   model_save_pt: 1000
-  edit_bs: 1
+  edit_bs: 50 # 1
   silent: False
   #max_epochs: 1
-  max_iters: 100000
+  max_iters: 100 # 100000
   log_interval: 1000
   val_interval: 1000
-  early_stop_patience: 30000
+  early_stop_patience: 30 #30000
   early_stop_key: "edit/acc_val"
   eval_only: False
   half: False
@@ -138,9 +140,9 @@ edit_train_config:
   unlikelihood: True
 
 
-  val_batch_size: 1
+  val_batch_size: 50
   accumulate_bs: 10
-  val_steps: 1000
+  val_steps: 10 #1000
   opt: Adam
   grad_clip: 100.
 
@@ -148,28 +150,30 @@ edit_train_config:
   results_dir: results
 
 
-# # Compression
-# nsamples: 128
-# sparsity_ratio: 0.3
-# sparsity_type: unstructured
-# prune_method: wanda
-# quant_method: gptq
-# dataset: c4
-# percdamp: 0.01
-# wbits: 8
-# groupsize: -1
-# sym: true
-# nearest: false
-# new_eval: false
-# act_order: false
-# true_sequential: false
-# static_groups: false
-# cache_dir: /scratch/sux7mp/llm_weights
-# use_variant: false
-# save: out/
-# save_model: null
-# eval_zero_shot: false
+# Compression
+nsamples: 128
+sparsity_ratio: 0.3
+sparsity_type: unstructured
+prune_method: wanda
+quant_method: gptq
+dataset: c4
+percdamp: 0.01
+wbits: 8
+groupsize: -1
+sym: true
+nearest: false
+new_eval: false
+act_order: false
+true_sequential: false
+static_groups: false
+cache_dir: /scratch/sux7mp/llm_weights
+use_variant: false
+save: out/
+save_model: null
+eval_zero_shot: false
 
+edit_train: True
+compress_first: False
 edit: True
 compress: False
 method: prune # prune or quant
@@ -177,4 +181,4 @@ method: prune # prune or quant
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
 
-save_ckpt: True
+save_ckpt: False

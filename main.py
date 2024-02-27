@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_memit_pythia")
+@hydra.main(version_base=None, config_path="conf", config_name="config_SERAC")
 def main(config):
     hparams=config
     args=config
@@ -28,13 +28,14 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_pythia_160m_counterfact",
+        project="AK_pythia_410m_counterfact",
         config=config_dict,
         mode="disabled", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
     if config.edit_train:
+        print('Starting editor training...')
         # edit methods that requires training extra modules
         from easyeditor import ZsreDataset
         from easyeditor import EditTrainer
@@ -52,6 +53,7 @@ def main(config):
             val_set=eval_ds
         )
         trainer.run()
+        print('Editor training complete.')
 
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
@@ -104,10 +106,11 @@ def main(config):
             
 
     if config.alg_name =='SERAC':
-        print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
-    
-    # Sparsify editable model
-    pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
+        # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
+        pruning_and_validation = LLMPruningAndValidation(args, editable_model.model.model)
+    else:
+        # Sparsify editable model
+        pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
 
     # Prune
     if config.compress and config.method == 'prune':
@@ -145,6 +148,7 @@ def main(config):
     print(f"Success recall: {success_recall}")
     print(f"Generalization recall: {gen_recall}")
     print(f"Locality/one hop recall: {local_recall}")
+    quit()
 
     # Metrics and evaluation
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.

@@ -3,7 +3,7 @@
 # Define different sets of parameters
 params=(
     ### None ###
-    # 'edit=False compress=False compress_first=False sparsity_ratio=0.0 tag=none'
+    'edit=False compress=False compress_first=False sparsity_ratio=0.0 tag=none'
     # ### Edit only ###
     'edit=True compress=False compress_first=False sparsity_ratio=0.0 tag=MEMIT'
     # ### Compress only ###
