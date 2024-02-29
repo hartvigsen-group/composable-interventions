@@ -1,7 +1,9 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Tuple
+from collections import deque
 
 import torch
+from torch.nn import CrossEntropyLoss
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from ...util import nethook
@@ -59,13 +61,14 @@ def execute_ft(
     Invariant: model at beginning of function == model at end of function
     """
     device = torch.device(f'cuda:{hparams.device}')
-    model = model.to(device)
+    # model = model.to(device)
     # Update target and print info
     requests = deepcopy(requests)
     for request in requests:
-        if request["target_new"] != " ":
-            # Space required for correct tokenization
-            request["target_new"] = " " + request["target_new"]
+        # if request["target_new"] != " ":
+        #     # Space required for correct tokenization
+        #     request["target_new"] = " " + request["target_new"]
+        print("""warning, remove request["target_new"] = " " + request["target_new"], which is the same with current memit, but make the performance worse.""")
         print(
             f"Executing FT algo for: "
             f"[{request['prompt']}] -> [{request['target_new']}]"
@@ -111,28 +114,105 @@ def execute_ft(
             target_ids = tok(tgt, return_tensors="pt", padding=True)["input_ids"].to(
                 device
             )
-            last_token_inds = inputs["attention_mask"].sum(dim=1) - 1
-            loss_mask = target_ids != tok.unk_token_id
+            if hparams.objective_optimization == 'prompt_last':
+                last_token_inds = inputs["attention_mask"].sum(dim=1) - 1
+                loss_mask = target_ids != tok.unk_token_id
+            elif hparams.objective_optimization == 'target_new':
+                inputs_targets = [txt_ + tgt_ for txt_, tgt_ in zip(txt, tgt)]
+                inputs_targets = tok(inputs_targets, return_tensors="pt", padding=True).to(device)
+                num_prompt_toks = [int((i != tok.pad_token_id).sum()) for i in inputs['input_ids'].cpu()]
+                num_pad_toks = [int((i == tok.pad_token_id).sum()) for i in inputs_targets['input_ids'].cpu()]
+                prompt_len = [x + y for x, y in zip(num_pad_toks, num_prompt_toks)]
+                prompt_target_len = inputs_targets['input_ids'].size(1)
+                label_mask = torch.tensor([[False] * length + [True] * (prompt_target_len - length) for length in prompt_len]).to(device)
+            else:
+                print(f"{hparams.objective_optimization} has not been supported yet.")
+                raise NotImplementedError
+            # last_token_inds = inputs["attention_mask"].sum(dim=1) - 1
+            # loss_mask = inputs != tok.unk_token_id
+            # loss_mask = [:, ]
             opt.zero_grad()
             bs = inputs["input_ids"].shape[0]
             if 't5' in hparams.model_name.lower():
-                inputs['labels'] = target_ids
+                inputs['decoder_input_ids'] = target_ids
                 logits = model(**inputs).logits
-                unmasked_log_probs = logits.log_softmax(-1).gather(-1, inputs['labels'].unsqueeze(-1)).squeeze(-1)
+                unmasked_log_probs = logits.log_softmax(-1).gather(-1, inputs['decoder_input_ids'].unsqueeze(-1)).squeeze(-1)
 
-                mask = inputs['labels'] != -100
+                mask = inputs['decoder_input_ids'] != -100
                 n_tokens = mask.float().sum()
                 avg_log_prob = (unmasked_log_probs * mask.float()).sum() / n_tokens
                 nll = -avg_log_prob
                 loss = nll
+            elif 'chatglm' in hparams.model_name.lower():
+                # def get_masks(seq, bos_token_id):
+                #     """  code from model_chatglm.py  """
+                #     if seq.count(bos_token_id) == 2:
+                #         context_length = seq[2:].index(bos_token_id) + 2
+                #     else:
+                #         context_length = seq.index(bos_token_id)
+                #     attention_mask = torch.ones((1, len(seq), len(seq)))
+                #     attention_mask.tril_()
+                #     attention_mask[..., :context_length] = 1
+                #     # attention_mask.unsqueeze_(1)
+                #     attention_mask = (attention_mask < 0.5).bool()
+                #     return attention_mask
+
+                input_ids = inputs['input_ids'].tolist()
+                labels = target_ids.tolist()
+                assert len(input_ids) == len(labels)
+                len_batches = [len(input_ids[i]) + len(labels[i]) + 1
+                                 for i in range(len(input_ids))]
+                len_max_batch = max(len_batches)
+                batch_input_ids = []
+                batch_attention_mask = []
+                batch_labels = []
+                for x, y in zip(input_ids, labels):
+                    len_padding = len_max_batch - len(x) - len(y)
+                    if tok.padding_side and tok.padding_side == "left":
+                        batch_label = [-100] * len_padding + [-100] * len(x) + y
+                        batch_input_id = [0] * (len_padding) + x + y
+                    else:
+                        batch_label = [-100] * len(x) + y + [-100] * len_padding
+                        batch_input_id = x + y + [0] * (len_padding)
+
+                    # tensor_attention_mask = get_masks(batch_input_id, bos_token_id=64792)
+                    tensor_input_ids = torch.tensor(batch_input_id, dtype=torch.long)
+                    tensor_labels = torch.tensor(batch_label, dtype=torch.long)
+                    batch_input_ids.append(tensor_input_ids)
+                    # batch_attention_mask.append(tensor_attention_mask)
+                    batch_labels.append(tensor_labels)
+                # batch_attention_mask = torch.stack(batch_attention_mask).to(device)
+                batch_input_ids = torch.stack(batch_input_ids).to(device)
+                batch_labels = torch.stack(batch_labels).to(device)
+                # loss = model(input_ids=batch_input_ids, labels=batch_labels).loss
+                lm_logits = model(input_ids=batch_input_ids)['logits']
+                lm_logits = lm_logits.to(torch.float32)
+                shift_logits = lm_logits[..., :-1, :].contiguous()
+                shift_labels = batch_labels[..., 1:].contiguous()
+                # Flatten the tokens
+                loss_fct = CrossEntropyLoss(ignore_index=-100)
+                loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                loss = loss.to(lm_logits.dtype)
             else:
-                probs = torch.nn.functional.log_softmax(
-                    model(**inputs).logits[torch.arange(bs), last_token_inds], dim=-1
-                )
-                loss = -(torch.gather(probs, 1, target_ids) * loss_mask).sum(
-                    1
-                ) / loss_mask.sum(1)
-                loss = loss.mean()
+                if hparams.objective_optimization == 'prompt_last':
+                    probs = torch.nn.functional.log_softmax(
+                        model(**inputs).logits[torch.arange(bs), last_token_inds], dim=-1
+                    )
+                    loss = -(torch.gather(probs, 1, target_ids) * loss_mask).sum(
+                        1
+                    ) / loss_mask.sum(1)
+                    loss = loss.mean()
+                elif hparams.objective_optimization == 'target_new':
+                    logits = model(**inputs_targets).logits
+                    shift_logits = logits[..., :-1, :].contiguous()
+                    shift_labels = inputs_targets['input_ids'][..., 1:].contiguous()
+                    loss_fct = CrossEntropyLoss(reduction='none')
+                    loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+                    loss = loss.view(bs, -1)
+                    loss = (loss * label_mask[:,1:]).sum(1) / label_mask[:,1:].sum(1)
+                    loss = loss.mean()
+                else:
+                    raise NotImplementedError
             print(f"Batch loss {loss.item()}")
             loss_meter.update(loss.item(), n=bs)
 
