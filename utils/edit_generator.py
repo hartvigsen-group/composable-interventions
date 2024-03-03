@@ -48,7 +48,7 @@ def get_edits_counterfact(number_of_edits=3, edit_set=1, file_path='data/counter
 
     return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
 
-def get_edits_mquake(number_of_edits=3, file_path='data/MQuAKE/MQuAKE-CF-3k.json'):
+def get_edits_mquake(number_of_edits=3, edit_set=1, file_path='data/MQuAKE/MQuAKE-CF-3k.json'):
     """
     Create data folder with strcutre:
     
@@ -59,26 +59,37 @@ def get_edits_mquake(number_of_edits=3, file_path='data/MQuAKE/MQuAKE-CF-3k.json
     
     with open(file_path, 'r') as file:
         json_data = json.load(file)
+
+    # Calculate start and end indices for the edits
+    start_index = (edit_set - 1) * number_of_edits
+    end_index = start_index + number_of_edits
         
     prompts = []
     ground_truth = []
     target_new = []
     subject = []
-    accuracy_prompt = []
+    rephrase_prompt = []
     multiHop_prompts = []
     multiHop_answers = []
+    singleHop_prompts = []
+    singleHop_answers = []
     
     
-    for json_element in json_data[:number_of_edits]:
-        prompts.append(json_element['requested_rewrite'][0]['prompt'])
-        ground_truth.append(json_element['requested_rewrite'][0]['target_true'])
-        target_new.append(json_element['requested_rewrite'][0]['target_new'])
-        subject.append(json_element['requested_rewrite'][0]['subject'])
-        accuracy_prompt.append(json_element['requested_rewrite'][0]['question'])
+    for json_element in json_data[start_index:end_index]:
+        subject_str = json_element['requested_rewrite'][0]['subject']
+        prompts.append(json_element['requested_rewrite'][0]['prompt'].format(subject_str))
+        # prompts.append(json_element['requested_rewrite'][0]['prompt'])
+        ground_truth.append(json_element['requested_rewrite'][0]['target_true']['str'])
+        target_new.append(json_element['requested_rewrite'][0]['target_new']['str'])
+        subject.append(subject_str)
+        rephrase_prompt.append(json_element['requested_rewrite'][0]['question'])
         multiHop_prompts.append(json_element['questions'])
         multiHop_answers.append(json_element['new_answer'])
+        singleHop_prompts.append(json_element['single_hops'][0]['question'])
+        singleHop_answers.append(json_element['single_hops'][0]['answer'])
+
     
-    return prompts, ground_truth, target_new, subject, accuracy_prompt, multiHop_prompts, multiHop_answers
+    return prompts, ground_truth, target_new, subject, rephrase_prompt, [singleHop_prompts, singleHop_answers]
 
 def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
     """
