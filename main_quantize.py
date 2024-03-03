@@ -82,9 +82,9 @@ class LLMPruningAndValidation:
         self.args = args
         if args.save_model is None:
             args.save_model=args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
-        self.device = torch.device("cuda:0")
+        self.device = torch.device(f'cuda:{args.device}')
         
-        self.get_llm(args.model, args.cache_dir)
+        print("Ask tianjin: WARNING: This code has bug!!!!!!!! Don't use it!!!!!! line 87 in main_quantize")
         if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':
@@ -93,45 +93,51 @@ class LLMPruningAndValidation:
                 self.model4Quant.model.seqlen=self.model4Quant.model.config.max_position_embeddings
             #else:    
             self.model=model
+        else:
+            print("Warning: Model is None! You must pass in the model")
+            exit()
+            # self.get_llm(args.model, args.cache_dir)
         self.model.seqlen = self.model.config.max_position_embeddings
         #self.original_model=copy.deepcopy(self.model)           ####Here i do copy for the model in cause the editing operation need the whole weights. Note: Prune process do not need this.
         if self.model.config.model_type=='gpt_neox' or self.model.config.model_type=='gptj':
             use_fast=True
         else:
             use_fast=False
+        print("Ask tianjin: do we need this use_fast?")
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=use_fast)
         np.random.seed(args.seed)
         torch.random.manual_seed(args.seed)
         self.Masks=None
 
-    def get_llm(self, model_name, cache_dir="llm_weights"):
-        args=self.args
-        if self.args.method=='quant':
-            if self.args.quant_method=='autogptq':
-                quantize_config = BaseQuantizeConfig(
-                    bits=args.wbits,  # quantize model to 4-bit
-                    group_size=args.groupsize,  # it is recommended to set the value to 128
-                    desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
-                )
-                # load un-quantized model, by default, the model will always be loaded into CPU memory
-                model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
-                self.model=model.model.to(self.device)
-                self.model4Quant=model
-            elif self.args.quant_method=='autoawq':
-                #quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-                model = AutoAWQForCausalLM.from_pretrained(self.args.model, **{"low_cpu_mem_usage": True})
-                #print(model)
-                self.model=model.model.to(self.device)
-                self.model4Quant=model
-                #print(self.model4Quant)
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                torch_dtype=torch.float16, 
-                low_cpu_mem_usage=True, 
-                device_map="auto"
-            ).to(self.device)
-            self.model.seqlen = self.model.config.max_position_embeddings
+    # def get_llm(self, model_name, cache_dir="llm_weights"):
+    #     args=self.args
+    #     if self.args.method=='quant':
+    #         if self.args.quant_method=='autogptq':
+    #             quantize_config = BaseQuantizeConfig(
+    #                 bits=args.wbits,  # quantize model to 4-bit
+    #                 group_size=args.groupsize,  # it is recommended to set the value to 128
+    #                 desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
+    #             )
+    #             # load un-quantized model, by default, the model will always be loaded into CPU memory
+    #             model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
+    #             self.model=model.model.to(self.device)
+    #             self.model4Quant=model
+    #         elif self.args.quant_method=='autoawq':
+    #             #quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
+    #             model = AutoAWQForCausalLM.from_pretrained(self.args.model, **{"low_cpu_mem_usage": True})
+    #             #print(model)
+    #             self.model=model.model.to(self.device)
+    #             self.model4Quant=model
+    #             #print(self.model4Quant)
+    #     else:
+    #         self.model = AutoModelForCausalLM.from_pretrained(
+    #             model_name,
+    #             torch_dtype=torch.float16, 
+    #             low_cpu_mem_usage=True, 
+    #             device_map="auto"
+    #         ).to(self.device)
+    #         self.model.seqlen = self.model.config.max_position_embeddings
+            
     def get_average_number_of_bits4Quantization(self,
         wbits: int = 4,
         qq_scale_bits: int = 16,
@@ -155,11 +161,11 @@ class LLMPruningAndValidation:
     def quantization(self):
         args=self.args
         if args.quant_method=='autogptq':
-            quantize_config = BaseQuantizeConfig(
-                bits=args.wbits,  # quantize model to 4-bit
-                group_size=args.groupsize,  # it is recommended to set the value to 128
-                desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
-            )
+            # quantize_config = BaseQuantizeConfig(
+            #     bits=args.wbits,  # quantize model to 4-bit
+            #     group_size=args.groupsize,  # it is recommended to set the value to 128
+            #     desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
+            # )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
             #model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
             examples = [
@@ -221,12 +227,12 @@ class LLMPruningAndValidation:
             print("pruning starts")
             if args.prune_method == "wanda":
                 self.Masks=prune_wanda(args, model, tokenizer, device)
-            elif args.prune_method == "magnitude":
-                self.Masks=prune_magnitude(args, model, tokenizer, device)
+            # elif args.prune_method == "magnitude":
+            #     self.Masks=prune_magnitude(args, model, tokenizer, device)
             elif args.prune_method == "sparsegpt":
                 self.Masks=prune_sparsegpt(args, model, tokenizer, device)
-            elif "ablate" in args.prune_method:
-                self.Masks=prune_ablate(args, model, tokenizer, device)
+            # elif "ablate" in args.prune_method:
+            #     self.Masks=prune_ablate(args, model, tokenizer, device)
         
     def prune(self):
         if self.model.config.model_type=='gptj':
@@ -241,11 +247,13 @@ class LLMPruningAndValidation:
                 subset = find_layers(layer)
                 for name in subset:
                     subset[name].weight.data[self.Masks["Layer"+str(i)+"_"+name]]=0
+
     def sparsity_check(self):
         print("*" * 30)
         sparsity_ratio = check_sparsity(self.model)
         print(f"sparsity sanity check {sparsity_ratio:.4f}")
         print("*" * 30)
+
     def FLOPs(self):
         # assert self.args.method!='quant'
         batch_size, max_seq_length = 1, 128

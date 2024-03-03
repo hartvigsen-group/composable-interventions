@@ -182,7 +182,10 @@ def prune_magnitude(args, model, tokenizer, device=torch.device("cuda:0"), prune
     return Masks
 
 def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0, prune_m=0):
-    use_cache = model.config.use_cache 
+    """
+    prune_n=0, prune_m=0 for unstructured pruning
+    """
+    use_cache = model.config.use_cache
     model.config.use_cache = False 
 
     print("loading calibdation data")
@@ -280,7 +283,7 @@ def prune_wanda(args, model, tokenizer, device=torch.device("cuda:0"), prune_n=0
 def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
     ## SparseGPT code available at: https://github.com/IST-DASLab/sparsegpt/tree/f5c25005a61f96a0933ca2f95705a963585aafaa
     print('Starting ...')
-    dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
+    dataloader, _ = get_loaders(args.dataset,nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
 
     use_cache = model.config.use_cache
     model.config.use_cache = False
@@ -385,10 +388,11 @@ def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
     ## SparseGPT code available at: https://github.com/IST-DASLab/sparsegpt/tree/f5c25005a61f96a0933ca2f95705a963585aafaa
     print('Starting ...')
-    dataloader, _ = get_loaders("c4",nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
+    dataloader, _ = get_loaders(args.dataset,nsamples=args.nsamples,seed=args.seed,seqlen=model.seqlen,tokenizer=tokenizer)
 
     use_cache = model.config.use_cache
     model.config.use_cache = False
+    print("Tianjin: move these things into init line 395 in prune.py")
     if model.config.model_type=='gptj':
         layers=model.transformer.h
     elif model.config.model_type=='gpt_neox':

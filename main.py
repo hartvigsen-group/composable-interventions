@@ -17,11 +17,12 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_SERAC")
+@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
 
 def main(config):
     hparams=config
-    args=config
+    config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
+    print("fix config")
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
 
@@ -78,7 +79,7 @@ def main(config):
 
     if config.compress_first:
         # Sparsify editable model
-        pruning_and_validation = LLMPruningAndValidation(args, model)
+        pruning_and_validation = LLMPruningAndValidation(hparams, model)
 
         # Prune
         if config.compress and config.method == 'prune':
@@ -109,10 +110,10 @@ def main(config):
 
     if config.alg_name =='SERAC':
         # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
-        pruning_and_validation = LLMPruningAndValidation(args, editable_model.model.model)
+        pruning_and_validation = LLMPruningAndValidation(hparams, editable_model.model.model)
     else:
         # Sparsify editable model
-        pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
+        pruning_and_validation = LLMPruningAndValidation(hparams, editable_model.model)
 
     # Prune
     if config.compress and config.method == 'prune':
@@ -161,11 +162,11 @@ def main(config):
     print('Starting Avg bits eval...')
     avgbits = pruning_and_validation.average_bits()
     # pruning_and_validation.sparsity_check()
-    if args.method != 'quant' or args.compress == False:
+    if hparams.method != 'quant' or hparams.compress == False:
         print('Starting FLOPs eval...')
         flops = pruning_and_validation.FLOPs()
     else: flops = -1
-    if args.method == 'quant' or args.compress == False:
+    if hparams.method == 'quant' or hparams.compress == False:
         print('Starting latency eval...')
         latency = pruning_and_validation.CalculateLatency()
     else: latency = -1

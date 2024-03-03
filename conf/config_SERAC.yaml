@@ -156,7 +156,7 @@ sparsity_ratio: 0.3
 sparsity_type: unstructured
 prune_method: wanda
 quant_method: gptq
-dataset: c4
+compression_dataset: c4
 percdamp: 0.01
 wbits: 8
 groupsize: -1
