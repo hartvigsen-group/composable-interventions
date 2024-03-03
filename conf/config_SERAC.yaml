@@ -5,7 +5,7 @@ archive: ./results/models/SERAC/Llama-2-7b-chat-hf.bk
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
 tag: seractest
-edit_dataset: "counterfact"
+edit_dataset: "zsre"
 device: 0
 
 
@@ -56,10 +56,10 @@ model_save_pt: 500
 edit_bs: 50
 silent: False
 #max_epochs: 1
-max_iters: 100 #10000
+max_iters: 1000 #10000
 log_interval: 500
 val_interval: 500
-early_stop_patience: 40 #40000
+early_stop_patience: 400 #40000
 early_stop_key: "loss/total_edit_val"
 eval_only: False
 half: False
@@ -126,7 +126,7 @@ edit_train_config:
   model_save_pt: 1000
   edit_bs: 50 # 1
   silent: False
-  #max_epochs: 1
+  max_epochs: 1
   max_iters: 100 # 100000
   log_interval: 1000
   val_interval: 1000
@@ -174,11 +174,11 @@ eval_zero_shot: false
 
 edit_train: True
 compress_first: False
-edit: True
+edit: False
 compress: False
 method: prune # prune or quant
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
 
-save_ckpt: False
+save_ckpt: True

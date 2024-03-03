@@ -41,7 +41,8 @@ def main(config):
         from easyeditor import EditTrainer
         from easyeditor import SERACTrainingHparams, MENDTrainingHparams
         if config.alg_name =='SERAC':
-            training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
+            # training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
+            training_hparams = config.edit_train_config
         elif config.alg_name =='MEND':
             training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
         print("warning! we need to decide the dataset to use for training serac and mend")
@@ -61,7 +62,7 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-                torch_dtype=torch.bfloat16, 
+                torch_dtype=torch.float16, 
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
@@ -89,8 +90,9 @@ def main(config):
             model.to(f'cuda:{hparams.device}')
     
     # Make editable
+    print(model)
     editable_model = ModelEditWrapper(model, hparams)
-
+    print(editable_model.model)
     if config.edit:
         editable_model.batch_edit(
             prompts=prompts,
@@ -103,7 +105,8 @@ def main(config):
         )
         for p in editable_model.model.parameters():
             p.requires_grad_()
-            
+    print(editable_model.model)
+
 
     if config.alg_name =='SERAC':
         # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
@@ -125,7 +128,8 @@ def main(config):
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
-
+        quit()
+        
     # Calculate and log eval metrics
     success_score, success_recall = evals.f1_accuracy_generate(model, prompts, target_new, config)
     generalization_score, gen_recall = evals.f1_accuracy_generate(model, rephrase_prompt, target_new, config)
