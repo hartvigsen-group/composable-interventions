@@ -1,26 +1,25 @@
 number_of_edits: 50
+edit_set: 1
 alg_name: "FT"
-model_name: "meta-llama/Llama-2-7b-chat-hf"
-model: "meta-llama/Llama-2-7b-chat-hf"
-# model_name: "meta-llama/Llama-2-7b-hf"
-# model: "meta-llama/Llama-2-7b-hf"
-# model_name: "meta-llama/Llama-2-7b-hf"
-# model: "meta-llama/Llama-2-7b-hf"
-# model: decapoda-research/llama-7b-hf
+model_name: meta-llama/Llama-2-7b-chat-hf
+model: meta-llama/Llama-2-7b-chat-hf
+edit_dataset: "zsre"
 stats_dir: "./data/stats"
 device: 0
-# layers: [4, 5, 6, 7, 8]
-layers: [21]
-# kl_factor: 0
+tag: "default"
+layers: [4, 5, 6, 7, 8]
+# layers: [21]
 rewrite_module_tmp: "model.layers.{}.mlp.down_proj"
 layer_module_tmp: "model.layers.{}"
 mlp_module_tmp: "model.layers.{}.mlp"
 attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
+lm_head_module: "lm_head"
 max_length: 40
-batch_size: 1
+batch_size: 50
 model_parallel: False
 # FT
+# lr: 5e-4
 lr: 5e-4
 weight_decay: 0
 norm_constraint: false
@@ -31,7 +30,27 @@ edit: true
 compress: false
 method: prune # prune or quant
 seed: 0
+nsamples: 128
+sparsity_ratio: 0.3
+sparsity_type: unstructured
+prune_method: sparsegpt # wanda or sparsegpt
+quant_method: gptq
+dataset: c4
+percdamp: 0.01
+wbits: 8
+groupsize: -1
+sym: true
+nearest: false
+new_eval: false
+act_order: false
+true_sequential: false
+static_groups: false
+cache_dir: /scratch/sux7mp/llm_weights
+use_variant: false
 save_ckpt: false
 save: out/
+save_model: null
+eval_zero_shot: false
 
 edit_train: false
+objective_optimization: "target_new"
