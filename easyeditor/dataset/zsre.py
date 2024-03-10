@@ -10,6 +10,7 @@ from transformers import GPT2Tokenizer, GPT2TokenizerFast, LlamaTokenizer, AutoT
 from ..util.globals import *
 from ..trainer.utils import dict_to
 
+
 class ZsreDataset(Dataset):
     """
     Dataset of factual knowledge based on zsRE.
@@ -21,15 +22,15 @@ class ZsreDataset(Dataset):
         data_dir = Path(data_dir)
         zsre_loc = data_dir
 
-        if(config is not None):
+        if config is not None:
             self.config = config
-        if(config is not None and hasattr(config, 'max_length')):
+        if config is not None and hasattr(config, 'max_length'):
             self.max_length = config.max_length
         else:
-            self.max_length = 32
+            self.max_length = 40
 
         # For Meta Training
-        if(config is not None and hasattr(config, 'tokenizer_name')):
+        if config is not None and hasattr(config, 'tokenizer_name'):
             tok_name = (
                 config.tokenizer_name
                 if config.tokenizer_name is not None
@@ -37,7 +38,7 @@ class ZsreDataset(Dataset):
             )
             # tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm2-6b", trust_remote_code=True)
             tokenizer = getattr(transformers, config.tokenizer_class).from_pretrained(
-                tok_name
+                tok_name, trust_remote_code=True
             )
             if isinstance(tokenizer, GPT2Tokenizer) or isinstance(tokenizer, GPT2TokenizerFast):
                 tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -47,6 +48,16 @@ class ZsreDataset(Dataset):
                 tokenizer.pad_token_id = tokenizer.eos_token_id
                 tokenizer.padding_side = 'left'
                 print('LlamaTokenizer Detected, Set pad token id and left padding!!!')
+            elif 'qwen' in config.model_name.lower():
+                tokenizer.eos_token='<|endoftext|>'
+                tokenizer.pad_token='<|endoftext|>'
+                tokenizer.unk_token='<|endoftext|>'
+                # tokenizer.padding_side = 'left'
+                # print('QwenTokenizer Detected, Set pad token id and left padding!!!')
+            elif 'mistral' in config.model_name.lower():
+                tokenizer.pad_token_id = tokenizer.eos_token_id
+                tokenizer.padding_side = 'left'
+                print('MistralTokenizer Detected, Set pad token id and left padding!!!')
             self.tok = tokenizer
 
         with open(zsre_loc, "r") as f:
@@ -55,7 +66,7 @@ class ZsreDataset(Dataset):
         data = []
         for i, record in enumerate(raw):
             assert (
-                "nq question: " in record["loc"]
+                    "nq question: " in record["loc"]
             ), f"Neighborhood prompt missing `nq question:`. Check for errors?"
             # ans_toks = tok(" " + record["loc_ans"])["input_ids"]
             if record["alt"] == "":
@@ -172,7 +183,6 @@ class ZsreDataset(Dataset):
         }
         return dict_to(batch, self.config.device)
 
-
     def collate_gpt_fn(self, batch):
         src = [b["prompt"] for b in batch]
         trg = [b["target_new"] for b in batch]
@@ -211,6 +221,10 @@ class ZsreDataset(Dataset):
         rephrase = [rephrase_ + ' ' + trg_ for rephrase_, trg_ in zip(rephrase, trg)]
         loc = [loc_ + ' ' + loc_ans_ for loc_, loc_ans_ in zip(loc, loc_ans)]
 
+        if 'gpt' in self.config.tokenizer_class.lower():
+            trg = [' ' + t for t in trg]
+            loc_ans = [' ' + t for t in loc_ans]
+            
         batches = {
             f"{k1}_{k2}": v2
             for k1, v1 in {

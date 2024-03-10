@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_SERAC")
+@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
 
 def main(config):
     hparams=config
