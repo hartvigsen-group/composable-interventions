@@ -92,6 +92,10 @@ def generate_fast(
     inp_tok = tok(inp, padding=True, return_tensors="pt").to(
         next(model.parameters()).device
     )
+    print('----')
+    print(inp[0])
+    print(inp_tok["input_ids"][0])
+    print(tok.padding_side)
     input_ids, attention_mask = inp_tok["input_ids"], inp_tok["attention_mask"]
     batch_size = input_ids.size(0)
 

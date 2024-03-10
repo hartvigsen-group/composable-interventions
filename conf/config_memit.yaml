@@ -65,7 +65,7 @@ save_model: null
 eval_zero_shot: false
 
 compress_first: False
-edit: False
+edit: True
 compress: False
 method: prune # prune or quant
 
