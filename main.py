@@ -17,7 +17,8 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
+@hydra.main(version_base=None, config_path="conf", config_name="config_SERAC")
+
 def main(config):
     hparams=config
     args=config
@@ -99,8 +100,6 @@ def main(config):
             ground_truth=ground_truth,
             target_new=target_new,
             subject=subject,
-            # rephrase_prompts=rephrase_prompt,
-            # locality_inputs=locality_inputs,
             keep_original_weight=False
         )
         for p in editable_model.model.parameters():
