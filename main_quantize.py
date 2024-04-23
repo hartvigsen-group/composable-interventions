@@ -1,5 +1,6 @@
 import argparse
 import os 
+import sys
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -10,13 +11,14 @@ import gc
 from torch.nn.functional import pad
 from sparsellm.lib.prune import prune_wanda, prune_magnitude, prune_sparsegpt, prune_ablate, check_sparsity, find_layers,AverageBits
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
+from sparsellm.lib.data import get_c4
 ###GPTQ########
 from sparsellm.lib.gptq import *
 from sparsellm.lib.modelutils import *
 from sparsellm.lib.quant import *
-from sparsellm.lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
-# from awq.utils.lm_eval_adaptor import LMEvalAdaptor
-# from awq import AutoAWQForCausalLM
+#from sparsellm.lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
+#from awq.utils.lm_eval_adaptor import LMEvalAdaptor
+from awq import AutoAWQForCausalLM
 from lm_eval import evaluator
 DEV = torch.device('cuda:0')
 from calflops.calflops import calculate_flops
@@ -81,20 +83,21 @@ class LLMPruningAndValidation:
     def __init__(self, args, model=None):
         self.args = args
         if args.save_model is None:
-            args.save_model=args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
+            args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
         self.device = torch.device("cuda:0")
         
-        if model is None:
-            self.get_llm(args.model, args.cache_dir)
-        else:
+        self.get_llm(args.model, args.cache_dir)
+        if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':
-                self.model4Quant=model
+                # del self.model4Quant.model 
+                torch.cuda.empty_cache()
                 self.model4Quant.model=model
-                self.model4Quant.model.seqlen=self.model4Quant.model.config.max_position_embeddings
             #else:    
             self.model=model
         self.model.seqlen = self.model.config.max_position_embeddings
+        if self.args.method=='quant':
+            self.model4Quant.model.seqlen=self.model4Quant.model.config.max_position_embeddings
         #self.original_model=copy.deepcopy(self.model)           ####Here i do copy for the model in cause the editing operation need the whole weights. Note: Prune process do not need this.
         if self.model.config.model_type=='gpt_neox' or self.model.config.model_type=='gptj':
             use_fast=True
@@ -107,6 +110,8 @@ class LLMPruningAndValidation:
 
     def get_llm(self, model_name, cache_dir="llm_weights"):
         args=self.args
+        print(self.args.method)
+        print(self.args.quant_method)
         if self.args.method=='quant':
             if self.args.quant_method=='autogptq':
                 quantize_config = BaseQuantizeConfig(
@@ -125,6 +130,9 @@ class LLMPruningAndValidation:
                 self.model=model.model.to(self.device)
                 self.model4Quant=model
                 #print(self.model4Quant)
+            else:
+                print('Incorrect method and quant_method combination.')
+                sys.exit()
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_name,
@@ -159,26 +167,46 @@ class LLMPruningAndValidation:
             quantize_config = BaseQuantizeConfig(
                 bits=args.wbits,  # quantize model to 4-bit
                 group_size=args.groupsize,  # it is recommended to set the value to 128
-                desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
+                desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
             )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
             #model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
-            examples = [
-                self.tokenizer(
-                    "auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."
-                )
-            ]
+            # examples = [
+            #     self.tokenizer(
+            #         "auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."
+            #     )
+            # ]
+            examples,_=get_c4(args.nsamples,0,self.model.seqlen,self.tokenizer)
+            examples=[{"input_ids":each[0],"attention_mask":torch.ones_like(each[0])} for each in examples]
+
             # quantize model, the examples should be list of dict whose keys can only be "input_ids" and "attention_mask"
             self.model4Quant.quantize(examples)
-            self.model4Quant.save_quantized(args.save_model)      
+            # self.model4Quant.save_quantized(args.save_model)
+            print("Post init now.")
+            self.model4Quant.post_init()
+            self.model4Quant.model=self.model4Quant.model.to(self.device)
+            self.model=self.model4Quant.model
+
+
         elif args.quant_method=='autoawq':
             quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-            self.model4Quant.quantize(self.tokenizer,quant_config=quant_config)
-            self.model4Quant.save_quantized(args.save_model)       
+            self.model4Quant.quantize(self.tokenizer,quant_config=quant_config,calib_data="pileval")
+            # self.model4Quant.save_quantized(args.save_model)
+            self.model4Quant.model=self.model4Quant.model.to(self.device)
+            self.model=self.model4Quant.model       
         else:
             print("Not implemented Yet!")
             assert False
-    def pseudoQuantization(self):
+    def average_bits(self):
+        print("*" * 30)
+        if self.args.method=='quant':
+            averageBits=self.get_average_number_of_bits4Quantization(self.args.wbits,groupsize=self.args.groupsize)
+        else:
+            averageBits=AverageBits(self.model)
+        print(f"average Bits check {averageBits:.4f}")
+        print("*" * 30)
+        return averageBits 
+    def pseudoQuantization(self,flag=False):
         args=self.args
         # if args.quant_method=='gptq':
         #     model,quantizers=llamaQuanti(self.model,self.device,self.args)
@@ -187,24 +215,31 @@ class LLMPruningAndValidation:
             quantize_config = BaseQuantizeConfig(
                 bits=args.wbits,  # quantize model to 4-bit
                 group_size=args.groupsize,  # it is recommended to set the value to 128
-                desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
+                desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
             )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
             #model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
-            examples = [
-                self.tokenizer(
-                    "auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."
-                )
-            ]
+            # examples = [
+            #     self.tokenizer(
+            #         "auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."
+            #     )
+            # ]
+            print("C4 Data for autoGPTQ")
+            examples,_=get_c4(args.nsamples,0,self.model.seqlen,self.tokenizer)
+            examples=[{"input_ids":each[0],"attention_mask":torch.ones_like(each[0])} for each in examples]
+
             # quantize model, the examples should be list of dict whose keys can only be "input_ids" and "attention_mask"
             self.model4Quant.pseudoQuantize(examples)
 
-            self.model=self.model4Quant.model         
+            self.model4Quant.model=self.model4Quant.model.to(self.device)
+            self.model4Quant.post_init()
+            self.model=self.model4Quant.model           
         elif args.quant_method=='autoawq':
             quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
             #model = AutoAWQForCausalLM.from_pretrained(self.args.model, **{"low_cpu_mem_usage": True})
-            self.model4Quant.pseudoQuantize(self.tokenizer,quant_config=quant_config)
-            self.model=self.model4Quant.model         
+            self.model4Quant.pseudoQuantize(self.tokenizer,quant_config=quant_config,flag=flag)
+            self.model4Quant.model=self.model4Quant.model.to(self.device)
+            self.model=self.model4Quant.model           
         else:
             print("Not implemented Yet!")
             assert False
@@ -247,23 +282,15 @@ class LLMPruningAndValidation:
         sparsity_ratio = check_sparsity(self.model)
         print(f"sparsity sanity check {sparsity_ratio:.4f}")
         print("*" * 30)
+        return sparsity_ratio
     def FLOPs(self):
-        # assert self.args.method!='quant'
+        assert self.args.method!='quant'
         batch_size, max_seq_length = 1, 128
-        if self.args.sparsity_ratio > 0 and self.args.compress:
-            is_sparse = True
-        else:
-            is_sparse = False
-        flops,macs,params=calculate_flops(model=self.model,input_shape=(batch_size,max_seq_length),transformer_tokenizer=self.tokenizer,is_sparse=is_sparse, output_unit='M', output_as_string=False)
+        flops,macs,params=calculate_flops(model=self.model,input_shape=(batch_size,max_seq_length),transformer_tokenizer=self.tokenizer,is_sparse=True)
         print("FLOPs:%s, MACs:%s, Params:%s \n"%(flops,macs,params))
         return flops
         #$pass  
-    def average_bits(self):
-        print("*" * 30)
-        averageBits=AverageBits(self.model)
-        print(f"average Bits check {averageBits:.4f}")
-        print("*" * 30) 
-        return averageBits
+
     def foward(self,input):
         return self.model(input)
     def CalculateLatency(self,quant_dir=None):
@@ -271,19 +298,17 @@ class LLMPruningAndValidation:
         dataset = load_dataset('lambada', split='validation[:1000]')
         evaluator = Evaluator(dataset, self.tokenizer)
         quant_dir=self.args.save_model
-        # assert self.args.method=='quant'
+        assert self.args.method=='quant'
         if self.args.quant_method=='autogptq':
             model = AutoGPTQForCausalLM.from_quantized(quant_dir, device="cuda:0")
         elif self.args.quant_method=='autoawq':
             model = AutoAWQForCausalLM.from_quantized(quant_dir,"", fuse_layers=False)
-        else:
-            model = self.model
         acc_smoothquant, lantecy = evaluator.evaluate(model)
         print(f'per-sample lantecy: {lantecy:.3f} ms')
         return lantecy
-    def validate(self,normal_test=False):
+    def validate(self,normal_test=True):
         args = self.args
-        model = self.model.to(self.device)
+        model = self.model
         tokenizer = self.tokenizer
         device = self.device
         if normal_test:
@@ -292,29 +317,21 @@ class LLMPruningAndValidation:
         else:
             if args.method=='quant':
                 if args.quant_method=='autogptq':
-                    print("dataset",args.dataset)
                     print("start post init")
+                    
                     self.model4Quant.post_init()
                     print("post init end")
+                    model=self.model4Quant.model.to(self.device)
+                    print("dataset",args.dataset)
                     ppl_test = eval_ppl(args, model, tokenizer, device)
                     print(f"wikitext perplexity {ppl_test}")
                 elif args.quant_method=='autoawq':
                     print("dataset",args.dataset)
                     ppl_test = eval_ppl(args, model, tokenizer, device)
                     print(f"wikitext perplexity {ppl_test}")
-            elif args.method=='sparse' or 'prune':
+            elif args.method=='sparse':
                 ppl_test = eval_ppl(args, model, tokenizer, device)
                 print(f"wikitext perplexity {ppl_test}")
-                # lm_eval_model = LMEvalAdaptor(self.args.model, self.model, self.tokenizer, self.device, batch_size=1)
-                # results = evaluator.simple_evaluate(
-                #         model=lm_eval_model,
-                #         tasks=[self.args.dataset],
-                #         batch_size=1,
-                #         no_cache=True,
-                #         num_fewshot=0,
-                #     )
-                # ppl_test=results
-                # print(f"wikitext perplexity {ppl_test['results'][args.dataset]['word_perplexity']}")
 
         if not os.path.exists(args.save):
             os.makedirs(args.save)
@@ -335,16 +352,14 @@ class LLMPruningAndValidation:
             print("zero_shot evaluation results")
             print(results)
 
-        # if args.save_model:
-        #     model.save_pretrained(args.save_model)
-        #     tokenizer.save_pretrained(args.save_model)
+        #if args.save_model:
+        #    model.save_pretrained(args.save_model)
+        #    tokenizer.save_pretrained(args.save_model)
         return ppl_test
-
     def Edit(self):
         pass
-    
 def get_args(parser):
-    parser.add_argument('--model', type=str, help='LLaMA model')
+    parser.add_argument('--model', type=str,default='meta-llama/Llama-2-7b-chat-hf', help='LLaMA model')
     parser.add_argument('--seed', type=int, default=0, help='Seed for sampling the calibration data.')
     parser.add_argument('--nsamples', type=int, default=128, help='Number of calibration samples.')
     parser.add_argument('--sparsity_ratio', type=float, default=0, help='Sparsity level between 0 and 1')
@@ -355,11 +370,10 @@ def get_args(parser):
     parser.add_argument('--use_variant', action="store_true", help="whether to use the wanda variant described in the appendix")
     parser.add_argument('--save', type=str, default="", help='Path to save results.')
     parser.add_argument('--save_model', type=str, default=None, help='Path to save the pruned model.')
-
     parser.add_argument("--eval_zero_shot", action="store_true")
      ############For Quantization##########################################
     parser.add_argument(
-        '--quant_method', type=str, default='gptq', choices=['gptq','awq','autoawq','autogptq'],
+        '--quant_method', type=str, default='autogptq', choices=['autoawq','autogptq'],
         help='Where to extract calibration data from.'
     )
     parser.add_argument(

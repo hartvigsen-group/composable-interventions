@@ -1,9 +1,10 @@
 number_of_edits: 50
 edit_set: 1
 alg_name: "MEMIT"
-model_name: meta-llama/Meta-Llama-3-8B-Instruct
-model: meta-llama/Meta-Llama-3-8B-Instruct
+model_name: meta-llama/Llama-2-7b-chat-hf
+model: meta-llama/Llama-2-7b-chat-hf
 # llama: meta-llama/Llama-2-7b-chat-hf
+# llama-3: meta-llama/Meta-Llama-3-8B-Instruct
 # pythia: EleutherAI/pythia-14m
 edit_dataset: "mquake"
 stats_dir: "/scratch/sux7mp/stats"
@@ -47,11 +48,12 @@ nsamples: 128
 sparsity_ratio: 0.3
 sparsity_type: unstructured
 prune_method: sparsegpt # wanda or sparsegpt
-quant_method: gptq
+quant_method: autogptq # autoawq or autogptq
 dataset: c4
 percdamp: 0.01
-wbits: 8
-groupsize: -1
+wbits: 4
+zero_point: True
+groupsize: 128
 sym: true
 nearest: false
 new_eval: false
@@ -67,7 +69,7 @@ eval_zero_shot: false
 compress_first: False
 edit: True
 compress: False
-method: prune # prune or quant
+method: quant # prune or quant
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth

@@ -121,7 +121,7 @@ def main(config):
 
     # Quant
     if config.compress and config.method == 'quant':
-        pruning_and_validation.quantization()
+        pruning_and_validation.pseudoQuantization()
         editable_model.to(f'cuda:{hparams.device}')
 
     # Save checkpoint and metadata
