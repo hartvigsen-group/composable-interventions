@@ -29,7 +29,7 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_pythia_410m_counterfact",
+        project="AK_FT_counterfact",
         config=config_dict,
         mode="disabled", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
@@ -67,7 +67,6 @@ def main(config):
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
-
     
     if config.load_ckpt:
         # Load the state_dict
@@ -91,9 +90,10 @@ def main(config):
             model.to(f'cuda:{hparams.device}')
     
     # Make editable
-    print(model)
     editable_model = ModelEditWrapper(model, hparams)
-    print(editable_model.model)
+    device_map = editable_model.model.hf_device_map
+
+    # print(model)
     if config.edit:
         editable_model.batch_edit(
             prompts=prompts,
@@ -104,12 +104,12 @@ def main(config):
         )
         for p in editable_model.model.parameters():
             p.requires_grad_()
-    print(editable_model.model)
-
+        print('editing complete')
+    editable_model.model.hf_device_map = device_map
 
     if config.alg_name =='SERAC':
         # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
-        pruning_and_validation = LLMPruningAndValidation(args, editable_model.model.model)
+        pruning_and_validation = LLMPruningAndValidation(args, model.model)
     else:
         # Sparsify editable model
         pruning_and_validation = LLMPruningAndValidation(args, editable_model.model)
@@ -122,25 +122,25 @@ def main(config):
     # Quant
     if config.compress and config.method == 'quant':
         pruning_and_validation.quantization()
-        model.to(f'cuda:{hparams.device}')
+        editable_model.to(f'cuda:{hparams.device}')
 
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
-        quit()
         
     # Calculate and log eval metrics
-    success_score, success_recall = evals.f1_accuracy_generate(model, prompts, target_new, config)
-    generalization_score, gen_recall = evals.f1_accuracy_generate(model, rephrase_prompt, target_new, config)
+    print("Starting eval...")
+    success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config)
+    generalization_score, gen_recall = evals.f1_accuracy_generate(editable_model, rephrase_prompt, target_new, config)
     wandb.run.summary["Rewrite accuracy"] = success_score
     wandb.run.summary["Generalization"] = generalization_score
 
 
     if config.edit_dataset == "mquake":  # a hacky way to smuggle the mquake single hop prompts as "locality inputs"
-        locality_score, local_recall = evals.f1_accuracy_generate(model, locality_inputs[0], locality_inputs[1], config)
+        locality_score, local_recall = evals.f1_accuracy_generate(editable_model, locality_inputs[0], locality_inputs[1], config)
         wandb.run.summary["Locality"] = locality_score
     else:
-        locality_score, local_recall = evals.f1_locality_generate(model, locality_inputs, config)
+        locality_score, local_recall = evals.f1_locality_generate(editable_model, locality_inputs, config)
         wandb.run.summary["Locality"] = locality_score
 
     # Print eval metrics
@@ -151,13 +151,13 @@ def main(config):
     print(f"Success recall: {success_recall}")
     print(f"Generalization recall: {gen_recall}")
     print(f"Locality/one hop recall: {local_recall}")
-    quit()
 
     # Metrics and evaluation
     ppl_test = pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
     print('Starting PPL edit evals...')
     ppl_edits = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=True)
     ppl_edits_unmasked = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=False)
+    ppl_QA = evals.ppl_QA(model, config)
     print('Starting Avg bits eval...')
     avgbits = pruning_and_validation.average_bits()
     # pruning_and_validation.sparsity_check()
@@ -183,6 +183,7 @@ def main(config):
     "PPL": ppl_test,
     "PPL edits": ppl_edits,
     "PPl edits unmasked": ppl_edits_unmasked,
+    "PPl QA": ppl_QA,
     "Success recall": success_recall,
     "Generalization recall": gen_recall,
     "Local recall": local_recall

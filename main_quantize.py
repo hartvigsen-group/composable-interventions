@@ -84,8 +84,9 @@ class LLMPruningAndValidation:
             args.save_model=args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
         self.device = torch.device("cuda:0")
         
-        self.get_llm(args.model, args.cache_dir)
-        if model is not None:
+        if model is None:
+            self.get_llm(args.model, args.cache_dir)
+        else:
             model=model.to(self.device)
             if self.args.method=='quant':
                 self.model4Quant=model

@@ -3,12 +3,12 @@ edit_set: 1
 alg_name: "FT"
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
-edit_dataset: "zsre"
+edit_dataset: "counterfact"
 stats_dir: "./data/stats"
 device: 0
 tag: "default"
 layers: [4, 5, 6, 7, 8]
-# layers: [21]
+# layers: [31]
 rewrite_module_tmp: "model.layers.{}.mlp.down_proj"
 layer_module_tmp: "model.layers.{}"
 mlp_module_tmp: "model.layers.{}.mlp"
@@ -16,7 +16,7 @@ attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
 max_length: 40
-batch_size: 50
+batch_size: 1
 model_parallel: False
 # FT
 # lr: 5e-4
@@ -28,6 +28,7 @@ num_steps: 25
 load_ckpt: false
 edit: true
 compress: false
+compress_first: false
 method: prune # prune or quant
 seed: 0
 nsamples: 128
