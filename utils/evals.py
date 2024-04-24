@@ -2,6 +2,7 @@ import torch
 from sklearn.metrics import f1_score, accuracy_score
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch.nn.functional as F
+from utils import edit_generator
 
 
 def calculate_recall(generated_ids, ground_truth_ids, exclude_tokens_tensor, prompt, ground_truth):
@@ -34,7 +35,7 @@ def f1_locality_generate(model, locality_inputs, config):
     recall_scores = []
 
     for prompt, ground_truth in zip(locality_inputs['data']['prompt'], locality_inputs['data']['ground_truth']):
-        if 'pythia' in config.model_name:
+        if 'pythia' or 'Llama-3' in config.model_name:
             ground_truth = f" {ground_truth}"
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
@@ -102,7 +103,7 @@ def f1_accuracy_generate(model, prompts, target_new, config):
     exclude_tokens_tensor = torch.tensor(exclude_tokens, device=model.device)
 
     for prompt, ground_truth in zip(prompts, target_new):
-        if 'pythia' in config.model_name:
+        if 'pythia' or 'Llama-3'  in config.model_name:
             ground_truth = f" {ground_truth}"
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
@@ -189,6 +190,43 @@ def ppl_responses(model, prompts, responses, config, mask_prompt=True):
         # print(torch.exp(torch.tensor(neg_log_likelihood / (input_ids.size(1) - prompt_length), device=device)))
     # Calculate average perplexity
     avg_perplexity = torch.exp(torch.tensor(total_loss / total_response_tokens, device=device))
+
+
+    return avg_perplexity.item()
+
+def ppl_QA(model, config, mask_prompt=False):
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    model.to(config.device)
+    model.eval()
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=500, edit_set=2)
+    
+    total_loss = 0.0
+    total_response_tokens = 0
+
+    for prompt, response in zip(prompts, ground_truth):
+        # Tokenize prompt and response
+        prompt_encodings = tokenizer(prompt, add_special_tokens=True, return_tensors='pt').to(config.device)
+        response_encodings = tokenizer(response, add_special_tokens=True, return_tensors='pt').to(config.device)
+
+        # Concatenate prompt and response tokens
+        input_ids = torch.cat([prompt_encodings.input_ids, response_encodings.input_ids[:, :]], dim=-1).to(config.device)
+
+        # Prepare target_ids with prompt tokens masked
+        target_ids = input_ids.clone()
+        prompt_length = prompt_encodings.input_ids.size(1)
+        if mask_prompt:
+            target_ids[:, :prompt_length] = -100  # Masking prompt tokens
+
+        # Calculate loss for response tokens
+        with torch.no_grad():
+            outputs = model(input_ids, labels=target_ids)
+            neg_log_likelihood = outputs.loss * (input_ids.size(1) - prompt_length)
+        
+        total_loss += neg_log_likelihood.item()
+        total_response_tokens += (input_ids.size(1) - prompt_length)
+        # print(torch.exp(torch.tensor(neg_log_likelihood / (input_ids.size(1) - prompt_length), device=device)))
+    # Calculate average perplexity
+    avg_perplexity = torch.exp(torch.tensor(total_loss / total_response_tokens, device=config.device))
 
 
     return avg_perplexity.item()

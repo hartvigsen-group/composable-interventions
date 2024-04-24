@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from typing_extensions import Literal
-from typing import List
+from typing import List, Literal
 
 from ...util.hparams import HyperParams
 import yaml
@@ -40,8 +39,9 @@ class MEMITHyperParams(HyperParams):
     model_name: str
     stats_dir: str
 
-    max_length: int = 30
-    batch_size: int = 100
+    max_length: int = 40
+    batch_size: int = 1
+    model_parallel: bool = False
 
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):

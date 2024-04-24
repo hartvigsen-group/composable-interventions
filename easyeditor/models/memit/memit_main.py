@@ -58,7 +58,6 @@ def apply_memit_to_model(
 
     print(f"New weights successfully inserted into {list(deltas.keys())}")
 
-
     if not keep_original_weight:
         weights_copy = {}
 
@@ -82,12 +81,11 @@ def execute_memit(
     # Update target and print info
     requests = deepcopy(requests)
     for i, request in enumerate(requests):
-        if 'pythia' in hparams.model_name:
-            if request["target_new"][0] != " ":
-                # Space required for correct tokenization
-                requests[i]["target_new"] = " " + request["target_new"]
+        if request["target_new"][0] != " ":
+            # Space required for correct tokenization
+            requests[i]["target_new"] = " " + request["target_new"]
 
-        if ('{}' not in request['prompt']):
+        if '{}' not in request['prompt']:
             assert request['subject'] in request['prompt'] or \
                    print(f"Subject:{request['subject']} do not exist in prompt: {request['prompt']}")
 
@@ -244,7 +242,6 @@ def execute_memit(
 
     print(f"Deltas successfully computed for {list(weights.keys())}")
 
-    print('Deltas: {}'.format(deltas))
     return deltas
 
 

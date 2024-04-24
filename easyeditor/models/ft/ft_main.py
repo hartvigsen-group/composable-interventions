@@ -65,10 +65,9 @@ def execute_ft(
     # Update target and print info
     requests = deepcopy(requests)
     for request in requests:
-        # if request["target_new"] != " ":
-        #     # Space required for correct tokenization
-        #     request["target_new"] = " " + request["target_new"]
-        print("""warning, remove request["target_new"] = " " + request["target_new"], which is the same with current memit, but make the performance worse.""")
+        if request["target_new"] != " ":
+            # Space required for correct tokenization
+            request["target_new"] = " " + request["target_new"]
         print(
             f"Executing FT algo for: "
             f"[{request['prompt']}] -> [{request['target_new']}]"

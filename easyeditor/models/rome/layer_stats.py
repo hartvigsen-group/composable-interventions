@@ -95,10 +95,13 @@ def layer_stats(
     """
 
     def get_ds():
+        # Load_From_File
+        # from datasets import Dataset
+        # raw_ds = Dataset.from_file('XXX/XXX/wikipedia-train.arrow')
+        # raw_ds = {'train': raw_ds}
         raw_ds = load_dataset(
             ds_name,
-            dict(wikitext="wikitext-2-raw-v1",
-                 wikipedia="20220301.en", streaming=True)[ds_name]
+            dict(wikitext="wikitext-103-raw-v1", wikipedia="20220301.en")[ds_name]
         )
         if hasattr(model.config, 'n_positions'):
             maxlen = model.config.n_positions
@@ -106,8 +109,17 @@ def layer_stats(
             maxlen = model.config.max_sequence_length
         elif hasattr(model.config, 'max_position_embeddings'):
             maxlen = model.config.max_position_embeddings
+        elif hasattr(model.config,'seq_length'):
+            maxlen = model.config.seq_length
         else:
             raise NotImplementedError
+                
+        if hasattr(model.config, 'model_type') and 'mistral' in model.config.model_type:
+            if hasattr(model.config, 'sliding_window') and model.config.sliding_window:
+                maxlen = model.config.sliding_window or 4096
+            else:
+                maxlen = 4096
+        
         if batch_tokens is not None and batch_tokens < maxlen:
             maxlen = batch_tokens
         return TokenizedDataset(raw_ds["train"], tokenizer, maxlen=maxlen)
@@ -120,8 +132,17 @@ def layer_stats(
         npos = model.config.max_sequence_length
     elif hasattr(model.config, 'max_position_embeddings'):
         npos = model.config.max_position_embeddings
+    elif hasattr(model.config,'seq_length'):
+        npos = model.config.seq_length
     else:
         raise NotImplementedError
+        
+    if hasattr(model.config, 'model_type') and 'mistral' in model.config.model_type:
+        if hasattr(model.config, 'sliding_window') and model.config.sliding_window:
+            npos = model.config.sliding_window or 4096
+        else:
+            npos = 4096
+    
     if batch_tokens is None:
         batch_tokens = npos * 3  # Sort and divide into batches with this many tokens
     if precision is None:

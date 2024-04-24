@@ -4,6 +4,7 @@ alg_name: "MEMIT"
 model_name: meta-llama/Llama-2-7b-chat-hf
 model: meta-llama/Llama-2-7b-chat-hf
 # llama: meta-llama/Llama-2-7b-chat-hf
+# llama-3: meta-llama/Meta-Llama-3-8B-Instruct
 # pythia: EleutherAI/pythia-14m
 edit_dataset: "counterfact"
 stats_dir: "/scratch/sux7mp/stats"
@@ -51,8 +52,9 @@ quant_method: autogptq
 compression_dataset: c4
 dataset: c4
 percdamp: 0.01
-wbits: 8
-groupsize: -1
+wbits: 4
+zero_point: True
+groupsize: 128
 sym: true
 nearest: false
 new_eval: false
@@ -65,9 +67,9 @@ save: out/
 save_model: null
 eval_zero_shot: false
 
-compress_first: True
-edit: False
-compress: True
+compress_first: False
+edit: True
+compress: False
 method: prune # prune or quant
 
 load_ckpt: False

@@ -43,9 +43,7 @@ class MENDTrainingHparams(HyperParams):
     shared: bool
 
     # Output
-
     results_dir: str
-
 
     # Train
     device: str
@@ -69,23 +67,20 @@ class MENDTrainingHparams(HyperParams):
     opt: str
     grad_clip: float
 
+    model_parallel: bool = False
     max_epochs: Optional[int] = None
     max_iters: Optional[int] = None
 
-
     @classmethod
-    def from_hparams(cls, config: str):
-        config = super().construct_float_from_scientific_notation(config)
+    def from_hparams(cls, hparams_name_or_path: str):
+
+        if '.yaml' not in hparams_name_or_path:
+            hparams_name_or_path = hparams_name_or_path + '.yaml'
+
+        with open(hparams_name_or_path, "r") as stream:
+            config = yaml.safe_load(stream)
+            config = super().construct_float_from_scientific_notation(config)
+
+        assert (config and config['alg'] == 'MEND') or print(f'MENDTrainingHyperParams can not load from {hparams_name_or_path}, '
+                                                f'alg_name is {config["alg"]} ')
         return cls(**config)
-
-        # if '.yaml' not in hparams_name_or_path:
-        #     hparams_name_or_path = hparams_name_or_path + '.yaml'
-
-        # with open(hparams_name_or_path, "r") as stream:
-        #     config = yaml.safe_load(stream)
-        #     config = super().construct_float_from_scientific_notation(config)
-
-        # assert (config and config['alg'] == 'MEND') or print(f'MENDTrainingHyperParams can not load from {hparams_name_or_path}, '
-        #                                         f'alg_name is {config["alg"]} ')
-        # return cls(**config)
-
