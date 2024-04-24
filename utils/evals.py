@@ -98,7 +98,7 @@ def f1_accuracy_generate(model, prompts, target_new, config):
 
     f1_scores = []
     recall_scores = []  # List to store recall scores
-
+    print("warning: 13 for other gpt model")
     exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, 13]  # 13 is the new line token for llama
     exclude_tokens_tensor = torch.tensor(exclude_tokens, device=model.device)
 
