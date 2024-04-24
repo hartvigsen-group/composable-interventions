@@ -63,7 +63,7 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-                torch_dtype=torch.float16, 
+                torch_dtype=torch.bfloat16, 
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )

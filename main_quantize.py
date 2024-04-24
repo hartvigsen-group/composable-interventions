@@ -110,8 +110,6 @@ class LLMPruningAndValidation:
 
     def get_llm(self, model_name, cache_dir="llm_weights"):
         args=self.args
-        print(self.args.method)
-        print(self.args.quant_method)
         if self.args.method=='quant':
             if self.args.quant_method=='autogptq':
                 quantize_config = BaseQuantizeConfig(
@@ -265,6 +263,7 @@ class LLMPruningAndValidation:
                 self.Masks=prune_ablate(args, model, tokenizer, device)
         
     def prune(self):
+        print('Starting pruning')
         if self.model.config.model_type=='gptj':
             layers=self.model.transformer.h
         elif self.model.config.model_type=='gpt_neox':
@@ -298,7 +297,7 @@ class LLMPruningAndValidation:
         dataset = load_dataset('lambada', split='validation[:1000]')
         evaluator = Evaluator(dataset, self.tokenizer)
         quant_dir=self.args.save_model
-        assert self.args.method=='quant'
+        assert self.args.method!='prune'
         if self.args.quant_method=='autogptq':
             model = AutoGPTQForCausalLM.from_quantized(quant_dir, device="cuda:0")
         elif self.args.quant_method=='autoawq':

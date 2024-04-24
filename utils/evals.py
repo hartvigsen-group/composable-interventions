@@ -35,7 +35,7 @@ def f1_locality_generate(model, locality_inputs, config):
     recall_scores = []
 
     for prompt, ground_truth in zip(locality_inputs['data']['prompt'], locality_inputs['data']['ground_truth']):
-        if 'pythia' in config.model_name:
+        if 'pythia' or 'Llama-3' in config.model_name:
             ground_truth = f" {ground_truth}"
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
@@ -103,7 +103,7 @@ def f1_accuracy_generate(model, prompts, target_new, config):
     exclude_tokens_tensor = torch.tensor(exclude_tokens, device=model.device)
 
     for prompt, ground_truth in zip(prompts, target_new):
-        if 'pythia' in config.model_name:
+        if 'pythia' or 'Llama-3'  in config.model_name:
             ground_truth = f" {ground_truth}"
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
