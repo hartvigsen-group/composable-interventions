@@ -1,0 +1,51 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Prune",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                // Overall
+                "seed=42",
+                "model=meta-llama/Meta-Llama-3-8B",
+                "model_name=meta-llama/Meta-Llama-3-8B",
+                
+                // Editing
+                "edit=False",
+                "edit_dataset=zsre",
+
+                // Compression
+                "compress=True",
+                "compress_first=False",
+                "method=prune",
+                "prune_method=sparsegpt",
+                "sparsity_ratio=0.25",
+                "tag=SparseGPT_25%",
+
+                // RMU Unlearning
+                "+unlearn=True",
+                "+unlearn_method=rme",
+                "+rme_retain_corpora=[wikitext]",
+                "+rme_forget_corpora=[cyber-forget-corpus]",
+                "+rme_alpha=[100.0]",
+                "+rme_steering_coeff_list=[20,20]",
+                "+rme_lr=5e-05",
+                "+rme_min_len=0",
+                "+rme_max_len=2000",
+                "+rme_batch_size=4",
+                "+rme_max_num_batches=500",
+                "+rme_layer_id=3",
+                "+rme_layer_ids=[1,2,3]",
+                "+rme_param_ids=[6]",
+                "+rme_seed=42",
+            ]
+        }
+    ]
+}

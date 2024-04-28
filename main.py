@@ -15,10 +15,11 @@ import hydra
 from omegaconf import OmegaConf
 from utils import edit_generator, save_ckpt_meta, evals
 import wandb
+from wmdp.rmu import unlearn as rmu_unlearn
+from wmdp.rmu import utils as rmu_utils
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config_memit")
-
 def main(config):
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
@@ -58,9 +59,6 @@ def main(config):
         trainer.run()
         print('Editor training complete.')
 
-    # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
-
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
@@ -89,10 +87,73 @@ def main(config):
         if config.compress and config.method == 'quant':
             pruning_and_validation.quantization()
             model.to(f'cuda:{hparams.device}')
+
+    # Apply unlearning to the model
+    if config.unlearn:
+        if config.unlearn_method == "rme":
+            tokenizer = AutoTokenizer.from_pretrained(
+                config.model_name, trust_remote_code=True, use_fast=False
+            )
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+            tokenizer.padding_side = "left"
+            tokenizer.mask_token_id = tokenizer.eos_token_id
+            tokenizer.sep_token_id = tokenizer.eos_token_id
+            tokenizer.cls_token_id = tokenizer.eos_token_id
+            
+            unlearning_model = AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                torch_dtype=torch.bfloat16, 
+                # low_cpu_mem_usage=True, 
+                device_map="auto"
+            )
+            rmu_config = {
+                "model_name_or_path": config.model_name,
+                # "module_str": f"{config.model_name}.model.layers[{config.rme_layer_id}]",
+                "module_str": "{model_name}.model.layers[{layer_id}]",
+                "output_dir": None,
+                "retain_corpora": config.rme_retain_corpora,
+                "forget_corpora": config.rme_forget_corpora,
+                "alpha": config.rme_alpha,
+                "steering_coeff_list": config.rme_steering_coeff_list,
+                "lr": config.rme_lr,
+                "min_len": config.rme_min_len,
+                "max_len": config.rme_max_len,
+                "batch_size": config.rme_batch_size,
+                "max_num_batches": config.rme_max_num_batches,
+                "layer_id": config.rme_layer_id,
+                "layer_ids": config.rme_layer_ids,
+                "param_ids": config.rme_param_ids,
+                "seed": config.rme_seed
+            }
+            forget_data_list, retain_data_list = rmu_utils.get_data(
+                rmu_config["forget_corpora"],
+                rmu_config["retain_corpora"],
+                rmu_config["min_len"],
+                rmu_config["max_len"],
+                rmu_config["batch_size"],
+            )
+
+            # Updates unlearning_model
+            rmu_unlearn.run_rmu(
+                updated_model=unlearning_model,
+                frozen_model=model,
+                tokenizer=tokenizer,
+                forget_data_list=retain_data_list,
+                retain_data_list=retain_data_list,
+                args=rmu_config
+            )
+    
+        elif config.unlearn_method == "gradient_ascent":
+            raise NotImplementedError("Gradient ascent hasn't been implemented yet")
+        else:
+            raise NotImplementedError(f"Unlearning method not supported: {config.unlearn_method}")
     
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
+
+    # Get edits to be made
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
     # print(model)
     if config.edit:
@@ -178,16 +239,16 @@ def main(config):
     wandb.run.summary["Latency"] = latency
 
     wandb.log({
-    "Rewrite accuracy": success_score,
-    "Generalization": generalization_score,
-    "Locality": locality_score,
-    "PPL": ppl_test,
-    "PPL edits": ppl_edits,
-    "PPl edits unmasked": ppl_edits_unmasked,
-    "PPl QA": ppl_QA,
-    "Success recall": success_recall,
-    "Generalization recall": gen_recall,
-    "Local recall": local_recall
+        "Rewrite accuracy": success_score,
+        "Generalization": generalization_score,
+        "Locality": locality_score,
+        "PPL": ppl_test,
+        "PPL edits": ppl_edits,
+        "PPl edits unmasked": ppl_edits_unmasked,
+        "PPl QA": ppl_QA,
+        "Success recall": success_recall,
+        "Generalization recall": gen_recall,
+        "Local recall": local_recall
     })
 
 if __name__ == '__main__':

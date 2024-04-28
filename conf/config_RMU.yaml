@@ -1,0 +1,78 @@
+model_name: meta-llama/Meta-Llama-3-8B
+model: meta-llama/Meta-Llama-3-8B
+
+number_of_edits: 50
+edit_set: 1
+alg_name: "MEMIT"
+edit_dataset: "counterfact"
+stats_dir: "/scratch/sux7mp/stats"
+device: 0
+tag: "default"
+
+layers: [4, 5, 6, 7, 8]
+clamp_norm_factor: 4
+layer_selection: "all"
+fact_token: "subject_last"
+v_num_grad_steps: 25
+v_lr: 5e-1
+v_loss_layer: 31
+v_weight_decay: 1e-3
+kl_factor: 0.0625
+mom2_adjustment: true
+mom2_update_weight: 15000
+rewrite_module_tmp: "model.layers.{}.mlp.down_proj"
+layer_module_tmp: "model.layers.{}"
+mlp_module_tmp: "model.layers.{}.mlp"
+attn_module_tmp: "model.layers.{}.self_attn"
+ln_f_module: "model.norm"
+lm_head_module: "lm_head"
+mom2_dataset: "wikipedia"
+mom2_n_samples: 100000
+mom2_dtype: "float32"
+# model_parallel: false
+max_length: 40
+batch_size: 50
+model_parallel: False
+
+# # FT
+# lr: 5e-7
+# weight_decay: 0
+# norm_constraint: false
+# num_steps: 25
+
+# Compression
+seed: 0
+nsamples: 128
+sparsity_ratio: 0.3
+sparsity_type: unstructured
+prune_method: sparsegpt # wanda or sparsegpt
+quant_method: autogptq
+compression_dataset: c4
+dataset: c4
+percdamp: 0.01
+wbits: 4
+zero_point: True
+groupsize: 128
+sym: true
+nearest: false
+new_eval: false
+act_order: false
+true_sequential: false
+static_groups: false
+cache_dir: /scratch/sux7mp/llm_weights
+use_variant: false
+save: out/
+save_model: null
+eval_zero_shot: false
+
+compress_first: False
+edit: True
+compress: False
+method: prune # prune or quant
+
+load_ckpt: False
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
+
+save_ckpt: False
+
+edit_train: false

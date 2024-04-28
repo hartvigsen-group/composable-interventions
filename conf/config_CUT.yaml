@@ -1,0 +1,42 @@
+model_name: meta-llama/Meta-Llama-3-8B
+model: meta-llama/Meta-Llama-3-8B
+# llama: meta-llama/Llama-2-7b-chat-hf
+# pythia: EleutherAI/pythia-14m
+stats_dir: "/scratch/hua2bv/stats"
+device: 0
+tag: "default"
+
+batch_size: 50
+model_parallel: False
+
+# Compression
+seed: 0
+nsamples: 128
+sparsity_ratio: 0.3
+sparsity_type: unstructured
+prune_method: sparsegpt # wanda or sparsegpt
+quant_method: gptq
+dataset: c4
+percdamp: 0.01
+wbits: 8
+groupsize: -1
+sym: true
+nearest: false
+new_eval: false
+act_order: false
+true_sequential: false
+static_groups: false
+cache_dir: /scratch/hua2bv/llm_weights
+use_variant: false
+save: out/
+save_model: null
+eval_zero_shot: false
+
+compress: True
+method: prune # prune or quant
+
+load_ckpt: False
+loat_ckpt_path:  /scratch/hua2bv/saved_models/checkpoint_20240323_163629.pth
+
+save_ckpt: True
+save_ckpt_path: '/scratch/hua2bv/saved_models/'

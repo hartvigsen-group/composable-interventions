@@ -4,9 +4,11 @@ import datetime
 import numpy as np
 import torch
 from transformers import AdamW
+from types import SimpleNamespace
 import tqdm as tqdm
 
-from rmu.utils import load_model, get_params, forward_with_cache, get_data
+# from rmu.utils import load_model, get_params, forward_with_cache, get_data
+from wmdp.rmu.utils import load_model, get_params, forward_with_cache, get_data
 
 def run_rmu(
     updated_model,
@@ -16,29 +18,32 @@ def run_rmu(
     retain_data_list,
     args,
 ):
-    rmu_config = vars(args)
+    rmu_config = SimpleNamespace(**args) if isinstance(args, dict) else vars(args)
     print("====rmu Config====")
-    print("\n".join(f"{k}={v}" for k,v in rmu_config.items()))
+    if isinstance(args, dict):
+        print("\n".join(f"{k}={v}" for k,v in args.items()))
+    else:
+        print("\n".join(f"{k}={v}" for k,v in rmu_config.items()))
     print("=====")
 
     updated_model = updated_model.train()
-    params = get_params(updated_model, args.layer_ids, args.param_ids)
-    optimizer = AdamW(params, lr=args.lr)
+    params = get_params(updated_model, rmu_config.layer_ids, rmu_config.param_ids)
+    optimizer = AdamW(params, lr=rmu_config.lr)
     frozen_module = eval(
-        args.module_str.format(model_name="frozen_model", layer_id=args.layer_id)
+        rmu_config.module_str.format(model_name="frozen_model", layer_id=rmu_config.layer_id)
     )
     updated_module = eval(
-        args.module_str.format(model_name="updated_model", layer_id=args.layer_id)
+        rmu_config.module_str.format(model_name="updated_model", layer_id=rmu_config.layer_id)
     )
 
     control_vectors_list = []
     for i in range(len(forget_data_list)):
         random_vector = torch.rand(1,1, updated_model.config.hidden_size, dtype=updated_model.dtype, device=updated_model.device)
-        control_vec = random_vector / torch.norm(random_vector) * args.steering_coeff_list[i]
+        control_vec = random_vector / torch.norm(random_vector) * rmu_config.steering_coeff_list[i]
         control_vectors_list.append(control_vec)
 
     num_batches = min(
-        args.max_num_batches,
+        rmu_config.max_num_batches,
         min([len(f) for f in forget_data_list]),
         min([len(r) for r in retain_data_list]),
     )
@@ -60,7 +65,7 @@ def run_rmu(
                 max_length = 512 if topic_idx == 0 else 768
                 unlearn_inputs = tokenizer(
                     unlearn_batch, return_tensors="pt", padding=True, truncation=True, max_length=max_length
-                )
+                ).to(updated_model.device)
                 updated_forget_activations = forward_with_cache(
                     updated_model, unlearn_inputs, module=updated_module, no_grad=False
                 ).to(updated_model.device)
@@ -83,7 +88,7 @@ def run_rmu(
                 retain_loss = torch.nn.functional.mse_loss(
                     updated_retain_activations, frozen_retain_activations
                 )
-                retain_loss *= args.alpha[topic_idx]
+                retain_loss *= rmu_config.alpha[topic_idx]
 
                 # Update model
                 loss = unlearn_loss + retain_loss
@@ -95,11 +100,11 @@ def run_rmu(
 
     tokenizer.truncation_side = truncation_side
     # Save model
-    if args.output_dir:
-        path = args.output_dir
+    if rmu_config.output_dir:
+        path = rmu_config.output_dir
     else:
         date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        path = f"models/{args.model_name_or_path}_alpha-{args.alpha}_batches-{num_batches}_layer-{args.layer_id}_{date}"
+        path = f"models/{rmu_config.model_name_or_path}_alpha-{rmu_config.alpha}_batches-{num_batches}_layer-{rmu_config.layer_id}_{date}"
     updated_model.save_pretrained(path)
     tokenizer.save_pretrained(path)
     print(f"Saved model to {path}")

@@ -1,5 +1,5 @@
+import os
 import json
-
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import random
@@ -77,7 +77,8 @@ def get_data(forget_corpora, retain_corpora, min_len=50, max_len=2000, batch_siz
                 if len(x['text']) > min_len:
                     data.append(str(x['text']))
         else:
-            for line in open(f"data/{name}.jsonl", "r"):
+            current_dir_path = os.path.dirname(os.path.realpath(__file__))
+            for line in open(f"{current_dir_path}/../data/{name}.jsonl", "r"):
                 if "bio-forget-corpus" in name:
                     raw_text = json.loads(line)['text']
                 else:

@@ -1,5 +1,8 @@
 data/
 wmdp/data/
+models/
+outputs/
+calflops/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
