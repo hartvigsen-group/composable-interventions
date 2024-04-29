@@ -22,7 +22,7 @@ import wandb
 def main(config):
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
-    print("fix config")
+
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
 
@@ -30,9 +30,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_FT_counterfact",
+        project="AK_tests",
         config=config_dict,
-        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        mode="offline", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
