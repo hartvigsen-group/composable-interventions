@@ -86,7 +86,7 @@ class LLMPruningAndValidation:
             args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
         self.device = torch.device("cuda:0")
         
-        print("Ask tianjin: WARNING: This code has bug!!!!!!!! Don't use it!!!!!! line 87 in main_quantize")
+        self.get_llm(args.model, args.cache_dir)
         if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':
@@ -95,10 +95,6 @@ class LLMPruningAndValidation:
                 self.model4Quant.model=model
             #else:    
             self.model=model
-        else:
-            print("Warning: Model is None! You must pass in the model")
-            exit()
-            # self.get_llm(args.model, args.cache_dir)
         self.model.seqlen = self.model.config.max_position_embeddings
         if self.args.method=='quant':
             self.model4Quant.model.seqlen=self.model4Quant.model.config.max_position_embeddings
@@ -107,7 +103,6 @@ class LLMPruningAndValidation:
             use_fast=True
         else:
             use_fast=False
-        print("Ask tianjin: do we need this use_fast?")
         self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=use_fast)
         np.random.seed(args.seed)
         torch.random.manual_seed(args.seed)
@@ -115,6 +110,8 @@ class LLMPruningAndValidation:
 
     def get_llm(self, model_name, cache_dir="llm_weights"):
         args=self.args
+        print(self.args.method)
+        print(self.args.quant_method)
         if self.args.method=='quant':
             if self.args.quant_method=='autogptq':
                 quantize_config = BaseQuantizeConfig(
@@ -144,7 +141,6 @@ class LLMPruningAndValidation:
                 device_map="auto"
             ).to(self.device)
             self.model.seqlen = self.model.config.max_position_embeddings
-
     def get_average_number_of_bits4Quantization(self,
         wbits: int = 4,
         qq_scale_bits: int = 16,
@@ -261,15 +257,14 @@ class LLMPruningAndValidation:
             print("pruning starts")
             if args.prune_method == "wanda":
                 self.Masks=prune_wanda(args, model, tokenizer, device)
-            # elif args.prune_method == "magnitude":
-            #     self.Masks=prune_magnitude(args, model, tokenizer, device)
+            elif args.prune_method == "magnitude":
+                self.Masks=prune_magnitude(args, model, tokenizer, device)
             elif args.prune_method == "sparsegpt":
                 self.Masks=prune_sparsegpt(args, model, tokenizer, device)
-            # elif "ablate" in args.prune_method:
-            #     self.Masks=prune_ablate(args, model, tokenizer, device)
+            elif "ablate" in args.prune_method:
+                self.Masks=prune_ablate(args, model, tokenizer, device)
         
     def prune(self):
-        print('Starting pruning')
         if self.model.config.model_type=='gptj':
             layers=self.model.transformer.h
         elif self.model.config.model_type=='gpt_neox':
@@ -282,14 +277,12 @@ class LLMPruningAndValidation:
                 subset = find_layers(layer)
                 for name in subset:
                     subset[name].weight.data[self.Masks["Layer"+str(i)+"_"+name]]=0
-
     def sparsity_check(self):
         print("*" * 30)
         sparsity_ratio = check_sparsity(self.model)
         print(f"sparsity sanity check {sparsity_ratio:.4f}")
         print("*" * 30)
         return sparsity_ratio
-
     def FLOPs(self):
         assert self.args.method!='quant'
         batch_size, max_seq_length = 1, 128
@@ -305,7 +298,7 @@ class LLMPruningAndValidation:
         dataset = load_dataset('lambada', split='validation[:1000]')
         evaluator = Evaluator(dataset, self.tokenizer)
         quant_dir=self.args.save_model
-        assert self.args.method!='prune'
+        
         if self.args.quant_method=='autogptq':
             model = AutoGPTQForCausalLM.from_quantized(quant_dir, device="cuda:0")
         elif self.args.quant_method=='autoawq':
