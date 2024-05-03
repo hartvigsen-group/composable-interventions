@@ -90,7 +90,7 @@ def main(config):
 
     # Apply unlearning to the model
     if config.unlearn:
-        if config.unlearn_method == "rme":
+        if config.unlearn_method == "rmu":
             tokenizer = AutoTokenizer.from_pretrained(
                 config.model_name, trust_remote_code=True, use_fast=False
             )
@@ -108,22 +108,22 @@ def main(config):
             )
             rmu_config = {
                 "model_name_or_path": config.model_name,
-                # "module_str": f"{config.model_name}.model.layers[{config.rme_layer_id}]",
+                # "module_str": f"{config.model_name}.model.layers[{config.rmu_layer_id}]",
                 "module_str": "{model_name}.model.layers[{layer_id}]",
                 "output_dir": None,
-                "retain_corpora": config.rme_retain_corpora,
-                "forget_corpora": config.rme_forget_corpora,
-                "alpha": config.rme_alpha,
-                "steering_coeff_list": config.rme_steering_coeff_list,
-                "lr": config.rme_lr,
-                "min_len": config.rme_min_len,
-                "max_len": config.rme_max_len,
-                "batch_size": config.rme_batch_size,
-                "max_num_batches": config.rme_max_num_batches,
-                "layer_id": config.rme_layer_id,
-                "layer_ids": config.rme_layer_ids,
-                "param_ids": config.rme_param_ids,
-                "seed": config.rme_seed
+                "retain_corpora": config.rmu_retain_corpora,
+                "forget_corpora": config.rmu_forget_corpora,
+                "alpha": config.rmu_alpha,
+                "steering_coeff_list": config.rmu_steering_coeff_list,
+                "lr": config.rmu_lr,
+                "min_len": config.rmu_min_len,
+                "max_len": config.rmu_max_len,
+                "batch_size": config.rmu_batch_size,
+                "max_num_batches": config.rmu_max_num_batches,
+                "layer_id": config.rmu_layer_id,
+                "layer_ids": config.rmu_layer_ids,
+                "param_ids": config.rmu_param_ids,
+                "seed": config.rmu_seed
             }
             forget_data_list, retain_data_list = rmu_utils.get_data(
                 rmu_config["forget_corpora"],

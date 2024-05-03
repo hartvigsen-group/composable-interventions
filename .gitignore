@@ -3,6 +3,9 @@ wmdp/data/
 models/
 outputs/
 calflops/
+*.zip
+.vscode/
+out/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
