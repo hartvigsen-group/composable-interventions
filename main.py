@@ -17,6 +17,8 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 from wmdp.rmu import unlearn as rmu_unlearn
 from wmdp.rmu import utils as rmu_utils
+import lm_eval
+from lm_eval.models.huggingface import HFLM
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config_memit")
@@ -31,9 +33,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_tests",
+        project="Composable_Interventions",
         config=config_dict,
-        mode="offline", # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -189,14 +191,35 @@ def main(config):
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
-        
-    # Calculate and log eval metrics
+    
+    # Begin evaluations
     print("Starting eval...")
+
+    # Evaluate on QA benchmarks
+    print(f"Evaluating QA benchmarks...")
+    lm_eval_model = HFLM(model)
+    task_manager = lm_eval.tasks.TaskManager()
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if config.unlearn else ["mmlu"]
+    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+        model=lm_eval_model,
+        tasks=qa_benchmarks,
+        num_fewshot=0,
+        task_manager=task_manager,
+        # limit=5
+    )
+
+    for benchmark_name in qa_benchmark_results["groups"]:
+        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    
+    print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config)
     generalization_score, gen_recall = evals.f1_accuracy_generate(editable_model, rephrase_prompt, target_new, config)
     wandb.run.summary["Rewrite accuracy"] = success_score
     wandb.run.summary["Generalization"] = generalization_score
-
 
     if config.edit_dataset == "mquake":  # a hacky way to smuggle the mquake single hop prompts as "locality inputs"
         locality_score, local_recall = evals.f1_accuracy_generate(editable_model, locality_inputs[0], locality_inputs[1], config)
