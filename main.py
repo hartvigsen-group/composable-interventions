@@ -17,7 +17,7 @@ from utils import edit_generator, save_ckpt_meta, evals
 import wandb
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
+@hydra.main(version_base=None, config_path="conf", config_name="config_lora")
 
 def main(config):
     hparams=config
@@ -32,7 +32,7 @@ def main(config):
     wandb.init(
         project="AK_tests",
         config=config_dict,
-        mode="offline", # "disabled" for dry-runs, "online" for logging
+        mode="disabled", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -64,7 +64,7 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-                torch_dtype=torch.bfloat16, 
+                torch_dtype=torch.float, 
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
@@ -103,14 +103,18 @@ def main(config):
             subject=subject,
             keep_original_weight=False
         )
+        if config.alg_name=='LoRA':
+            editable_model = editable_model.merge_and_unload()
         for p in editable_model.model.parameters():
             p.requires_grad_()
         print('editing complete')
     editable_model.model.hf_device_map = device_map
+    print(editable_model(torch.tensor([[7000]], dtype=torch.long).to(f'cuda:{hparams.device}')).logits)
 
-    if config.alg_name =='SERAC':
+
+    if config.alg_name =='LoRA':
         # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
-        pruning_and_validation = LLMPruningAndValidation(args, model.model)
+        pruning_and_validation = LLMPruningAndValidation(hparams, editable_model)
     else:
         # Sparsify editable model
         pruning_and_validation = LLMPruningAndValidation(hparams, editable_model.model)

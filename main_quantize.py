@@ -82,8 +82,8 @@ def print_model_size(model):
 class LLMPruningAndValidation:
     def __init__(self, args, model=None):
         self.args = args
-        if args.save_model is None:
-            args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
+        # if args.save_model is None:
+        #     args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
         self.device = torch.device("cuda:0")
         
         self.get_llm(args.model, args.cache_dir)
