@@ -82,9 +82,11 @@ def print_model_size(model):
 class LLMPruningAndValidation:
     def __init__(self, args, model=None):
         self.args = args
-        if args.save_model is None:
-            args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
+        # if args.save_model is None:
+        #     args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
         self.device = torch.device("cuda:0")
+        if model:
+            self.model = model
         
         self.get_llm(args.model, args.cache_dir)
         if model is not None:
@@ -111,8 +113,8 @@ class LLMPruningAndValidation:
     def get_llm(self, model_name, cache_dir="llm_weights"):
         args=self.args
         print(self.args.method)
-        print(self.args.quant_method)
         if self.args.method=='quant':
+            print(self.args.quant_method)
             if self.args.quant_method=='autogptq':
                 quantize_config = BaseQuantizeConfig(
                     bits=args.wbits,  # quantize model to 4-bit
@@ -134,12 +136,12 @@ class LLMPruningAndValidation:
                 print('Incorrect method and quant_method combination.')
                 sys.exit()
         else:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                torch_dtype=torch.float16, 
-                low_cpu_mem_usage=True, 
-                device_map="auto"
-            ).to(self.device)
+            # self.model = AutoModelForCausalLM.from_pretrained(
+            #     model_name,
+            #     torch_dtype=torch.float16, 
+            #     low_cpu_mem_usage=True, 
+            #     device_map="auto"
+            # ).to(self.device)
             self.model.seqlen = self.model.config.max_position_embeddings
     def get_average_number_of_bits4Quantization(self,
         wbits: int = 4,
@@ -293,16 +295,16 @@ class LLMPruningAndValidation:
 
     def foward(self,input):
         return self.model(input)
-    def CalculateLatency(self,quant_dir=None):
+    def CalculateLatency(self, model):
         from datasets import load_dataset
         dataset = load_dataset('lambada', split='validation[:1000]')
         evaluator = Evaluator(dataset, self.tokenizer)
-        quant_dir=self.args.save_model
+        # quant_dir=self.args.save_model
         
-        if self.args.quant_method=='autogptq':
-            model = AutoGPTQForCausalLM.from_quantized(quant_dir, device="cuda:0")
-        elif self.args.quant_method=='autoawq':
-            model = AutoAWQForCausalLM.from_quantized(quant_dir,"", fuse_layers=False)
+        # if self.args.quant_method=='autogptq':
+        #     model = AutoGPTQForCausalLM.from_quantized(quant_dir, device="cuda:0")
+        # elif self.args.quant_method=='autoawq':
+        #     model = AutoAWQForCausalLM.from_quantized(quant_dir,"", fuse_layers=False)
         acc_smoothquant, lantecy = evaluator.evaluate(model)
         print(f'per-sample lantecy: {lantecy:.3f} ms')
         return lantecy

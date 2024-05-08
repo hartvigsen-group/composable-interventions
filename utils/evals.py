@@ -196,7 +196,7 @@ def ppl_responses(model, prompts, responses, config, mask_prompt=True):
 
 def ppl_QA(model, config, mask_prompt=False):
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    model.to(config.device)
+    model.to(f'cuda:{config.device}')
     model.eval()
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=500, edit_set=2)
     
@@ -205,11 +205,11 @@ def ppl_QA(model, config, mask_prompt=False):
 
     for prompt, response in zip(prompts, ground_truth):
         # Tokenize prompt and response
-        prompt_encodings = tokenizer(prompt, add_special_tokens=True, return_tensors='pt').to(config.device)
-        response_encodings = tokenizer(response, add_special_tokens=True, return_tensors='pt').to(config.device)
+        prompt_encodings = tokenizer(prompt, add_special_tokens=True, return_tensors='pt').to(f'cuda:{config.device}')
+        response_encodings = tokenizer(response, add_special_tokens=True, return_tensors='pt').to(f'cuda:{config.device}')
 
         # Concatenate prompt and response tokens
-        input_ids = torch.cat([prompt_encodings.input_ids, response_encodings.input_ids[:, :]], dim=-1).to(config.device)
+        input_ids = torch.cat([prompt_encodings.input_ids, response_encodings.input_ids[:, :]], dim=-1).to(f'cuda:{config.device}')
 
         # Prepare target_ids with prompt tokens masked
         target_ids = input_ids.clone()
@@ -226,7 +226,7 @@ def ppl_QA(model, config, mask_prompt=False):
         total_response_tokens += (input_ids.size(1) - prompt_length)
         # print(torch.exp(torch.tensor(neg_log_likelihood / (input_ids.size(1) - prompt_length), device=device)))
     # Calculate average perplexity
-    avg_perplexity = torch.exp(torch.tensor(total_loss / total_response_tokens, device=config.device))
+    avg_perplexity = torch.exp(torch.tensor(total_loss / total_response_tokens, device=f'cuda:{config.device}'))
 
 
     return avg_perplexity.item()
