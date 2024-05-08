@@ -19,7 +19,7 @@ from sparsellm.lib.quant import *
 #from sparsellm.lib.quant_llama import llama_pack3, llamaQuanti,llama_eval
 #from awq.utils.lm_eval_adaptor import LMEvalAdaptor
 from awq import AutoAWQForCausalLM
-from lm_eval import evaluator
+
 DEV = torch.device('cuda:0')
 from calflops.calflops import calculate_flops
 from transformers import AutoTokenizer, TextGenerationPipeline
