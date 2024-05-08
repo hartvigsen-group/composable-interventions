@@ -6,15 +6,16 @@ model: meta-llama/Meta-Llama-3-8B-Instruct
 # llama: meta-llama/Llama-2-7b-chat-hf
 # llama-3: meta-llama/Meta-Llama-3-8B-Instruct
 # pythia: EleutherAI/pythia-14m
-edit_dataset: "counterfact"
+edit_dataset: "zsre"
 stats_dir: "/scratch/sux7mp/stats"
 device: 0
 tag: "default"
+wandb: disabled
 
 lora_type: "adalora"
 layers: []
 num_steps: 70  #70
-lr: 5e-4 # 5e-3
+lr: 5e-3 # 5e-3
 weight_decay: 0.01
 kl_factor: 0
 rank: 8

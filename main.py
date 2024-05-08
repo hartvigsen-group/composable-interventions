@@ -32,7 +32,7 @@ def main(config):
     wandb.init(
         project="AK_tests",
         config=config_dict,
-        mode="disabled", # "disabled" for dry-runs, "online" for logging
+        mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -109,8 +109,6 @@ def main(config):
             p.requires_grad_()
         print('editing complete')
     editable_model.model.hf_device_map = device_map
-    print(editable_model(torch.tensor([[7000]], dtype=torch.long).to(f'cuda:{hparams.device}')).logits)
-
 
     if config.alg_name =='LoRA':
         # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
@@ -172,7 +170,7 @@ def main(config):
     else: flops = -1
     if hparams.method == 'quant' or hparams.compress == False:
         print('Starting latency eval...')
-        latency = pruning_and_validation.CalculateLatency()
+        latency = pruning_and_validation.CalculateLatency(editable_model.model)
     else: latency = -1
 
     # Save to WandB
