@@ -45,4 +45,4 @@ transformers==4.36.2
 triton==2.1.0
 typing_extensions==4.11.0
 vllm==0.4.1
-~orch==2.0.1
+torch==2.0.1

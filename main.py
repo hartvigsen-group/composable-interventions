@@ -15,10 +15,13 @@ import hydra
 from omegaconf import OmegaConf
 from utils import edit_generator, save_ckpt_meta, evals
 import wandb
+from wmdp.rmu import unlearn as rmu_unlearn
+from wmdp.rmu import utils as rmu_utils
+import lm_eval
+from lm_eval.models.huggingface import HFLM
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config_memit")
-
 def main(config):
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
@@ -30,9 +33,9 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_tests",
+        project="Composable_Interventions",
         config=config_dict,
-        mode="offline", # "disabled" for dry-runs, "online" for logging
+        mode="online", # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -57,9 +60,6 @@ def main(config):
         )
         trainer.run()
         print('Editor training complete.')
-
-    # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -89,10 +89,73 @@ def main(config):
         if config.compress and config.method == 'quant':
             pruning_and_validation.quantization()
             model.to(f'cuda:{hparams.device}')
+
+    # Apply unlearning to the model
+    if config.unlearn:
+        if config.unlearn_method == "rmu":
+            tokenizer = AutoTokenizer.from_pretrained(
+                config.model_name, trust_remote_code=True, use_fast=False
+            )
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+            tokenizer.padding_side = "left"
+            tokenizer.mask_token_id = tokenizer.eos_token_id
+            tokenizer.sep_token_id = tokenizer.eos_token_id
+            tokenizer.cls_token_id = tokenizer.eos_token_id
+            
+            unlearning_model = AutoModelForCausalLM.from_pretrained(
+                config.model_name,
+                torch_dtype=torch.bfloat16, 
+                # low_cpu_mem_usage=True, 
+                device_map="auto"
+            )
+            rmu_config = {
+                "model_name_or_path": config.model_name,
+                # "module_str": f"{config.model_name}.model.layers[{config.rmu_layer_id}]",
+                "module_str": "{model_name}.model.layers[{layer_id}]",
+                "output_dir": None,
+                "retain_corpora": config.rmu_retain_corpora,
+                "forget_corpora": config.rmu_forget_corpora,
+                "alpha": config.rmu_alpha,
+                "steering_coeff_list": config.rmu_steering_coeff_list,
+                "lr": config.rmu_lr,
+                "min_len": config.rmu_min_len,
+                "max_len": config.rmu_max_len,
+                "batch_size": config.rmu_batch_size,
+                "max_num_batches": config.rmu_max_num_batches,
+                "layer_id": config.rmu_layer_id,
+                "layer_ids": config.rmu_layer_ids,
+                "param_ids": config.rmu_param_ids,
+                "seed": config.rmu_seed
+            }
+            forget_data_list, retain_data_list = rmu_utils.get_data(
+                rmu_config["forget_corpora"],
+                rmu_config["retain_corpora"],
+                rmu_config["min_len"],
+                rmu_config["max_len"],
+                rmu_config["batch_size"],
+            )
+
+            # Updates unlearning_model
+            rmu_unlearn.run_rmu(
+                updated_model=unlearning_model,
+                frozen_model=model,
+                tokenizer=tokenizer,
+                forget_data_list=retain_data_list,
+                retain_data_list=retain_data_list,
+                args=rmu_config
+            )
+    
+        elif config.unlearn_method == "gradient_ascent":
+            raise NotImplementedError("Gradient ascent hasn't been implemented yet")
+        else:
+            raise NotImplementedError(f"Unlearning method not supported: {config.unlearn_method}")
     
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
+
+    # Get edits to be made
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
     # print(model)
     if config.edit:
@@ -128,14 +191,35 @@ def main(config):
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
-        
-    # Calculate and log eval metrics
+    
+    # Begin evaluations
     print("Starting eval...")
+
+    # Evaluate on QA benchmarks
+    print(f"Evaluating QA benchmarks...")
+    lm_eval_model = HFLM(model)
+    task_manager = lm_eval.tasks.TaskManager()
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if config.unlearn else ["mmlu"]
+    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+        model=lm_eval_model,
+        tasks=qa_benchmarks,
+        num_fewshot=0,
+        task_manager=task_manager,
+        # limit=5
+    )
+
+    for benchmark_name in qa_benchmark_results["groups"]:
+        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    
+    print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config)
     generalization_score, gen_recall = evals.f1_accuracy_generate(editable_model, rephrase_prompt, target_new, config)
     wandb.run.summary["Rewrite accuracy"] = success_score
     wandb.run.summary["Generalization"] = generalization_score
-
 
     if config.edit_dataset == "mquake":  # a hacky way to smuggle the mquake single hop prompts as "locality inputs"
         locality_score, local_recall = evals.f1_accuracy_generate(editable_model, locality_inputs[0], locality_inputs[1], config)
@@ -178,16 +262,16 @@ def main(config):
     wandb.run.summary["Latency"] = latency
 
     wandb.log({
-    "Rewrite accuracy": success_score,
-    "Generalization": generalization_score,
-    "Locality": locality_score,
-    "PPL": ppl_test,
-    "PPL edits": ppl_edits,
-    "PPl edits unmasked": ppl_edits_unmasked,
-    "PPl QA": ppl_QA,
-    "Success recall": success_recall,
-    "Generalization recall": gen_recall,
-    "Local recall": local_recall
+        "Rewrite accuracy": success_score,
+        "Generalization": generalization_score,
+        "Locality": locality_score,
+        "PPL": ppl_test,
+        "PPL edits": ppl_edits,
+        "PPl edits unmasked": ppl_edits_unmasked,
+        "PPl QA": ppl_QA,
+        "Success recall": success_recall,
+        "Generalization recall": gen_recall,
+        "Local recall": local_recall
     })
 
 if __name__ == '__main__':
