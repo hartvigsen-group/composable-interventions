@@ -2,7 +2,8 @@
 
 #SBATCH --job-name=hydra-grid-search
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:a6000:1
+#SBATCH --gres=gpu:a100:1
+#SBATCH --constraint=a100_80gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -13,7 +14,7 @@
 #SBATCH --array=1-10
 
 # Load necessary modules or activate virtual environment
-source activate llm_310
+source activate unlearning
 
 # Run the Python script with Hydra's grid search
 # The SLURM_ARRAY_TASK_ID environment variable will be different for each job in the array

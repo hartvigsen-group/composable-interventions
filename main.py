@@ -65,7 +65,7 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=torch.bfloat16, 
-                low_cpu_mem_usage=True, 
+                # low_cpu_mem_usage=True, 
                 device_map="auto"
             )
     
@@ -194,13 +194,12 @@ def main(config):
     
     # Begin evaluations
     print("Starting eval...")
-
-    # Evaluate on QA benchmarks
     print(f"Evaluating QA benchmarks...")
     lm_eval_model = HFLM(model)
     task_manager = lm_eval.tasks.TaskManager()
-    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if config.unlearn else ["mmlu"]
-    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+    is_rmu_enabled = config.unlearn and config.unlearn_method == "rmu"
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
+    qa_benchmark_results = lm_eval.simple_evaluate(
         model=lm_eval_model,
         tasks=qa_benchmarks,
         num_fewshot=0,
@@ -208,11 +207,11 @@ def main(config):
         # limit=5
     )
 
-    for benchmark_name in qa_benchmark_results["groups"]:
-        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
-        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+    for benchmark_name in qa_benchmarks:
+        benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
+        wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
         print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
@@ -243,17 +242,23 @@ def main(config):
     ppl_edits = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=True)
     ppl_edits_unmasked = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=False)
     ppl_QA = evals.ppl_QA(model, config)
+    
     print('Starting Avg bits eval...')
     avgbits = pruning_and_validation.average_bits()
+    
     # pruning_and_validation.sparsity_check()
     if hparams.method != 'quant' or hparams.compress == False:
         print('Starting FLOPs eval...')
         flops = pruning_and_validation.FLOPs()
-    else: flops = -1
-    if hparams.method == 'quant' or hparams.compress == False:
-        print('Starting latency eval...')
-        latency = pruning_and_validation.CalculateLatency()
-    else: latency = -1
+    else:
+        flops = -1
+    
+    # TODO: Why failing?
+    # if hparams.method == "quant" or hparams.compress == False:
+    #     print('Starting latency eval...')
+    #     latency = pruning_and_validation.CalculateLatency()
+    # else:
+    #     latency = -1
 
     # Save to WandB
     wandb.run.summary["PPL"] = ppl_test
