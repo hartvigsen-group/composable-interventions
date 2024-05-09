@@ -52,9 +52,9 @@ for layer in "${layers[@]}"; do
     for alpha in "${alphas[@]}"; do
         for lr in "${lrs[@]}"; do
             layer_ids=[$(($layer-2)),$(($layer-1)),$layer]
-            job_args="seed=42 model=$model model_name=$model edit=False compress=False compress_first=False +unlearn=True +unlearn_method=rmu +rmu_retain_corpora=[wikitext] +rmu_forget_corpora=[cyber-forget-corpus] +rmu_alpha=[$alpha] +rmu_steering_coeff_list=[20,20] +rmu_lr=$lr +rmu_min_len=0 +rmu_max_len=2000 +rmu_batch_size=8 +rmu_max_num_batches=250 +rmu_layer_id=$layer +rmu_layer_ids=$layer_ids +rmu_param_ids=[$(($layer-1))] +rmu_seed=42"
+            job_args="seed=42 wandb=online model=$model model_name=$model edit=False compress=False compress_first=False +unlearn=True +unlearn_method=rmu +rmu_retain_corpora=[wikitext] +rmu_forget_corpora=[cyber-forget-corpus] +rmu_alpha=[$alpha] +rmu_steering_coeff_list=[20,20] +rmu_lr=$lr +rmu_min_len=0 +rmu_max_len=2000 +rmu_batch_size=8 +rmu_max_num_batches=250 +rmu_layer_id=$layer +rmu_layer_ids=$layer_ids +rmu_param_ids=[$(($layer-1))] +rmu_seed=42"
             echo "Submitting job with args: $job_args"
-            # sbatch run_exp10x.sh $job_args
+            sbatch run_exp10x.sh $job_args
         done
     done
 done

@@ -2,9 +2,11 @@ from main_quantize import LLMPruningAndValidation
 from sparsellm.lib.prune import AverageBits
 from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
+from tabulate import tabulate
 import argparse
 import os 
 import numpy as np
+import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
@@ -65,13 +67,8 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-<<<<<<< HEAD
                 torch_dtype=torch.bfloat16, 
-                # low_cpu_mem_usage=True, 
-=======
-                torch_dtype=torch.float, 
                 low_cpu_mem_usage=True, 
->>>>>>> origin
                 device_map="auto"
             )
     
@@ -212,19 +209,22 @@ def main(config):
         tasks=qa_benchmarks,
         num_fewshot=0,
         task_manager=task_manager,
-        # limit=5
+        limit=5
     )
 
+    qa_results = {}
     for benchmark_name in qa_benchmarks:
         benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
         benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
         wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
         wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
+        qa_results[benchmark_name] = benchmark_accuracy
+        qa_results[f"{benchmark_name}_stderr"] = benchmark_std_error
         print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
-    success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config)
-    generalization_score, gen_recall = evals.f1_accuracy_generate(editable_model, rephrase_prompt, target_new, config)
+    success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config) if config.edit else (0, 0)
+    generalization_score, gen_recall = evals.f1_accuracy_generate(editable_model, rephrase_prompt, target_new, config) if config.edit else (0, 0)
     wandb.run.summary["Rewrite accuracy"] = success_score
     wandb.run.summary["Generalization"] = generalization_score
 
@@ -258,23 +258,11 @@ def main(config):
     if hparams.method != 'quant' or hparams.compress == False:
         print('Starting FLOPs eval...')
         flops = pruning_and_validation.FLOPs()
-<<<<<<< HEAD
-    else:
-        flops = -1
-    
-    # TODO: Why failing?
-    # if hparams.method == "quant" or hparams.compress == False:
-    #     print('Starting latency eval...')
-    #     latency = pruning_and_validation.CalculateLatency()
-    # else:
-    #     latency = -1
-=======
     else: flops = -1
     if hparams.method == 'quant' or hparams.compress == False:
         print('Starting latency eval...')
         latency = pruning_and_validation.CalculateLatency(editable_model.model)
     else: latency = -1
->>>>>>> origin
 
     # Save to WandB
     wandb.run.summary["PPL"] = ppl_test
@@ -282,7 +270,7 @@ def main(config):
     wandb.run.summary["FLOPs"] = flops
     wandb.run.summary["Latency"] = latency
 
-    wandb.log({
+    wandb_log = {
         "Rewrite accuracy": success_score,
         "Generalization": generalization_score,
         "Locality": locality_score,
@@ -293,7 +281,12 @@ def main(config):
         "Success recall": success_recall,
         "Generalization recall": gen_recall,
         "Local recall": local_recall
-    })
+    }
+    wandb_log.update(qa_results)
+    wandb.log(wandb_log)
+    wanda_log_frame = pd.DataFrame([wandb_log]).T
+    print("\nExperiment Metrics")
+    print(tabulate(wanda_log_frame, headers='keys', tablefmt='psql'))
 
 if __name__ == '__main__':
     main()
