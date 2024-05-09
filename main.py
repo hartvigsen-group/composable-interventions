@@ -21,9 +21,102 @@ import lm_eval
 from lm_eval.models.huggingface import HFLM
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config_memit")
+def edit_model(model, config, prompts, ground_truth, target_new, subject):
+    # Use ModelEditWrapper for handling edits
+    editable_model = ModelEditWrapper(model, config)
+    editable_model.batch_edit(
+        prompts=prompts,
+        ground_truth=ground_truth,
+        target_new=target_new,
+        subject=subject,
+        keep_original_weight=False
+    )
+    if config.alg_name == 'LoRA':
+        editable_model = editable_model.merge_and_unload()
+    for p in editable_model.model.parameters():
+        p.requires_grad_()
+    return editable_model
+
+def quantize_model(model, config):
+    # Assuming LLMPruningAndValidation already set up for this model
+    pruning_and_validation = LLMPruningAndValidation(config, model)
+    pruning_and_validation.quantization()
+    model.to(f'cuda:{config.device}')
+    return model
+
+def prune_model(model, config):
+    # Use LLMPruningAndValidation for handling pruning
+    pruning_and_validation = LLMPruningAndValidation(config, model)
+    pruning_and_validation.get_Mask()  # Obtain mask once
+    pruning_and_validation.prune()     # Apply pruning
+    return model
+
+def unlearn_model(model, config):
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.model_name, trust_remote_code=True, use_fast=False
+    )
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.padding_side = "left"
+    tokenizer.mask_token_id = tokenizer.eos_token_id
+    tokenizer.sep_token_id = tokenizer.eos_token_id
+    tokenizer.cls_token_id = tokenizer.eos_token_id
+    
+    unlearning_model = AutoModelForCausalLM.from_pretrained(
+        config.model_name,
+        torch_dtype=torch.bfloat16, 
+        device_map="auto"
+    )
+    rmu_config = {
+        "model_name_or_path": config.model_name,
+        "module_str": "{model_name}.model.layers[{layer_id}]",
+        "output_dir": None,
+        "retain_corpora": config.rmu_retain_corpora,
+        "forget_corpora": config.rmu_forget_corpora,
+        "alpha": config.rmu_alpha,
+        "steering_coeff_list": config.rmu_steering_coeff_list,
+        "lr": config.rmu_lr,
+        "min_len": config.rmu_min_len,
+        "max_len": config.rmu_max_len,
+        "batch_size": config.rmu_batch_size,
+        "max_num_batches": config.rmu_max_num_batches,
+        "layer_id": config.rmu_layer_id,
+        "layer_ids": config.rmu_layer_ids,
+        "param_ids": config.rmu_param_ids,
+        "seed": config.rmu_seed
+    }
+    forget_data_list, retain_data_list = rmu_utils.get_data(
+        rmu_config["forget_corpora"],
+        rmu_config["retain_corpora"],
+        rmu_config["min_len"],
+        rmu_config["max_len"],
+        rmu_config["batch_size"],
+    )
+    rmu_unlearn.run_rmu(
+        updated_model=unlearning_model,
+        frozen_model=model,
+        tokenizer=tokenizer,
+        forget_data_list=retain_data_list,
+        retain_data_list=retain_data_list,
+        args=rmu_config
+    )
+    return unlearning_model
+
+@hydra.main(version_base=None, config_path="conf", config_name="config")
 
 def main(config):
+    # To make sections backwards compatible with old code
+    OmegaConf.set_struct(config, False)
+    sections_to_flatten = ['edit', 'compress', 'unlearn']
+    for section in sections_to_flatten:
+        if section in config:
+            # Move each sub-configuration to the top level
+            for key, value in config[section].items():
+                config[key] = value
+            # Optionally delete the original section
+            del config[section]
+    OmegaConf.set_struct(config, True)
+    # End backwards comp code
+
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
@@ -40,27 +133,27 @@ def main(config):
         tags=[config.tag] # List of tags
     )
 
-    if config.edit_train:
-        print('Starting editor training...')
-        # edit methods that requires training extra modules
-        from easyeditor import ZsreDataset
-        from easyeditor import EditTrainer
-        from easyeditor import SERACTrainingHparams, MENDTrainingHparams
-        if config.alg_name =='SERAC':
-            # training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
-            training_hparams = config.edit_train_config
-        elif config.alg_name =='MEND':
-            training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
-        print("warning! we need to decide the dataset to use for training serac and mend")
-        train_ds = ZsreDataset('./data/zsre/zsre_mend_train.json', config=training_hparams)
-        eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval.json', config=training_hparams)
-        trainer = EditTrainer(
-            config=training_hparams,
-            train_set=train_ds,
-            val_set=eval_ds
-        )
-        trainer.run()
-        print('Editor training complete.')
+    # if config.edit_train:
+    #     print('Starting editor training...')
+    #     # edit methods that requires training extra modules
+    #     from easyeditor import ZsreDataset
+    #     from easyeditor import EditTrainer
+    #     from easyeditor import SERACTrainingHparams, MENDTrainingHparams
+    #     if config.alg_name =='SERAC':
+    #         # training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
+    #         training_hparams = config.edit_train_config
+    #     elif config.alg_name =='MEND':
+    #         training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
+    #     print("warning! we need to decide the dataset to use for training serac and mend")
+    #     train_ds = ZsreDataset('./data/zsre/zsre_mend_train.json', config=training_hparams)
+    #     eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval.json', config=training_hparams)
+    #     trainer = EditTrainer(
+    #         config=training_hparams,
+    #         train_set=train_ds,
+    #         val_set=eval_ds
+    #     )
+    #     trainer.run()
+    #     print('Editor training complete.')
 
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -77,80 +170,6 @@ def main(config):
         # Update the model's state_dict
         model.load_state_dict(state_dict)
 
-    if config.compress_first:
-        # Sparsify editable model
-        pruning_and_validation = LLMPruningAndValidation(hparams, model)
-
-        # Prune
-        if config.compress and config.method == 'prune':
-            pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
-            pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
-
-        # Quant
-        if config.compress and config.method == 'quant':
-            pruning_and_validation.quantization()
-            model.to(f'cuda:{hparams.device}')
-
-    # Apply unlearning to the model
-    if config.unlearn:
-        if config.unlearn_method == "rmu":
-            tokenizer = AutoTokenizer.from_pretrained(
-                config.model_name, trust_remote_code=True, use_fast=False
-            )
-            tokenizer.pad_token_id = tokenizer.eos_token_id
-            tokenizer.padding_side = "left"
-            tokenizer.mask_token_id = tokenizer.eos_token_id
-            tokenizer.sep_token_id = tokenizer.eos_token_id
-            tokenizer.cls_token_id = tokenizer.eos_token_id
-            
-            unlearning_model = AutoModelForCausalLM.from_pretrained(
-                config.model_name,
-                torch_dtype=torch.bfloat16, 
-                # low_cpu_mem_usage=True, 
-                device_map="auto"
-            )
-            rmu_config = {
-                "model_name_or_path": config.model_name,
-                # "module_str": f"{config.model_name}.model.layers[{config.rmu_layer_id}]",
-                "module_str": "{model_name}.model.layers[{layer_id}]",
-                "output_dir": None,
-                "retain_corpora": config.rmu_retain_corpora,
-                "forget_corpora": config.rmu_forget_corpora,
-                "alpha": config.rmu_alpha,
-                "steering_coeff_list": config.rmu_steering_coeff_list,
-                "lr": config.rmu_lr,
-                "min_len": config.rmu_min_len,
-                "max_len": config.rmu_max_len,
-                "batch_size": config.rmu_batch_size,
-                "max_num_batches": config.rmu_max_num_batches,
-                "layer_id": config.rmu_layer_id,
-                "layer_ids": config.rmu_layer_ids,
-                "param_ids": config.rmu_param_ids,
-                "seed": config.rmu_seed
-            }
-            forget_data_list, retain_data_list = rmu_utils.get_data(
-                rmu_config["forget_corpora"],
-                rmu_config["retain_corpora"],
-                rmu_config["min_len"],
-                rmu_config["max_len"],
-                rmu_config["batch_size"],
-            )
-
-            # Updates unlearning_model
-            rmu_unlearn.run_rmu(
-                updated_model=unlearning_model,
-                frozen_model=model,
-                tokenizer=tokenizer,
-                forget_data_list=retain_data_list,
-                retain_data_list=retain_data_list,
-                args=rmu_config
-            )
-    
-        elif config.unlearn_method == "gradient_ascent":
-            raise NotImplementedError("Gradient ascent hasn't been implemented yet")
-        else:
-            raise NotImplementedError(f"Unlearning method not supported: {config.unlearn_method}")
-    
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
@@ -158,39 +177,23 @@ def main(config):
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
-    # print(model)
-    if config.edit:
-        editable_model.batch_edit(
-            prompts=prompts,
-            ground_truth=ground_truth,
-            target_new=target_new,
-            subject=subject,
-            keep_original_weight=False
-        )
-        if config.alg_name=='LoRA':
-            editable_model = editable_model.merge_and_unload()
-        for p in editable_model.model.parameters():
-            p.requires_grad_()
-        print('editing complete')
-    editable_model.model.hf_device_map = device_map
 
-    if config.alg_name =='LoRA':
-        # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
-        pruning_and_validation = LLMPruningAndValidation(hparams, editable_model)
-    else:
-        # Sparsify editable model
-        pruning_and_validation = LLMPruningAndValidation(hparams, editable_model.model)
+    # Check if the first operation in the initial list is compression-related
+    if len(config.interventions)!=0 and config.interventions[0][0] in ['quant', 'prune']:
+        # Append the first operation to the end of the list if it's compression-related
+        config.interventions.append([operations[0][0]])
 
-    # Prune
-    if config.compress and config.method == 'prune':
-        pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it. 
-        pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward. 
-
-    # Quant
-    if config.compress and config.method == 'quant':
-        pruning_and_validation.pseudoQuantization()
-        editable_model.to(f'cuda:{hparams.device}')
-
+    for intervention in config.interventions:
+        if intervention == 'edit':
+            model = edit_model(model, config, prompts, ground_truth, target_new, subject)
+            editable_model.model.hf_device_map = device_map
+        elif intervention == 'quant':
+            model = quantize_model(model, config)
+        elif intervention == 'prune':
+            model = prune_model(editable_model, config)
+        elif intervention == 'unlearn':
+            model = unlearn_model(model, config)
+    print(model)
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')

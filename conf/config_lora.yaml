@@ -1,8 +1,8 @@
 number_of_edits: 50
 edit_set: 1
 alg_name: "LoRA"
-model_name: meta-llama/Meta-Llama-3-8B-Instruct
-model: meta-llama/Meta-Llama-3-8B-Instruct
+model_name: meta-llama/Llama-2-7b-chat-hf
+model: meta-llama/Llama-2-7b-chat-hf
 # llama: meta-llama/Llama-2-7b-chat-hf
 # llama-3: meta-llama/Meta-Llama-3-8B-Instruct
 # pythia: EleutherAI/pythia-14m
@@ -53,8 +53,9 @@ save: out/
 save_model: null
 eval_zero_shot: false
 
+interventions: ["prune", "edit"]
 compress_first: False
-edit: True
+edit: False
 compress: False
 method: prune # prune or quant
 
