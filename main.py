@@ -202,24 +202,24 @@ def main(config):
     print("Starting eval...")
 
     # Evaluate on QA benchmarks
-    print(f"Evaluating QA benchmarks...")
-    lm_eval_model = HFLM(model)
-    task_manager = lm_eval.tasks.TaskManager()
-    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if config.unlearn else ["mmlu"]
-    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
-        model=lm_eval_model,
-        tasks=qa_benchmarks,
-        num_fewshot=0,
-        task_manager=task_manager,
-        # limit=5
-    )
+    # print(f"Evaluating QA benchmarks...")
+    # lm_eval_model = HFLM(model.model)
+    # task_manager = lm_eval.tasks.TaskManager()
+    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if config.unlearn else ["mmlu"]
+    # qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+    #     model=lm_eval_model,
+    #     tasks=qa_benchmarks,
+    #     num_fewshot=0,
+    #     task_manager=task_manager,
+    #     # limit=5
+    # )
 
-    for benchmark_name in qa_benchmark_results["groups"]:
-        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
-        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
-        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    # for benchmark_name in qa_benchmark_results["groups"]:
+    #     benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
+    #     benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+    #     wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
+    #     wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+    #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config)

@@ -1,15 +1,16 @@
 defaults:
-  - edit: lora  # Default setting without editing
+  - edit: ft  # Default setting without editing
   - compression: wanda  # Default setting without compression
   - unlearn: cut  # Default setting without unlearning
   - _self_
 
-model_name: meta-llama/Meta-Llama-3-8B-Instruct
+model_name: meta-llama/Meta-Llama-3-8B
 device: 0
+model_parallel: true
 seed: 0
 tag: "default"
 wandb: disabled # disabled or online
-interventions: []  # List of interventions
+interventions: [edit]  # List of interventions
 
 edit_dataset: "zsre"
 stats_dir: "/scratch/sux7mp/stats"
