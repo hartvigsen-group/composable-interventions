@@ -22,6 +22,7 @@ from lm_eval.models.huggingface import HFLM
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config_memit")
+
 def main(config):
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
@@ -35,7 +36,7 @@ def main(config):
     wandb.init(
         project="Composable_Interventions",
         config=config_dict,
-        mode="online", # "disabled" for dry-runs, "online" for logging
+        mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
 
@@ -64,8 +65,13 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
+<<<<<<< HEAD
                 torch_dtype=torch.bfloat16, 
                 # low_cpu_mem_usage=True, 
+=======
+                torch_dtype=torch.float, 
+                low_cpu_mem_usage=True, 
+>>>>>>> origin
                 device_map="auto"
             )
     
@@ -166,14 +172,16 @@ def main(config):
             subject=subject,
             keep_original_weight=False
         )
+        if config.alg_name=='LoRA':
+            editable_model = editable_model.merge_and_unload()
         for p in editable_model.model.parameters():
             p.requires_grad_()
         print('editing complete')
     editable_model.model.hf_device_map = device_map
 
-    if config.alg_name =='SERAC':
+    if config.alg_name =='LoRA':
         # print("warning! serac does not support the LLMPruningAndValidation with some bugs!")
-        pruning_and_validation = LLMPruningAndValidation(args, model.model)
+        pruning_and_validation = LLMPruningAndValidation(hparams, editable_model)
     else:
         # Sparsify editable model
         pruning_and_validation = LLMPruningAndValidation(hparams, editable_model.model)
@@ -250,6 +258,7 @@ def main(config):
     if hparams.method != 'quant' or hparams.compress == False:
         print('Starting FLOPs eval...')
         flops = pruning_and_validation.FLOPs()
+<<<<<<< HEAD
     else:
         flops = -1
     
@@ -259,6 +268,13 @@ def main(config):
     #     latency = pruning_and_validation.CalculateLatency()
     # else:
     #     latency = -1
+=======
+    else: flops = -1
+    if hparams.method == 'quant' or hparams.compress == False:
+        print('Starting latency eval...')
+        latency = pruning_and_validation.CalculateLatency(editable_model.model)
+    else: latency = -1
+>>>>>>> origin
 
     # Save to WandB
     wandb.run.summary["PPL"] = ppl_test
