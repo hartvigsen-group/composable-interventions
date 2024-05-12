@@ -5,13 +5,25 @@ import torch.nn.functional as F
 from utils import edit_generator
 
 
+def get_exclude_tokens(tokenizer, device):
+    space_tok = tokenizer(" Hello", return_tensors="np", add_special_tokens=False)['input_ids'][0][0]
+    space_tok_check = tokenizer(" Word", return_tensors="np", add_special_tokens=False)['input_ids'][0][0]
+    real_space_tok = tokenizer(" ", return_tensors="np", add_special_tokens=False)['input_ids'][0][0]
+
+    if space_tok == space_tok_check:
+        exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, space_tok, real_space_tok]
+    else:
+        exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, real_space_tok]
+   
+    return torch.tensor(exclude_tokens, device=device)
+
+def get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special):
+        precision = len(common_tokens) / len(generated_response_ids_no_special)
+        recall = len(common_tokens) / len(ground_truth_ids_no_special)
+        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+        return f1
+
 def calculate_recall(generated_ids, ground_truth_ids, exclude_tokens_tensor, prompt, ground_truth):
-    # # Calculate the cutoff length
-    # cutoff_length = max(15, len(prompt) + len(ground_truth))
-
-    # # Apply cutoff to generated_ids
-    # generated_ids_cut = generated_ids[:, :cutoff_length].view(-1)
-
     # Exclude special tokens for generated_ids
     generated_response_ids_no_special = generated_ids[~(generated_ids[..., None] == exclude_tokens_tensor).any(-1)]
 
@@ -22,75 +34,12 @@ def calculate_recall(generated_ids, ground_truth_ids, exclude_tokens_tensor, pro
 
     return recall
 
-def f1_locality_generate(model, locality_inputs, config):
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    max_length = config.max_length
-
-    model.eval()  # Ensure model is in evaluation mode
-    exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, 13]  # 13 is the new line token for llama
-    exclude_tokens_tensor = torch.tensor(exclude_tokens, device=model.device)
-        
-    f1_scores = []  # List to store F1 scores for each batch
-    recall_scores = []
-
-    for prompt, ground_truth in zip(locality_inputs['data']['prompt'], locality_inputs['data']['ground_truth']):
-        if 'pythia' or 'Llama-3' in config.model_name:
-            ground_truth = f" {ground_truth}"
-        input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
-        prompt_length = input_ids.size(1)  # Number of tokens in the prompt
-
-        ground_truth_ids = tokenizer(ground_truth, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.view(-1)
-        ground_truth_ids_no_pad = ground_truth_ids[(ground_truth_ids != tokenizer.pad_token_id) & (ground_truth_ids != tokenizer.bos_token_id)]
-        decoded_ground_truth = tokenizer.decode(ground_truth_ids_no_pad, skip_special_tokens=True)
-
-        with torch.no_grad():
-            outputs = model.generate(input_ids, top_k=1, max_length=max_length)
-        generated_ids = outputs
-        # predictions = generated_ids.view(-1)
-        # generated_ids = generated_ids[:, prompt_length:prompt_length+len(ground_truth_ids_no_pad)]
-        # predictions_no_pad = predictions[(predictions != tokenizer.pad_token_id) & (predictions != tokenizer.bos_token_id)]
-        # decoded_prediction = tokenizer.decode(predictions_no_pad, skip_special_tokens=True)
-
-        # Exclude prompt and filter out special tokens
-        generated_response_ids = generated_ids[:, prompt_length:].view(-1)
-        generated_response_ids_no_special = generated_response_ids[~(generated_response_ids[..., None] == exclude_tokens_tensor).any(-1)]
-        
-        # Clip to the length of the ground truth, if necessary
-        if len(generated_response_ids_no_special) > len(ground_truth_ids_no_pad):
-            generated_response_ids_no_special = generated_response_ids_no_special[:len(ground_truth_ids_no_pad)]
-
-        decoded_prediction = tokenizer.decode(generated_response_ids_no_special, skip_special_tokens=True)
-
-        # Calculate recall
-        recall = calculate_recall(outputs, ground_truth_ids_no_pad, exclude_tokens_tensor, prompt, ground_truth)
-        recall_scores.append(recall)
+def f1_locality_generate(model, locality_inputs, config, verbose=False):
+    return f1_accuracy_generate(model, locality_inputs['data']['prompt'], locality_inputs['data']['ground_truth'], config, verbose=verbose)
 
 
-        # Print information
-        print(f"Prompt: {prompt}")
-        print(f"Model Output: {decoded_prediction}")
-        print(f"Generated IDs: {generated_response_ids_no_special}")
-        print(f"Ground Truth: {decoded_ground_truth}")
-        print(f"Ground Truth IDs: {ground_truth_ids_no_pad}")
-        print("-" * 50)  # Separator for readability
-
-        # Calculate F1 score
-        common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids_no_pad.cpu().numpy()))
-
-        if len(common_tokens) == 0 or len(generated_response_ids_no_special) == 0:
-            f1_scores.append(0)
-            continue
-
-        precision = len(common_tokens) / len(generated_response_ids_no_special)
-        recall = len(common_tokens) / len(ground_truth_ids_no_pad)
-        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
-        f1_scores.append(f1)
-
-    return sum(f1_scores) / len(f1_scores), sum(recall_scores) / len(recall_scores) if f1_scores else 0
-
-def f1_accuracy_generate(model, prompts, target_new, config):
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name, clean_up_tokenization_spaces=True)
+def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name, clean_up_tokenization_spaces=False)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     max_length = config.max_length
 
@@ -98,61 +47,64 @@ def f1_accuracy_generate(model, prompts, target_new, config):
 
     f1_scores = []
     recall_scores = []  # List to store recall scores
-    print("warning: 13 for other gpt model")
-    exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, 13]  # 13 is the new line token for llama
-    exclude_tokens_tensor = torch.tensor(exclude_tokens, device=model.device)
+
+    exclude_tokens_tensor = get_exclude_tokens(tokenizer, model.device)
 
     for prompt, ground_truth in zip(prompts, target_new):
-        if 'pythia' or 'Llama-3'  in config.model_name:
-            ground_truth = f" {ground_truth}"
+        if ground_truth[0] != " ":
+            # Space required for correct tokenization
+            ground_truth = " " + ground_truth
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
 
-        ground_truth_ids = tokenizer(ground_truth, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.view(-1)
-        ground_truth_ids_no_pad = ground_truth_ids[(ground_truth_ids != tokenizer.pad_token_id) & (ground_truth_ids != tokenizer.bos_token_id)]
-        decoded_ground_truth = tokenizer.decode(ground_truth_ids_no_pad, skip_special_tokens=True)
+        ground_truth_ids = tokenizer(ground_truth, truncation=True, padding='max_length', max_length=max_length, return_tensors="pt").input_ids.view(-1).to(model.device)
+   
+        ground_truth_ids_no_special = ground_truth_ids[~(ground_truth_ids[..., None] == exclude_tokens_tensor).any(-1)]
+
+        decoded_ground_truth = tokenizer.decode(ground_truth_ids_no_special, skip_special_tokens=False)
 
         with torch.no_grad():
-            outputs = model.generate(input_ids, top_k=1, max_length=max_length)
+            outputs = model.generate(input_ids, top_k=1, max_length=max_length, pad_token_id=tokenizer.eos_token_id)
         generated_ids = outputs
-        # predictions = generated_ids.view(-1)
-        # generated_ids = generated_ids[:, prompt_length:prompt_length+len(ground_truth_ids_no_pad)]
-        # predictions_no_pad = predictions[(predictions != tokenizer.pad_token_id) & (predictions != tokenizer.bos_token_id)]
-        # decoded_prediction = tokenizer.decode(predictions_no_pad, skip_special_tokens=True)
 
         # Exclude prompt and filter out special tokens
         generated_response_ids = generated_ids[:, prompt_length:].view(-1)
         generated_response_ids_no_special = generated_response_ids[~(generated_response_ids[..., None] == exclude_tokens_tensor).any(-1)]
         
+        if verbose:
+            print(f"Generated IDs:{generated_response_ids_no_special}")
+            print(f"Ground Truth IDs:{ground_truth_ids_no_special}")
+            print('--')
         # Clip to the length of the ground truth, if necessary
-        if len(generated_response_ids_no_special) > len(ground_truth_ids_no_pad):
-            generated_response_ids_no_special = generated_response_ids_no_special[:len(ground_truth_ids_no_pad)]
+        if len(generated_response_ids_no_special) > len(ground_truth_ids_no_special):
+            generated_response_ids_no_special = generated_response_ids_no_special[:len(ground_truth_ids_no_special)]
 
         decoded_prediction = tokenizer.decode(generated_response_ids_no_special, skip_special_tokens=True)
 
         # Calculate recall
-        recall = calculate_recall(outputs, ground_truth_ids_no_pad, exclude_tokens_tensor, prompt, ground_truth)
+        recall = calculate_recall(outputs, ground_truth_ids_no_special, exclude_tokens_tensor, prompt, ground_truth)
         recall_scores.append(recall)
 
         # Print information
-        print(f"Prompt: {prompt}")
-        print(f"Model Output: {decoded_prediction}")
-        print(f"Generated IDs: {generated_response_ids_no_special}")
-        print(f"Ground Truth: {decoded_ground_truth}")
-        print(f"Ground Truth IDs: {ground_truth_ids_no_pad}")
-        print(f"Recall: {recall}")
-        print("-" * 50)  # Separator for readability
+        if verbose:
+            print(f"Prompt:{prompt}")
+            print(f"Model Output:{decoded_prediction}")
+            print(f"Generated IDs:{generated_response_ids}")
+            print(f"Generated IDs:{generated_response_ids_no_special}")
+            print(f"Ground Truth:{decoded_ground_truth}")
+            print(f"Ground Truth IDs:{ground_truth_ids}")
+            print(f"Ground Truth IDs:{ground_truth_ids_no_special}")
+            print(f"Recall: {recall}")
+            print("-" * 50)  # Separator for readability
 
         # Calculate F1 score
-        common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids_no_pad.cpu().numpy()))
+        common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids_no_special.cpu().numpy()))
 
         if len(common_tokens) == 0 or len(generated_response_ids_no_special) == 0:
             f1_scores.append(0)
             continue
 
-        precision = len(common_tokens) / len(generated_response_ids_no_special)
-        recall = len(common_tokens) / len(ground_truth_ids_no_pad)
-        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
+        f1 = get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special)
         f1_scores.append(f1)
     return sum(f1_scores) / len(f1_scores), sum(recall_scores) / len(recall_scores) if f1_scores else 0
 

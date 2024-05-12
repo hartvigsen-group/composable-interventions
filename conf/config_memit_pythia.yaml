@@ -1,14 +1,15 @@
 number_of_edits: 50
 edit_set: 1
 alg_name: "MEMIT"
-model_name: EleutherAI/pythia-410m
-model: EleutherAI/pythia-410m
+model_name: EleutherAI/pythia-14m
+model: EleutherAI/pythia-14m
 # llama: meta-llama/Llama-2-7b-chat-hf
 # pythia: EleutherAI/pythia-14m
 edit_dataset: "counterfact"
 stats_dir: "/scratch/sux7mp/stats"
 device: 0
 tag: "default"
+wandb: disabled
 
 layers: [2, 3]
 clamp_norm_factor: 0.75
@@ -16,7 +17,7 @@ layer_selection: "all"
 fact_token: "subject_last"
 v_num_grad_steps: 25
 v_lr: 5e-1
-v_loss_layer: 11
+v_loss_layer: 5
 v_weight_decay: 0.5
 kl_factor: 0.0625
 mom2_adjustment: true
@@ -35,6 +36,7 @@ max_length: 40
 batch_size: 50
 model_parallel: False
 
+
 # # FT
 # lr: 5e-7
 # weight_decay: 0
@@ -49,6 +51,7 @@ sparsity_type: unstructured
 prune_method: sparsegpt # wanda or sparsegpt
 quant_method: gptq
 compression_dataset: c4
+dataset: c4
 percdamp: 0.01
 wbits: 8
 groupsize: -1
@@ -64,6 +67,7 @@ save: out/
 save_model: null
 eval_zero_shot: false
 
+interventions: ["edit", "prune"]
 compress_first: False
 edit: False
 compress: False

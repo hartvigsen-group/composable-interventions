@@ -71,6 +71,7 @@ eval_zero_shot: false
 compress_first: False
 edit: True
 compress: False
+unlearn: False
 method: prune # prune or quant
 
 load_ckpt: False

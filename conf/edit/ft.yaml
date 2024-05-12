@@ -1,0 +1,15 @@
+alg_name: FT
+layers: [4, 5, 6, 7, 8]
+rewrite_module_tmp: "model.layers.{}.mlp.down_proj"
+layer_module_tmp: "model.layers.{}"
+mlp_module_tmp: "model.layers.{}.mlp"
+attn_module_tmp: "model.layers.{}.self_attn"
+ln_f_module: "model.norm"
+lm_head_module: "lm_head"
+
+# FT
+lr: 5e-5 #5e-4
+weight_decay: 0
+norm_constraint: false
+objective_optimization: "target_new"
+num_steps: 25
