@@ -4,10 +4,8 @@ import datetime
 import numpy as np
 import torch
 from transformers import AdamW
-from types import SimpleNamespace
 import tqdm as tqdm
 
-# from rmu.utils import load_model, get_params, forward_with_cache, get_data
 from wmdp.rmu.utils import load_model, get_params, forward_with_cache, get_data
 
 def run_rmu(
@@ -18,32 +16,29 @@ def run_rmu(
     retain_data_list,
     args,
 ):
-    rmu_config = SimpleNamespace(**args) if isinstance(args, dict) else vars(args)
+    rmu_config = vars(args)
     print("====rmu Config====")
-    if isinstance(args, dict):
-        print("\n".join(f"{k}={v}" for k,v in args.items()))
-    else:
-        print("\n".join(f"{k}={v}" for k,v in rmu_config.items()))
+    print("\n".join(f"{k}={v}" for k,v in rmu_config.items()))
     print("=====")
 
     updated_model = updated_model.train()
-    params = get_params(updated_model, rmu_config.layer_ids, rmu_config.param_ids)
-    optimizer = AdamW(params, lr=rmu_config.lr)
+    params = get_params(updated_model, args.layer_ids, args.param_ids)
+    optimizer = AdamW(params, lr=args.lr)
     frozen_module = eval(
-        rmu_config.module_str.format(model_name="frozen_model", layer_id=rmu_config.layer_id)
+        args.module_str.format(model_name="frozen_model", layer_id=args.layer_id)
     )
     updated_module = eval(
-        rmu_config.module_str.format(model_name="updated_model", layer_id=rmu_config.layer_id)
+        args.module_str.format(model_name="updated_model", layer_id=args.layer_id)
     )
 
     control_vectors_list = []
     for i in range(len(forget_data_list)):
         random_vector = torch.rand(1,1, updated_model.config.hidden_size, dtype=updated_model.dtype, device=updated_model.device)
-        control_vec = random_vector / torch.norm(random_vector) * rmu_config.steering_coeff_list[i]
+        control_vec = random_vector / torch.norm(random_vector) * args.steering_coeffs[i]
         control_vectors_list.append(control_vec)
 
     num_batches = min(
-        rmu_config.max_num_batches,
+        args.max_num_batches,
         min([len(f) for f in forget_data_list]),
         min([len(r) for r in retain_data_list]),
     )
@@ -88,7 +83,7 @@ def run_rmu(
                 retain_loss = torch.nn.functional.mse_loss(
                     updated_retain_activations, frozen_retain_activations
                 )
-                retain_loss *= rmu_config.alpha[topic_idx]
+                retain_loss *= args.alpha[topic_idx]
 
                 # Update model
                 loss = unlearn_loss + retain_loss
@@ -96,18 +91,35 @@ def run_rmu(
                 loss.backward()
                 optimizer.step()
                 print(f"loss: {loss.item():.4g} | unlearn_loss: {unlearn_loss.item():.4g} | retain_loss: {retain_loss.item():.4g} | param_change: {params[0].grad.abs().mean().item():.4g}")
+                
+                # ======= Logging ======
+                if args.verbose:
+                    frozen_forget_activations = forward_with_cache(frozen_model, unlearn_inputs, module=frozen_module, no_grad=True).to(updated_model.device)
+                    unlearn_cosine= torch.nn.functional.cosine_similarity(updated_forget_activations, frozen_forget_activations, dim=-1).mean()
+                    retain_cosine = torch.nn.functional.cosine_similarity(updated_retain_activations, frozen_retain_activations, dim=-1).mean()
+                    
+                    print(f"unlearn_cosine_sim={unlearn_cosine.item()}")
+                    print(f"retain_cosine_sim={retain_cosine.item()}")
+                    print(f"Topic {topic_idx} updated_forget_activations.norm=",torch.mean(updated_forget_activations.norm(dim=-1).mean(dim=1), dim=0).item())
+                    print(f"Topic {topic_idx} frozen_forget_activations.norm=",torch.mean(frozen_forget_activations.norm(dim=-1).mean(dim=1), dim=0).item())
+                    print(f"Topic {topic_idx} updated_retain_activations.norm=",torch.mean(updated_retain_activations.norm(dim=-1).mean(dim=1), dim=0).item())
+                    print(f"Topic {topic_idx} frozen_retain_activations.norm=",torch.mean(frozen_retain_activations.norm(dim=-1).mean(dim=1), dim=0).item())
+
                 pbar.update(1)
 
     tokenizer.truncation_side = truncation_side
+    return updated_model
+    
+    # NOTE: Disabled since the composable interventions pipline already handles saving
     # Save model
-    if rmu_config.output_dir:
-        path = rmu_config.output_dir
-    else:
-        date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        path = f"models/{rmu_config.model_name_or_path}_alpha-{rmu_config.alpha}_batches-{num_batches}_layer-{rmu_config.layer_id}_{date}"
-    updated_model.save_pretrained(path)
-    tokenizer.save_pretrained(path)
-    print(f"Saved model to {path}")
+    # if args.output_dir:
+    #     path = args.output_dir
+    # else:
+    #     date = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    #     path = f"models/{args.model_name_or_path}_alpha-{args.alpha}_batches-{num_batches}_layer-{args.layer_id}_{date}"
+    # updated_model.save_pretrained(path)
+    # tokenizer.save_pretrained(path)
+    # print(f"Saved model to {path}")
 
 
 def get_args():
@@ -154,6 +166,7 @@ def get_args():
     parser.add_argument("--layer_ids", type=str, default="5,6,7", help="update layers")
     parser.add_argument("--param_ids", type=str, default="6", help="update params")
     parser.add_argument("--seed", type=int, default=42, help="Seed")
+    parser.add_argument("--verbose", action="store_true", help="Logging the activations norms and cosine at each step")
 
     args = parser.parse_args()
     args.retain_corpora = args.retain_corpora.split(",")

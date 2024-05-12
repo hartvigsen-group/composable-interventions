@@ -21,6 +21,7 @@ from wmdp.rmu import unlearn as rmu_unlearn
 from wmdp.rmu import utils as rmu_utils
 import lm_eval
 from lm_eval.models.huggingface import HFLM
+from types import SimpleNamespace
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config_memit")
@@ -28,6 +29,11 @@ from lm_eval.models.huggingface import HFLM
 def main(config):
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
+
+    torch.cuda.manual_seed(config.seed)
+    torch.cuda.manual_seed_all(config.seed)
+    torch.manual_seed(config.seed)
+    np.random.seed(config.seed)
 
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
@@ -68,8 +74,8 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=torch.bfloat16, 
-                low_cpu_mem_usage=True, 
-                device_map="auto"
+                trust_remote_code=True,
+                device_map="auto",
             )
     
     if config.load_ckpt:
@@ -108,8 +114,8 @@ def main(config):
             unlearning_model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=torch.bfloat16, 
-                # low_cpu_mem_usage=True, 
-                device_map="auto"
+                trust_remote_code=True,
+                device_map="auto",
             )
             rmu_config = {
                 "model_name_or_path": config.model_name,
@@ -119,7 +125,7 @@ def main(config):
                 "retain_corpora": config.rmu_retain_corpora,
                 "forget_corpora": config.rmu_forget_corpora,
                 "alpha": config.rmu_alpha,
-                "steering_coeff_list": config.rmu_steering_coeff_list,
+                "steering_coeffs": config.rmu_steering_coeffs,
                 "lr": config.rmu_lr,
                 "min_len": config.rmu_min_len,
                 "max_len": config.rmu_max_len,
@@ -128,7 +134,8 @@ def main(config):
                 "layer_id": config.rmu_layer_id,
                 "layer_ids": config.rmu_layer_ids,
                 "param_ids": config.rmu_param_ids,
-                "seed": config.rmu_seed
+                "seed": config.rmu_seed,
+                "verbose": True
             }
             forget_data_list, retain_data_list = rmu_utils.get_data(
                 rmu_config["forget_corpora"],
@@ -139,13 +146,13 @@ def main(config):
             )
 
             # Updates unlearning_model
-            rmu_unlearn.run_rmu(
+            model = rmu_unlearn.run_rmu(
                 updated_model=unlearning_model,
                 frozen_model=model,
                 tokenizer=tokenizer,
-                forget_data_list=retain_data_list,
+                forget_data_list=forget_data_list,
                 retain_data_list=retain_data_list,
-                args=rmu_config
+                args=SimpleNamespace(**rmu_config)
             )
     
         elif config.unlearn_method == "gradient_ascent":
@@ -153,6 +160,30 @@ def main(config):
         else:
             raise NotImplementedError(f"Unlearning method not supported: {config.unlearn_method}")
     
+    print(f"Evaluating QA benchmarks...")
+    lm_eval_model = HFLM(model)
+    task_manager = lm_eval.tasks.TaskManager()
+    is_rmu_enabled = config.unlearn and config.unlearn_method == "rmu"
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
+    qa_benchmark_results = lm_eval.simple_evaluate(
+        model=lm_eval_model,
+        tasks=qa_benchmarks,
+        num_fewshot=0,
+        task_manager=task_manager,
+        batch_size=16,
+        # limit=50
+    )
+
+    qa_results = {}
+    for benchmark_name in qa_benchmarks:
+        benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
+        wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
+        qa_results[benchmark_name] = benchmark_accuracy
+        qa_results[f"{benchmark_name}_stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
@@ -199,28 +230,29 @@ def main(config):
     
     # Begin evaluations
     print("Starting eval...")
-    print(f"Evaluating QA benchmarks...")
-    lm_eval_model = HFLM(model)
-    task_manager = lm_eval.tasks.TaskManager()
-    is_rmu_enabled = config.unlearn and config.unlearn_method == "rmu"
-    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
-    qa_benchmark_results = lm_eval.simple_evaluate(
-        model=lm_eval_model,
-        tasks=qa_benchmarks,
-        num_fewshot=0,
-        task_manager=task_manager,
-        limit=5
-    )
+    # print(f"Evaluating QA benchmarks...")
+    # lm_eval_model = HFLM(model)
+    # task_manager = lm_eval.tasks.TaskManager()
+    # is_rmu_enabled = config.unlearn and config.unlearn_method == "rmu"
+    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
+    # qa_benchmark_results = lm_eval.simple_evaluate(
+    #     model=lm_eval_model,
+    #     tasks=qa_benchmarks,
+    #     num_fewshot=0,
+    #     task_manager=task_manager,
+    #     batch_size=16,
+    #     # limit=50
+    # )
 
-    qa_results = {}
-    for benchmark_name in qa_benchmarks:
-        benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
-        benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
-        wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
-        wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
-        qa_results[benchmark_name] = benchmark_accuracy
-        qa_results[f"{benchmark_name}_stderr"] = benchmark_std_error
-        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    # qa_results = {}
+    # for benchmark_name in qa_benchmarks:
+    #     benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
+    #     benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
+    #     wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
+    #     wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
+    #     qa_results[benchmark_name] = benchmark_accuracy
+    #     qa_results[f"{benchmark_name}_stderr"] = benchmark_std_error
+    #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config) if config.edit else (0, 0)
@@ -287,6 +319,9 @@ def main(config):
     wanda_log_frame = pd.DataFrame([wandb_log]).T
     print("\nExperiment Metrics")
     print(tabulate(wanda_log_frame, headers='keys', tablefmt='psql'))
+
+    # Log table to W&B
+    wandb.run.log({"Metrics": wandb.Table(dataframe=wanda_log_frame)})
 
 if __name__ == '__main__':
     main()

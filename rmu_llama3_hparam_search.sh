@@ -24,7 +24,7 @@
 #                 "+rmu_retain_corpora=[wikitext]",
 #                 "+rmu_forget_corpora=[cyber-forget-corpus]",
 #                 "+rmu_alpha=[10.0]",
-#                 "+rmu_steering_coeff_list=[20,20]",
+#                 "+rmu_steering_coeffs=[20,20]",
 #                 "+rmu_lr=5e-05",
 #                 "+rmu_min_len=0",
 #                 "+rmu_max_len=2000",
@@ -41,20 +41,25 @@
 # }
 
 model="meta-llama/Meta-Llama-3-8B"
-layers=(31 30 29 28 27 26 25 24 23 22 21 20 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3)
+# layers=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31)
+layers=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17)
 alphas=(1 10 100 1000 10000)
-lrs=("1e-6" "5e-5" "1e-5" "1e-4")
+# lrs=("1e-6" "5e-5" "1e-5" "1e-4")
+lrs=("5e-5")
+num_batches=(100 150 200 250 300 350 400 450 500 1000)
 
-number_combinations=$(( ${#layers[@]} * ${#alphas[~@]} * ${#lrs[@]} ))
-echo "Number of combinations: $number_combinations"
-
-for layer in "${layers[@]}"; do
-    for alpha in "${alphas[@]}"; do
-        for lr in "${lrs[@]}"; do
-            layer_ids=[$(($layer-2)),$(($layer-1)),$layer]
-            job_args="seed=42 wandb=online model=$model model_name=$model edit=False compress=False compress_first=False +unlearn=True +unlearn_method=rmu +rmu_retain_corpora=[wikitext] +rmu_forget_corpora=[cyber-forget-corpus] +rmu_alpha=[$alpha] +rmu_steering_coeff_list=[20,20] +rmu_lr=$lr +rmu_min_len=0 +rmu_max_len=2000 +rmu_batch_size=8 +rmu_max_num_batches=250 +rmu_layer_id=$layer +rmu_layer_ids=$layer_ids +rmu_param_ids=[$(($layer-1))] +rmu_seed=42"
-            echo "Submitting job with args: $job_args"
-            sbatch run_exp10x.sh $job_args
+for num_batch in "${num_batches[@]}"; do
+    for layer in "${layers[@]}"; do
+        for alpha in "${alphas[@]}"; do
+            for lr in "${lrs[@]}"; do
+                layer_ids=[$(($layer-2)),$(($layer-1)),$layer]
+                job_args="tag=hparam_search seed=42 wandb=online save_ckpt=False model=$model model_name=$model edit=False compress=False compress_first=False +unlearn=True +unlearn_method=rmu +rmu_retain_corpora=[wikitext,wikitext] +rmu_forget_corpora=[bio-forget-corpus,cyber-forget-corpus] +rmu_alpha=[$alpha,$alpha] +rmu_steering_coeffs=[20,20] +rmu_lr=$lr +rmu_min_len=0 +rmu_max_len=2000 +rmu_batch_size=4 +rmu_max_num_batches=$num_batch +rmu_layer_id=$layer +rmu_layer_ids=$layer_ids +rmu_param_ids=[$(($layer))] +rmu_seed=42"
+                echo "Submitting job with args: $job_args"
+                sbatch run_exp10x.sh $job_args
+            done
         done
     done
 done
+
+number_combinations=$(( ${#num_batches[@]} * ${#layers[@]} * ${#alphas[@]} * ${#lrs[@]} ))
+echo "Number of combinations: $number_combinations"
