@@ -155,10 +155,12 @@ def main(config):
     #     trainer.run()
     #     print('Editor training complete.')
 
+
+
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-                torch_dtype=torch.float, 
+                torch_dtype=torch.float if config.dtype == 'torch.float' else torch.bfloat16 if config.dtype == 'torch.bfloat16' else torch.bfloat16,
                 low_cpu_mem_usage=True, 
                 device_map="auto"
             )
@@ -201,11 +203,11 @@ def main(config):
     # Begin evaluations
     print("Starting eval...")
 
-    # Evaluate on QA benchmarks
+    # # Evaluate on QA benchmarks
     # print(f"Evaluating QA benchmarks...")
     # lm_eval_model = HFLM(model.model)
     # task_manager = lm_eval.tasks.TaskManager()
-    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if config.unlearn else ["mmlu"]
+    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
     # qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
     #     model=lm_eval_model,
     #     tasks=qa_benchmarks,
@@ -222,7 +224,7 @@ def main(config):
     #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
-    success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config)
+    success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)
     generalization_score, gen_recall = evals.f1_accuracy_generate(editable_model, rephrase_prompt, target_new, config)
     wandb.run.summary["Rewrite accuracy"] = success_score
     wandb.run.summary["Generalization"] = generalization_score

@@ -10,4 +10,4 @@ lora_alpha: 32
 lora_dropout: 0.0
 norm_constraint: false
 target_modules: ["q_proj", "v_proj"]  #["up_proj", "down_proj"] #["q_proj", "v_proj"]
-
+dtype: torch.float
