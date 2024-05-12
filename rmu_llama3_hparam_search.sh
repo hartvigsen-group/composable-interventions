@@ -40,13 +40,20 @@
 #     ]
 # }
 
-model="meta-llama/Meta-Llama-3-8B"
+# Constants
 # layers=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31)
-layers=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17)
-alphas=(1 10 100 1000 10000)
-# lrs=("1e-6" "5e-5" "1e-5" "1e-4")
+model="meta-llama/Meta-Llama-3-8B"
 lrs=("5e-5")
-num_batches=(100 150 200 250 300 350 400 450 500 1000)
+
+# Full search 5/11
+# alphas=(1 10 100 1000 10000)
+# layers=(3 4 5 6 7 8 9 10 11 12 13 14 15 16 17)
+# num_batches=(100 150 200 250 300 350 400 450 500 1000)
+
+# Reverse search 5/12
+alphas=(10000 1000 100 10 1)
+layers=(17 16 15 14 13 12 11 10 9 8 7 6 5 4 3)
+num_batches=(1000 500 450 400 350 300 250 200 150 100)
 
 for num_batch in "${num_batches[@]}"; do
     for layer in "${layers[@]}"; do
