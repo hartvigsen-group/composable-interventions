@@ -10,7 +10,7 @@ import numpy as np
 import random
 from ..models.melo.melo import LORA
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
-from transformers import LlamaTokenizer, LlamaForCausalLM
+from transformers import LlamaTokenizer, LlamaForCausalLM, PreTrainedTokenizerFast
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from transformers import GPT2TokenizerFast, GPT2Tokenizer
 # from accelerate import Accelerator
@@ -64,6 +64,7 @@ class BaseEditor:
                  ):
 
         assert hparams is not None, print('Error: hparams is None.')
+        assert 'llama' in hparams.model_name, print('Error: unverified model.')
 
         self.model = model
         self.model_name = hparams.model_name
@@ -127,13 +128,15 @@ class BaseEditor:
                 self.tok.pad_token_id = self.tok.eos_token_id
             else:
                 raise NotImplementedError
-
-            if self.tok is not None and (isinstance(self.tok, GPT2Tokenizer) or isinstance(self.tok, GPT2TokenizerFast) or isinstance(self.tok, LlamaTokenizer)) and (hparams.alg_name not in ['ROME', 'MEMIT']):
+            if self.tok is not None and (isinstance(self.tok, GPT2Tokenizer) or isinstance(self.tok, GPT2TokenizerFast) or isinstance(self.tok, LlamaTokenizer) or isinstance(self.tok, PreTrainedTokenizerFast)) and (hparams.alg_name not in ['ROME', 'MEMIT']):
                 LOG.info('AutoRegressive Model detected, set the padding side of Tokenizer to left...')
                 self.tok.padding_side = 'left'
-            if self.tok is not None and ('mistral' in self.model_name.lower()) and (hparams.alg_name in ['ROME', 'MEMIT']):
+            elif self.tok is not None and ('mistral' in self.model_name.lower()) and (hparams.alg_name in ['ROME', 'MEMIT']):
                 LOG.info('AutoRegressive Model detected, set the padding side of Tokenizer to right...')
                 self.tok.padding_side = 'right'
+            else:
+                print("WARNING: Unverified model. Check tokenizer padding side.")
+                exit()
         else:
             self.model, self.tok = self.model_name
 
