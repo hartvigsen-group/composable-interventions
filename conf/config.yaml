@@ -1,6 +1,6 @@
 defaults:
-  - edit: none  # Choose any of [memit, lora, ft]
-  - compression: wanda  # Choose any of [wanda, sparsegpt, gptq, awq]
+  - edit: ft  # Choose any of [memit, lora, ft]
+  - compression: none  # Choose any of [wanda, sparsegpt, gptq, awq]
   - unlearn: none  # Choose any of [cut]
   - _self_
 
@@ -13,7 +13,7 @@ model_parallel: true
 seed: 0
 tag: "default"
 wandb: disabled # disabled or online
-interventions: [compress]  # List of interventions, choose any number of [edit, compress, unlearn]
+interventions: [edit]  # List of interventions, choose any number of [edit, compress, unlearn]
 
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
