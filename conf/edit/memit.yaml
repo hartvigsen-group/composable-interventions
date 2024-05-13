@@ -4,10 +4,10 @@ clamp_norm_factor: 4
 layer_selection: "all"
 fact_token: "subject_last"
 v_num_grad_steps: 25
-v_lr: 5e-1
+v_lr: 5e-1 #5e-1
 v_loss_layer: 31
 v_weight_decay: 1e-3
-kl_factor: 0.0625
+kl_factor: 0.0625 #0.0625
 mom2_adjustment: true
 mom2_update_weight: 15000
 rewrite_module_tmp: "model.layers.{}.mlp.down_proj"
