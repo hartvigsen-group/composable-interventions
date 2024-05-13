@@ -4,7 +4,7 @@ import random
 import sys
 import random
 
-from edit_utils import make_edit_batches, make_rewrite 
+from utils.edit_utils import make_edit_batches, make_rewrite 
 sys.path.append("../../")
 
 
