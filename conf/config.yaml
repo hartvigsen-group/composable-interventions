@@ -1,10 +1,10 @@
 defaults:
-  - edit: ft  # Default setting without editing
-  - compression: wanda  # Default setting without compression
-  - unlearn: cut  # Default setting without unlearning
+  - edit: none  # Choose any of [memit, lora, ft]
+  - compression: wanda  # Choose any of [wanda, sparsegpt, gptq, awq]
+  - unlearn: none  # Choose any of [cut]
   - _self_
 
-model_name: meta-llama/Llama-2-7b-chat-hf
+model_name: meta-llama/Meta-Llama-3-8B
 #meta-llama/Meta-Llama-3-8B
 #meta-llama/Llama-2-7b-chat-hf
 dtype: torch.bfloat16
@@ -13,13 +13,15 @@ model_parallel: true
 seed: 0
 tag: "default"
 wandb: disabled # disabled or online
-interventions: [edit]  # List of interventions
+interventions: [compress]  # List of interventions, choose any number of [edit, compress, unlearn]
 
+alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
 stats_dir: "/scratch/sux7mp/stats"
 max_length: 30
 batch_size: 50
 
+method: none
 compression_dataset: c4
 dataset: c4
 
@@ -28,4 +30,4 @@ edit_set: 50
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20231221_113020.pth
-save_ckpt: False
+save_ckpt: True

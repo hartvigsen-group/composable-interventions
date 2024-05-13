@@ -18,6 +18,9 @@ def get_exclude_tokens(tokenizer, device):
     return torch.tensor(exclude_tokens, device=device)
 
 def get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special):
+        generated_response_ids_no_special = set(generated_response_ids_no_special.cpu().numpy())
+        ground_truth_ids_no_special = set(ground_truth_ids_no_special.cpu().numpy())
+
         precision = len(common_tokens) / len(generated_response_ids_no_special)
         recall = len(common_tokens) / len(ground_truth_ids_no_special)
         f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) != 0 else 0
@@ -25,12 +28,11 @@ def get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no
 
 def calculate_recall(generated_ids, ground_truth_ids, exclude_tokens_tensor, prompt, ground_truth):
     # Exclude special tokens for generated_ids
-    generated_response_ids_no_special = generated_ids[~(generated_ids[..., None] == exclude_tokens_tensor).any(-1)]
+    # generated_response_ids_no_special = generated_ids[~(generated_ids[..., None] == exclude_tokens_tensor).any(-1)]
 
     # Calculate Recall
-    common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids.cpu().numpy()))
-
-    recall = len(common_tokens) / len(ground_truth_ids) if len(ground_truth_ids) > 0 else 0
+    common_tokens = set(generated_ids.cpu().numpy()).intersection(set(ground_truth_ids.cpu().numpy()))
+    recall = len(common_tokens) / len(set(ground_truth_ids.cpu().numpy())) if len(ground_truth_ids) > 0 else 0
 
     return recall
 
@@ -51,9 +53,10 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
     exclude_tokens_tensor = get_exclude_tokens(tokenizer, model.device)
 
     for prompt, ground_truth in zip(prompts, target_new):
-        if ground_truth[0] != " ":
-            # Space required for correct tokenization
-            ground_truth = " " + ground_truth
+        if len(ground_truth) > 0:
+            if ground_truth[0] != " ":
+                # Space required for correct tokenization
+                ground_truth = " " + ground_truth
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
 
@@ -82,10 +85,18 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
         decoded_prediction = tokenizer.decode(generated_response_ids_no_special, skip_special_tokens=True)
 
         # Calculate recall
-        recall = calculate_recall(outputs, ground_truth_ids_no_special, exclude_tokens_tensor, prompt, ground_truth)
+        recall = calculate_recall(generated_response_ids_no_special, ground_truth_ids_no_special, exclude_tokens_tensor, prompt, ground_truth)
         recall_scores.append(recall)
+        # Calculate F1 score
+        common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids_no_special.cpu().numpy()))
 
-        # Print information
+        if len(common_tokens) == 0 or len(generated_response_ids_no_special) == 0:
+            f1 = 0
+        else:
+            f1 = get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special)
+        f1_scores.append(f1)
+
+        # Print info
         if verbose:
             print(f"Prompt:{prompt}")
             print(f"Model Output:{decoded_prediction}")
@@ -94,18 +105,9 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
             print(f"Ground Truth:{decoded_ground_truth}")
             print(f"Ground Truth IDs:{ground_truth_ids}")
             print(f"Ground Truth IDs:{ground_truth_ids_no_special}")
+            print(f"F1: {f1}")
             print(f"Recall: {recall}")
             print("-" * 50)  # Separator for readability
-
-        # Calculate F1 score
-        common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids_no_special.cpu().numpy()))
-
-        if len(common_tokens) == 0 or len(generated_response_ids_no_special) == 0:
-            f1_scores.append(0)
-            continue
-
-        f1 = get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special)
-        f1_scores.append(f1)
     return sum(f1_scores) / len(f1_scores), sum(recall_scores) / len(recall_scores) if f1_scores else 0
 
 

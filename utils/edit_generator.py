@@ -2,6 +2,7 @@ import json
 import pandas as pd
 import random
 import sys
+import random
 
 from edit_utils import make_edit_batches, make_rewrite 
 sys.path.append("../../")
@@ -112,6 +113,10 @@ def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
     
     with open(file_path, 'r') as file:
         json_data = json.load(file)
+
+    # Shuffle the data so that similar edits are not done together
+    random.seed(100)
+    random.shuffle(json_data)
     
     # Calculate start and end indices for the edits
     start_index = (edit_set - 1) * number_of_edits

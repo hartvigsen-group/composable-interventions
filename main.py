@@ -37,19 +37,25 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
         p.requires_grad_()
     return editable_model
 
-def quantize_model(model, config):
-    # Assuming LLMPruningAndValidation already set up for this model
-    pruning_and_validation = LLMPruningAndValidation(config, model)
-    pruning_and_validation.quantization()
-    model.to(f'cuda:{config.device}')
-    return model
+def compress_model(model, config, pruning_and_validation):
+    if config.method == 'quant':
+        pruning_and_validation.quantization()
+        model.to(f'cuda:{config.device}')
+        return model
+    elif config.method == 'prune':
+        pruning_and_validation.get_Mask()  # Obtain mask once
+        pruning_and_validation.prune()     # Apply pruning
+        return model
 
-def prune_model(model, config):
-    # Use LLMPruningAndValidation for handling pruning
-    pruning_and_validation = LLMPruningAndValidation(config, model)
-    pruning_and_validation.get_Mask()  # Obtain mask once
-    pruning_and_validation.prune()     # Apply pruning
-    return model
+# def quantize_model(model, config, pruning_and_validation):
+#     pruning_and_validation.quantization()
+#     model.to(f'cuda:{config.device}')
+#     return model
+
+# def prune_model(model, config, pruning_and_validation):
+#     pruning_and_validation.get_Mask()  # Obtain mask once
+#     pruning_and_validation.prune()     # Apply pruning
+#     return model
 
 def unlearn_model(model, config):
     tokenizer = AutoTokenizer.from_pretrained(
@@ -106,7 +112,7 @@ def unlearn_model(model, config):
 def main(config):
     # To make sections backwards compatible with old code
     OmegaConf.set_struct(config, False)
-    sections_to_flatten = ['edit', 'compress', 'unlearn']
+    sections_to_flatten = ['edit', 'compression', 'unlearn']
     for section in sections_to_flatten:
         if section in config:
             # Move each sub-configuration to the top level
@@ -115,8 +121,7 @@ def main(config):
             # Optionally delete the original section
             del config[section]
     OmegaConf.set_struct(config, True)
-    # End backwards comp code
-
+    
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
@@ -127,35 +132,11 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="Composable_Interventions",
+        project="AK_tests",
         config=config_dict,
         mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
     )
-
-    # if config.edit_train:
-    #     print('Starting editor training...')
-    #     # edit methods that requires training extra modules
-    #     from easyeditor import ZsreDataset
-    #     from easyeditor import EditTrainer
-    #     from easyeditor import SERACTrainingHparams, MENDTrainingHparams
-    #     if config.alg_name =='SERAC':
-    #         # training_hparams = SERACTrainingHparams.from_hparams(hparams.edit_train_config)
-    #         training_hparams = config.edit_train_config
-    #     elif config.alg_name =='MEND':
-    #         training_hparams = MENDTrainingHparams.from_hparams(hparams.edit_train_config)
-    #     print("warning! we need to decide the dataset to use for training serac and mend")
-    #     train_ds = ZsreDataset('./data/zsre/zsre_mend_train.json', config=training_hparams)
-    #     eval_ds = ZsreDataset('./data/zsre/zsre_mend_eval.json', config=training_hparams)
-    #     trainer = EditTrainer(
-    #         config=training_hparams,
-    #         train_set=train_ds,
-    #         val_set=eval_ds
-    #     )
-    #     trainer.run()
-    #     print('Editor training complete.')
-
-
 
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
@@ -179,6 +160,8 @@ def main(config):
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
 
+    # Use LLMPruningAndValidation for handling compression
+    pruning_and_validation = LLMPruningAndValidation(config, model)
 
     # Check if the first operation in the initial list is compression-related
     if len(config.interventions)!=0 and config.interventions[0][0] in ['quant', 'prune']:
@@ -189,12 +172,13 @@ def main(config):
         if intervention == 'edit':
             model = edit_model(model, config, prompts, ground_truth, target_new, subject)
             editable_model.model.hf_device_map = device_map
-        elif intervention == 'quant':
-            model = quantize_model(model, config)
-        elif intervention == 'prune':
-            model = prune_model(editable_model, config)
+        elif intervention in {'compress', 'compression', 'prune', 'quant'}:
+            model = compress_model(model, config, pruning_and_validation)
         elif intervention == 'unlearn':
             model = unlearn_model(model, config)
+        else:
+            print('WARNING: Invalid intervention selected')
+            exit()
     print(model)
     # Save checkpoint and metadata
     if config.save_ckpt:
@@ -203,25 +187,25 @@ def main(config):
     # Begin evaluations
     print("Starting eval...")
 
-    # # Evaluate on QA benchmarks
-    # print(f"Evaluating QA benchmarks...")
-    # lm_eval_model = HFLM(model.model)
-    # task_manager = lm_eval.tasks.TaskManager()
-    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
-    # qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
-    #     model=lm_eval_model,
-    #     tasks=qa_benchmarks,
-    #     num_fewshot=0,
-    #     task_manager=task_manager,
-    #     # limit=5
-    # )
+    # Evaluate on QA benchmarks
+    print(f"Evaluating QA benchmarks...")
+    lm_eval_model = HFLM(model.model)
+    task_manager = lm_eval.tasks.TaskManager()
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
+    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+        model=lm_eval_model,
+        tasks=qa_benchmarks,
+        num_fewshot=0,
+        task_manager=task_manager,
+        # limit=5
+    )
 
-    # for benchmark_name in qa_benchmark_results["groups"]:
-    #     benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-    #     benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
-    #     wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-    #     wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
-    #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    for benchmark_name in qa_benchmark_results["groups"]:
+        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)

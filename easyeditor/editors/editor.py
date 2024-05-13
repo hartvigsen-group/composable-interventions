@@ -64,7 +64,8 @@ class BaseEditor:
                  ):
 
         assert hparams is not None, print('Error: hparams is None.')
-        assert 'llama' in hparams.model_name, print('Error: unverified model.')
+        assert 'llama' in hparams.model_name.lower(), "Error: unverified model."
+
 
         self.model = model
         self.model_name = hparams.model_name
@@ -128,6 +129,7 @@ class BaseEditor:
                 self.tok.pad_token_id = self.tok.eos_token_id
             else:
                 raise NotImplementedError
+            print(type(self.tok))
             if self.tok is not None and (isinstance(self.tok, GPT2Tokenizer) or isinstance(self.tok, GPT2TokenizerFast) or isinstance(self.tok, LlamaTokenizer) or isinstance(self.tok, PreTrainedTokenizerFast)) and (hparams.alg_name not in ['ROME', 'MEMIT']):
                 LOG.info('AutoRegressive Model detected, set the padding side of Tokenizer to left...')
                 self.tok.padding_side = 'left'
@@ -135,8 +137,8 @@ class BaseEditor:
                 LOG.info('AutoRegressive Model detected, set the padding side of Tokenizer to right...')
                 self.tok.padding_side = 'right'
             else:
-                print("WARNING: Unverified model. Check tokenizer padding side.")
-                exit()
+                print("WARNING: Unverified model. Consider checking tokenizer padding side.")
+                # exit()
         else:
             self.model, self.tok = self.model_name
 

@@ -1,59 +1,51 @@
 #!/bin/bash
 
-# Define different sets of parameters
-params=(
+# Define the common editor for all jobs, set this as required
+common_editor="ft"
+
+# Define sparsity levels to apply
+sparsity_levels=(0.25 0.45 0.65)
+
+# Define different sets of configurations to be run
+declare -a configs=(
     ### None ###
-    'edit=False compress=False compress_first=False sparsity_ratio=0.0 tag=none'
+    "edit=none compression=none unlearn=none interventions=[] tag='None'"
     ## Edit only ###
-    'edit=True compress=False compress_first=False sparsity_ratio=0.0 tag=LORA'
-    ## Compress only ###
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.25 tag=Wanda$_\{25\%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.35 tag=Wanda$_\{35%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.45 tag=Wanda$_\{45%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.55 tag=Wanda$_\{55%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.65 tag=Wanda$_\{65%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.75 tag=Wanda$_\{75%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.85 tag=Wanda$_\{85%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.25 tag=SparseGPT$_\{25%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.35 tag=SparseGPT$_\{35%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.45 tag=SparseGPT$_\{45%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.55 tag=SparseGPT$_\{55%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.65 tag=SparseGPT$_\{65%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.75 tag=SparseGPT$_\{75%\}$'
-    'edit=False compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.85 tag=SparseGPT$_\{85%\}$'
-    ### Edit then compress ###
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.25 tag=LORA-rightarrow-Wanda$_\{25%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.35 tag=LORA-rightarrow-Wanda$_\{35%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.45 tag=LORA-rightarrow-Wanda$_\{45%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.55 tag=LORA-rightarrow-Wanda$_\{55%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.65 tag=LORA-rightarrow-Wanda$_\{65%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.75 tag=LORA-rightarrow-Wanda$_\{75%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=wanda sparsity_ratio=0.85 tag=LORA-rightarrow-Wanda$_\{85%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.25 tag=LORA-rightarrow-SparseGPT$_\{25%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.35 tag=LORA-rightarrow-SparseGPT$_\{35%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.45 tag=LORA-rightarrow-SparseGPT$_\{45%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.55 tag=LORA-rightarrow-SparseGPT$_\{55%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.65 tag=LORA-rightarrow-SparseGPT$_\{65%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.75 tag=LORA-rightarrow-SparseGPT$_\{75%\}$'
-    'edit=True compress=True compress_first=False method=prune prune_method=sparsegpt sparsity_ratio=0.85 tag=LORA-rightarrow-SparseGPT$_\{85%\}$'
-    ### Compress then edit (then compress) ###
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.25 tag=Wanda$_\{25%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.35 tag=Wanda$_\{35%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.45 tag=Wanda$_\{45%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.55 tag=Wanda$_\{55%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.65 tag=Wanda$_\{65%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.75 tag=Wanda$_\{75%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=wanda sparsity_ratio=0.85 tag=Wanda$_\{85%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.25 tag=SparseGPT$_\{25%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.35 tag=SparseGPT$_\{35%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.45 tag=SparseGPT$_\{45%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.55 tag=SparseGPT$_\{55%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.65 tag=SparseGPT$_\{65%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.75 tag=SparseGPT$_\{75%\}-rightarrow-LORA$'
-    'edit=True compress=True compress_first=True method=prune prune_method=sparsegpt sparsity_ratio=0.85 tag=SparseGPT$_\{85%\}-rightarrow-LORA$'
+    "edit=${common_editor} compression=none unlearn=none interventions=[edit] tag='${common_editor}_Edit'"
 )
 
-# Loop through each set of parameters and submit a job
-for p in "${params[@]}"; do
-    sbatch run_exp10x.sh $p
+# Compress only - Wanda at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=none compression=wanda unlearn=none interventions=[compress] sparsity_ratio=${sparsity} tag='Compress\_Wanda${sparsity}\\%'")
+done
+
+# Compress only - SparseGPT at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=none compression=sparsegpt unlearn=none interventions=[compress] sparsity_ratio=${sparsity} tag='Compress\_SparseGPT${sparsity}\\%'")
+done
+
+# Edit then Compress - Wanda at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=${common_editor} compression=wanda unlearn=none interventions=[edit,compress] sparsity_ratio=${sparsity} tag='${common_editor}-rightarrow-Wanda${sparsity}\\%'")
+done
+
+# Edit then Compress - SparseGPT at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=${common_editor} compression=sparsegpt unlearn=none interventions=[edit,compress] sparsity_ratio=${sparsity} tag='${common_editor}-rightarrow-SparseGPT${sparsity}\\%'")
+done
+
+# Compress with Wanda then Edit at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=${common_editor} compression=wanda unlearn=none interventions=[compress,edit] sparsity_ratio=${sparsity} tag='Wanda${sparsity}\\%-rightarrow-${common_editor}'")
+done
+
+# Compress with SparseGPT then Edit at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=${common_editor} compression=sparsegpt unlearn=none interventions=[compress,edit] sparsity_ratio=${sparsity} tag='SparseGPT${sparsity}\\%-rightarrow-${common_editor}'")
+done
+
+# Loop through each configuration and launch a job
+for cfg in "${configs[@]}"; do
+    # Use sbatch for SLURM and passing Hydra config overrides
+    sbatch run_exp10x.sh -- $cfg
 done
