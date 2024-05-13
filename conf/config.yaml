@@ -10,7 +10,7 @@ model_name: meta-llama/Meta-Llama-3-8B
 dtype: torch.bfloat16
 device: 0
 model_parallel: true
-seed: 0
+seed: 42
 tag: "default"
 wandb: disabled # disabled or online
 interventions: [edit]  # List of interventions

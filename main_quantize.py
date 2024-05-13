@@ -88,7 +88,7 @@ class LLMPruningAndValidation:
         if model:
             self.model = model
         
-        self.get_llm(args.model, args.cache_dir)
+        self.get_llm(args.model_name, args.cache_dir)
         if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':

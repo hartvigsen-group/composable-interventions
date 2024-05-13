@@ -22,6 +22,7 @@ from wmdp.rmu import utils as rmu_utils
 import lm_eval
 from lm_eval.models.huggingface import HFLM
 from types import SimpleNamespace
+import copy
 
 
 def edit_model(model, config, prompts, ground_truth, target_new, subject):
@@ -70,13 +71,18 @@ def unlearn_model(model, config):
     tokenizer.mask_token_id = tokenizer.eos_token_id
     tokenizer.sep_token_id = tokenizer.eos_token_id
     tokenizer.cls_token_id = tokenizer.eos_token_id
-    
-    # TODO: Somehow copy `model` rather than loading a new one. This is necessary if model has already been edited.
+
     unlearning_model = AutoModelForCausalLM.from_pretrained(
         config.model_name,
-        torch_dtype=get_dtype(config), 
+        torch_dtype=get_dtype(config),
+        # low_cpu_mem_usage=True,
         device_map="auto"
     )
+    is_wrapper = isinstance(model, ModelEditWrapper)
+    state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
+    unlearning_model.load_state_dict(state_dict)
+    unlearning_model.to(f"cuda:{config.device}")
+
     rmu_config = {
         "model_name_or_path": config.model_name,
         "module_str": "{model_name}.model.layers[{layer_id}]",
@@ -105,7 +111,7 @@ def unlearn_model(model, config):
     )
     return rmu_unlearn.run_rmu(
         updated_model=unlearning_model,
-        frozen_model=model,
+        frozen_model=model.model if is_wrapper else model,
         tokenizer=tokenizer,
         forget_data_list=forget_data_list,
         retain_data_list=retain_data_list,
@@ -117,7 +123,8 @@ def get_qa_results(model, config):
     lm_eval_model = HFLM(model)
     task_manager = lm_eval.tasks.TaskManager()
     is_rmu_enabled = "unlearn" in config.interventions and config.unlearn_method == "rmu"
-    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
+    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"]
     qa_benchmark_results = lm_eval.simple_evaluate(
         model=lm_eval_model,
         tasks=qa_benchmarks,
@@ -129,13 +136,13 @@ def get_qa_results(model, config):
     )
     
     benchmark_results = {}
-    for benchmark_name in qa_benchmark_results["groups"]:
-        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+    for benchmark_name in qa_benchmarks:
+        benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
         benchmark_results[benchmark_name] = benchmark_accuracy
-        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
-        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+        wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {round(benchmark_accuracy, 2)} StdErr: {round(benchmark_std_error, 2)}")
     
     return benchmark_results
 
@@ -210,7 +217,7 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config),
-                low_cpu_mem_usage=True, 
+                # low_cpu_mem_usage=True, 
                 device_map="auto"
             )
     
@@ -230,7 +237,7 @@ def main(config):
 
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions)!=0 and config.interventions[0][0] in ['quant', 'prune']:
+    if len(config.interventions) != 0 and config.interventions[0][0] in ['quant', 'prune']:
         # Append the first operation to the end of the list if it's compression-related
         config.interventions.append([operations[0][0]])
 
@@ -244,6 +251,9 @@ def main(config):
             model = prune_model(editable_model, config)
         elif intervention == 'unlearn':
             model = unlearn_model(model, config)
+        else:
+            raise ValueError(f"Invalid intervention: {intervention}")
+        
     print(model)
     # Save checkpoint and metadata
     if config.save_ckpt:
