@@ -1,5 +1,12 @@
 import json
+import pandas as pd
 import random
+import sys
+import random
+
+from edit_utils import make_edit_batches, make_rewrite 
+sys.path.append("../../")
+
 
 def get_edits(dataset, *args, **kwargs):
         if dataset == 'zsre':
@@ -138,6 +145,85 @@ def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
         locality_inputs['data']['ground_truth'].append(entry['loc_ans'])
     
     return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
+
+def get_edits_taxi(edit_method, number_of_edits=None):
+    """
+    Create data folder with strcutre:
+    
+    edit_method (str) : choose from [MEMIT, FT, ROME]. Can add more
+        - if edit_method in [MEMIT] --> return batches of edits
+    number_of_edits (int/None) : how many edits do you want to sample. None means return all 
+    """
+    
+    # load datasets
+    edits_df = pd.read_json("data/edits.json")
+    eval_df = pd.read_json("data/edits-evaluation.json")
+        
+    all_train_rewrites = []
+    all_eval_query = []
+    
+    if edit_method in ["MEMIT"]: # can add PMET here
+        
+        batches = make_edit_batches(edits_df)
+        
+        for b in batches:
+            
+            train_rewrites = b.apply(make_rewrite, 1).to_list()
+            train_rewrites = {"prompts": [x["prompt"] for x in train_rewrites], "target_new": [x["target_new"] for x in train_rewrites], "subject": [x["subject"] for x in train_rewrites] }
+            eval_query = b.filter(["edit"]).merge(eval_df, how = "left", on = "edit")
+            
+            all_train_rewrites.append(train_rewrites)
+            all_eval_query.append(eval_query)
+    else:
+        
+        for e in edits_df.itertuples():
+            
+            if e.edit_type == "category membership":
+                
+                if edit_method in ["ROME", "FT"]: # can add GRACE HERE
+                    
+                    train_rewrite = {
+                            'prompts': [f'A {e.subj} is a kind of'],
+                            'target_new': [e.entity],
+                            'subject': [e.subj]
+                            }
+                    
+                else:
+                    
+                    raise NotImplementedError(f"edit method {edit_method} not implemented")
+
+                eval_query = eval_df.loc[lambda x: (x.edit_type == "category membership") & (x.entity == e.entity) & (x.subj == e.subj)]
+            
+            elif e.edit_type == "category property":
+                
+                if edit_method in ["ROME", "FT"]: # can add PMET, GRACE
+                    
+                    rewrite_prompt = e.query_fwd.replace("<subj>", e.entity).replace(" <answer>", "")
+                    train_rewrite = {
+                        'prompts': [rewrite_prompt],
+                        'target_new': [e.answer_fwd], #{'str': e.entity},
+                        'subject': [e.entity]
+                    }
+                    
+                else:
+                    
+                    raise NotImplementedError(f"edit method {edit_method} not implemented")
+                
+                eval_query = eval_df.loc[lambda x: (x.edit == e.edit)]
+                
+            
+            all_train_rewrites.append(train_rewrite)
+            all_eval_query.append(eval_query)
+            
+    
+    # randomly sample as many rewrites from train as requested 
+    if number_of_edits is not None:
+        sampled_edits = random.sample(all_train_rewrites, number_of_edits)
+    else:
+        sampled_edits = all_train_rewrites
+    
+    return sampled_edits, all_eval_query
+    
         
     
     
