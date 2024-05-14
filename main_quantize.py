@@ -83,12 +83,12 @@ class LLMPruningAndValidation:
     def __init__(self, args, model=None):
         self.args = args
         # if args.save_model is None:
-        #     args.save_model="/scratch-shared/HTJ/"+args.model+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
+        #     args.save_model="/scratch-shared/HTJ/"+args.model_name+"_"+args.method+"_"+args.quant_method+"_"+args.prune_method
         self.device = torch.device("cuda:0")
         if model:
             self.model = model
         
-        self.get_llm(args.model_name, args.cache_dir)
+        self.get_llm(args.model_name)
         if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':
@@ -105,7 +105,7 @@ class LLMPruningAndValidation:
             use_fast=True
         else:
             use_fast=False
-        self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=use_fast)
+        self.tokenizer = AutoTokenizer.from_pretrained(args.model_name, use_fast=use_fast)
         np.random.seed(args.seed)
         torch.random.manual_seed(args.seed)
         self.Masks=None
@@ -122,12 +122,12 @@ class LLMPruningAndValidation:
                     desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
                 )
                 # load un-quantized model, by default, the model will always be loaded into CPU memory
-                model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
+                model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config)
                 self.model=model.model.to(self.device)
                 self.model4Quant=model
             elif self.args.quant_method=='autoawq':
                 #quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-                model = AutoAWQForCausalLM.from_pretrained(self.args.model, **{"low_cpu_mem_usage": True})
+                model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True})
                 #print(model)
                 self.model=model.model.to(self.device)
                 self.model4Quant=model
@@ -172,7 +172,7 @@ class LLMPruningAndValidation:
                 desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
             )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
-            #model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
+            #model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config)
             # examples = [
             #     self.tokenizer(
             #         "auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."
@@ -220,7 +220,7 @@ class LLMPruningAndValidation:
                 desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
             )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
-            #model = AutoGPTQForCausalLM.from_pretrained(self.args.model, quantize_config)
+            #model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config)
             # examples = [
             #     self.tokenizer(
             #         "auto-gptq is an easy-to-use model quantization library with user-friendly apis, based on GPTQ algorithm."
@@ -238,7 +238,7 @@ class LLMPruningAndValidation:
             self.model=self.model4Quant.model           
         elif args.quant_method=='autoawq':
             quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-            #model = AutoAWQForCausalLM.from_pretrained(self.args.model, **{"low_cpu_mem_usage": True})
+            #model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True})
             self.model4Quant.pseudoQuantize(self.tokenizer,quant_config=quant_config,flag=flag)
             self.model4Quant.model=self.model4Quant.model.to(self.device)
             self.model=self.model4Quant.model           
@@ -251,7 +251,7 @@ class LLMPruningAndValidation:
         tokenizer = self.tokenizer
         device = self.device
 
-        if "30b" in args.model or "65b" in args.model:
+        if "30b" in args.model_name or "65b" in args.model_name:
             device = model.hf_device_map["lm_head"]
         print("use device ", device)
 
@@ -346,11 +346,11 @@ class LLMPruningAndValidation:
 
         if args.eval_zero_shot:
             accelerate=False
-            if "30b" in args.model or "65b" in args.model or "70b" in args.model:
+            if "30b" in args.model_name or "65b" in args.model_name or "70b" in args.model_name:
                 accelerate=True
             task_list = ["boolq", "rte", "hellaswag", "winogrande", "arc_easy", "arc_challenge", "openbookqa"]
             num_shot = 0
-            results = eval_zero_shot(args.model, model, tokenizer, task_list, num_shot, accelerate)
+            results = eval_zero_shot(args.model_name, model, tokenizer, task_list, num_shot, accelerate)
             print("zero_shot evaluation results")
             print(results)
 

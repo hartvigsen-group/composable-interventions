@@ -12,7 +12,7 @@
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 #SBATCH --array=1-10
-#SBATCH --constraint=a100_80gb
+#SBATCH --constraint=a6000
 
 # Load necessary modules or activate virtual environment
 source activate unlearning
