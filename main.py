@@ -4,6 +4,7 @@ from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
 import argparse
 import os 
+import sys
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -111,7 +112,20 @@ def unlearn_model(model, config):
 
 def main(config):
     # To make sections backwards compatible with old code
+    # Capture command line arguments
+    command_line_args = sys.argv[1:]
+    command_line_overrides = OmegaConf.from_dotlist(command_line_args)
+
+    # Define Hydra's special arguments to exclude
+    hydra_special_args = {"--multirun", "-m", "--run", "-r", "--config-path", "--config-name"}
+
+    # Filter out Hydra's special arguments
+    filtered_overrides = {k: v for k, v in command_line_overrides.items() if k not in hydra_special_args}
+
+    # Temporarily disable strict structure enforcement
     OmegaConf.set_struct(config, False)
+
+    # Flatten the configuration
     sections_to_flatten = ['edit', 'compression', 'unlearn']
     for section in sections_to_flatten:
         if section in config:
@@ -120,8 +134,10 @@ def main(config):
                 config[key] = value
             # Optionally delete the original section
             del config[section]
-    OmegaConf.set_struct(config, True)
-    
+
+    # Apply command line overrides after flattening the configuration
+    config = OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
+
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
@@ -187,25 +203,25 @@ def main(config):
     # Begin evaluations
     print("Starting eval...")
 
-    # Evaluate on QA benchmarks
-    print(f"Evaluating QA benchmarks...")
-    lm_eval_model = HFLM(model.model)
-    task_manager = lm_eval.tasks.TaskManager()
-    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
-    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
-        model=lm_eval_model,
-        tasks=qa_benchmarks,
-        num_fewshot=0,
-        task_manager=task_manager,
-        # limit=5
-    )
+    # # Evaluate on QA benchmarks
+    # print(f"Evaluating QA benchmarks...")
+    # lm_eval_model = HFLM(model.model)
+    # task_manager = lm_eval.tasks.TaskManager()
+    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
+    # qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+    #     model=lm_eval_model,
+    #     tasks=qa_benchmarks,
+    #     num_fewshot=0,
+    #     task_manager=task_manager,
+    #     # limit=5
+    # )
 
-    for benchmark_name in qa_benchmark_results["groups"]:
-        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
-        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
-        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    # for benchmark_name in qa_benchmark_results["groups"]:
+    #     benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
+    #     benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+    #     wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
+    #     wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+    #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)
