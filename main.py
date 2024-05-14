@@ -44,7 +44,7 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 
 def compress_model(model, config, pruning_and_validation):
     if config.method == 'quant':
-        pruning_and_validation.quantization()
+        pruning_and_validation.pseudoQuantization()
         model.to(f'cuda:{config.device}')
         return model
     elif config.method == 'prune':
@@ -216,13 +216,6 @@ def main(config):
                 # low_cpu_mem_usage=True, 
                 device_map="auto"
             )
-    
-    if config.load_ckpt:
-        # Load the state_dict
-        state_dict = torch.load(config.ckpt_path)
-
-        # Update the model's state_dict
-        model.load_state_dict(state_dict)
 
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
@@ -233,6 +226,13 @@ def main(config):
 
     # Use LLMPruningAndValidation for handling compression
     pruning_and_validation = LLMPruningAndValidation(config, model)
+
+    if config.load_ckpt:
+        # Load the state_dict
+        state_dict = torch.load(config.ckpt_path)
+
+        # Update the model's state_dict
+        model.load_state_dict(state_dict)
 
     # Check if the first operation in the initial list is compression-related
     if len(config.interventions) != 0 and config.interventions[0][0] in ['quant', 'prune']:

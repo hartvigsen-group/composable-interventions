@@ -1,0 +1,24 @@
+# Compression
+seed: 0
+nsamples: 128
+quant_method: autoawq
+dtype: torch.float16
+compression_dataset: c4
+dataset: c4
+percdamp: 0.01
+wbits: 4
+zero_point: True
+groupsize: 128
+sym: true
+nearest: false
+new_eval: false
+act_order: false
+true_sequential: false
+static_groups: false
+use_variant: false
+save: out/
+save_model: null
+eval_zero_shot: false
+
+compress: True
+method: quant # prune or quant
