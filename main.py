@@ -2,10 +2,12 @@ from main_quantize import LLMPruningAndValidation
 from sparsellm.lib.prune import AverageBits
 from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
+from tabulate import tabulate
 import argparse
 import os 
 import sys
 import numpy as np
+import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from importlib.metadata import version
@@ -20,6 +22,8 @@ from wmdp.rmu import unlearn as rmu_unlearn
 from wmdp.rmu import utils as rmu_utils
 import lm_eval
 from lm_eval.models.huggingface import HFLM
+from types import SimpleNamespace
+import copy
 
 
 def edit_model(model, config, prompts, ground_truth, target_new, subject):
@@ -58,21 +62,33 @@ def compress_model(model, config, pruning_and_validation):
 #     pruning_and_validation.prune()     # Apply pruning
 #     return model
 
+
+
 def unlearn_model(model, config):
+    """Unlearn WMDB Bio & Cyber with Representation Misdirection Unlearning (RMU)"""
+
     tokenizer = AutoTokenizer.from_pretrained(
-        config.model_name, trust_remote_code=True, use_fast=False
+        config.model_name,
+        trust_remote_code=True,
+        use_fast=False
     )
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
     tokenizer.mask_token_id = tokenizer.eos_token_id
     tokenizer.sep_token_id = tokenizer.eos_token_id
     tokenizer.cls_token_id = tokenizer.eos_token_id
-    
+
     unlearning_model = AutoModelForCausalLM.from_pretrained(
         config.model_name,
-        torch_dtype=torch.bfloat16, 
+        torch_dtype=get_dtype(config),
+        # low_cpu_mem_usage=True,
         device_map="auto"
     )
+    is_wrapper = isinstance(model, ModelEditWrapper)
+    state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
+    unlearning_model.load_state_dict(state_dict)
+    unlearning_model.to(f"cuda:{config.device}")
+
     rmu_config = {
         "model_name_or_path": config.model_name,
         "module_str": "{model_name}.model.layers[{layer_id}]",
@@ -80,7 +96,7 @@ def unlearn_model(model, config):
         "retain_corpora": config.rmu_retain_corpora,
         "forget_corpora": config.rmu_forget_corpora,
         "alpha": config.rmu_alpha,
-        "steering_coeff_list": config.rmu_steering_coeff_list,
+        "steering_coeffs": config.rmu_steering_coeffs,
         "lr": config.rmu_lr,
         "min_len": config.rmu_min_len,
         "max_len": config.rmu_max_len,
@@ -89,7 +105,8 @@ def unlearn_model(model, config):
         "layer_id": config.rmu_layer_id,
         "layer_ids": config.rmu_layer_ids,
         "param_ids": config.rmu_param_ids,
-        "seed": config.rmu_seed
+        "seed": config.rmu_seed,
+        "verbose": True,    
     }
     forget_data_list, retain_data_list = rmu_utils.get_data(
         rmu_config["forget_corpora"],
@@ -98,15 +115,48 @@ def unlearn_model(model, config):
         rmu_config["max_len"],
         rmu_config["batch_size"],
     )
-    rmu_unlearn.run_rmu(
+    return rmu_unlearn.run_rmu(
         updated_model=unlearning_model,
-        frozen_model=model,
+        frozen_model=model.model if is_wrapper else model,
         tokenizer=tokenizer,
-        forget_data_list=retain_data_list,
+        forget_data_list=forget_data_list,
         retain_data_list=retain_data_list,
-        args=rmu_config
+        args=SimpleNamespace(**rmu_config)
     )
-    return unlearning_model
+
+
+def get_qa_results(model, config):
+    lm_eval_model = HFLM(model)
+    task_manager = lm_eval.tasks.TaskManager()
+    is_rmu_enabled = "unlearn" in config.interventions and config.unlearn_method == "rmu"
+    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if is_rmu_enabled else ["mmlu"]
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"]
+    qa_benchmark_results = lm_eval.simple_evaluate(
+        model=lm_eval_model,
+        tasks=qa_benchmarks,
+        num_fewshot=0,
+        task_manager=task_manager,
+        batch_size=16,
+        # TODO: Set the config limit from config for debugging
+        # limit=50
+    )
+    
+    benchmark_results = {}
+    for benchmark_name in qa_benchmarks:
+        benchmark_accuracy = qa_benchmark_results["results"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["results"][benchmark_name]["acc_stderr,none"]
+        benchmark_results[benchmark_name] = benchmark_accuracy
+        wandb.run.summary[f"{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary[f"{benchmark_name} stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {round(benchmark_accuracy, 2)} StdErr: {round(benchmark_std_error, 2)}")
+    
+    return benchmark_results
+
+
+def get_dtype(config):
+    """Dynamically get the torch dtype based on the config"""
+    return torch.float if config.dtype == 'torch.float' else torch.bfloat16 if config.dtype == 'torch.bfloat16' else torch.bfloat16
+
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 
@@ -141,6 +191,11 @@ def main(config):
     hparams=config
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
+    torch.cuda.manual_seed(config.seed)
+    torch.cuda.manual_seed_all(config.seed)
+    torch.manual_seed(config.seed)
+    np.random.seed(config.seed)
+
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
 
@@ -157,8 +212,8 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-                torch_dtype=torch.float if config.dtype == 'torch.float' else torch.bfloat16 if config.dtype == 'torch.bfloat16' else torch.bfloat16,
-                low_cpu_mem_usage=True, 
+                torch_dtype=get_dtype(config),
+                # low_cpu_mem_usage=True, 
                 device_map="auto"
             )
     
@@ -180,7 +235,7 @@ def main(config):
     pruning_and_validation = LLMPruningAndValidation(config, model)
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions)!=0 and config.interventions[0][0] in ['quant', 'prune']:
+    if len(config.interventions) != 0 and config.interventions[0][0] in ['quant', 'prune']:
         # Append the first operation to the end of the list if it's compression-related
         config.interventions.append([operations[0][0]])
 
@@ -193,8 +248,8 @@ def main(config):
         elif intervention == 'unlearn':
             model = unlearn_model(model, config)
         else:
-            print('WARNING: Invalid intervention selected')
-            exit()
+            raise ValueError(f"Invalid intervention: {intervention}")
+
     print(model)
     # Save checkpoint and metadata
     if config.save_ckpt:
@@ -202,26 +257,8 @@ def main(config):
     
     # Begin evaluations
     print("Starting eval...")
-
-    # # Evaluate on QA benchmarks
-    # print(f"Evaluating QA benchmarks...")
-    # lm_eval_model = HFLM(model.model)
-    # task_manager = lm_eval.tasks.TaskManager()
-    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
-    # qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
-    #     model=lm_eval_model,
-    #     tasks=qa_benchmarks,
-    #     num_fewshot=0,
-    #     task_manager=task_manager,
-    #     # limit=5
-    # )
-
-    # for benchmark_name in qa_benchmark_results["groups"]:
-    #     benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-    #     benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
-    #     wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-    #     wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
-    #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    print(f"Evaluating QA benchmarks...")
+    qa_results = get_qa_results(model, config)
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)
@@ -251,8 +288,10 @@ def main(config):
     ppl_edits = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=True)
     ppl_edits_unmasked = evals.ppl_responses(model, prompts, target_new, config, mask_prompt=False)
     ppl_QA = evals.ppl_QA(model, config)
+    
     print('Starting Avg bits eval...')
     avgbits = pruning_and_validation.average_bits()
+    
     # pruning_and_validation.sparsity_check()
     if hparams.method != 'quant' or hparams.compress == False:
         print('Starting FLOPs eval...')
@@ -269,7 +308,7 @@ def main(config):
     wandb.run.summary["FLOPs"] = flops
     wandb.run.summary["Latency"] = latency
 
-    wandb.log({
+    wandb_log = {
         "Rewrite accuracy": success_score,
         "Generalization": generalization_score,
         "Locality": locality_score,
@@ -280,7 +319,15 @@ def main(config):
         "Success recall": success_recall,
         "Generalization recall": gen_recall,
         "Local recall": local_recall
-    })
+    }
+    wandb_log.update(qa_results)
+    wandb.log(wandb_log)
+    wanda_log_frame = pd.DataFrame([wandb_log]).T
+    print("\nExperiment Metrics")
+    print(tabulate(wanda_log_frame, headers='keys', tablefmt='psql'))
+
+    # Log table to W&B
+    wandb.run.log({"Metrics": wandb.Table(dataframe=wanda_log_frame)})
 
 if __name__ == '__main__':
     main()

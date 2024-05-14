@@ -7,6 +7,9 @@ calflops/
 .vscode/
 out/
 wandb/
+slurm_logs/
+wmdp/images/
+multirun/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
