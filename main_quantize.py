@@ -127,7 +127,7 @@ class LLMPruningAndValidation:
                 self.model4Quant=model
             elif self.args.quant_method=='autoawq':
                 #quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-                model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True})
+                model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True}, safetensors=True)
                 #print(model)
                 self.model=model.model.to(self.device)
                 self.model4Quant=model
@@ -239,7 +239,7 @@ class LLMPruningAndValidation:
         elif args.quant_method=='autoawq':
             quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
             #model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True})
-            self.model4Quant.pseudoQuantize(self.tokenizer,quant_config=quant_config,flag=flag)
+            self.model4Quant.pseudoQuantize(self.tokenizer,quant_config=quant_config)
             self.model4Quant.model=self.model4Quant.model.to(self.device)
             self.model=self.model4Quant.model           
         else:

@@ -180,10 +180,9 @@ def main(config):
         model.load_state_dict(state_dict)
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions)!=0 and config.interventions[0][0] in ['quant', 'prune']:
+    if len(config.interventions)>1 and config.interventions[0][0] in ['compress','quant', 'prune']:
         # Append the first operation to the end of the list if it's compression-related
         config.interventions.append([operations[0][0]])
-
     for intervention in config.interventions:
         if intervention == 'edit':
             model = edit_model(model, config, prompts, ground_truth, target_new, subject)
@@ -203,25 +202,24 @@ def main(config):
     # Begin evaluations
     print("Starting eval...")
 
-    # # Evaluate on QA benchmarks
-    # print(f"Evaluating QA benchmarks...")
-    # lm_eval_model = HFLM(model.model)
-    # task_manager = lm_eval.tasks.TaskManager()
-    # qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
-    # qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
-    #     model=lm_eval_model,
-    #     tasks=qa_benchmarks,
-    #     num_fewshot=0,
-    #     task_manager=task_manager,
-    #     # limit=5
-    # )
-
-    # for benchmark_name in qa_benchmark_results["groups"]:
-    #     benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
-    #     benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
-    #     wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
-    #     wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
-    #     print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
+    # Evaluate on QA benchmarks
+    print(f"Evaluating QA benchmarks...")
+    lm_eval_model = HFLM(editable_model.model)
+    task_manager = lm_eval.tasks.TaskManager()
+    qa_benchmarks = ["mmlu", "wmdp_cyber", "wmdp_bio"] if "unlearn" in config.interventions else ["mmlu"]
+    qa_benchmark_results = lm_eval.simple_evaluate( # call simple_evaluate
+        model=lm_eval_model,
+        tasks=qa_benchmarks,
+        num_fewshot=0,
+        task_manager=task_manager,
+        # limit=5
+    )
+    for benchmark_name in qa_benchmark_results["groups"]:
+        benchmark_accuracy = qa_benchmark_results["groups"][benchmark_name]["acc,none"]
+        benchmark_std_error = qa_benchmark_results["groups"][benchmark_name]["acc_stderr,none"]
+        wandb.run.summary["{benchmark_name} accuracy"] = benchmark_accuracy
+        wandb.run.summary["{benchmark_name} stderr"] = benchmark_std_error
+        print(f"{benchmark_name} - Accuracy: {benchmark_accuracy} StdErr: {benchmark_std_error}")
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)
