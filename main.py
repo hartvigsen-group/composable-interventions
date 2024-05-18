@@ -28,6 +28,7 @@ import copy
 
 def edit_model(model, config, prompts, ground_truth, target_new, subject):
     # Use ModelEditWrapper for handling edits
+    model = model.to(dtype=get_dtype(config.edit))
     editable_model = ModelEditWrapper(model, config)
     editable_model.train()
     editable_model.batch_edit(
@@ -44,7 +45,10 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
     return editable_model
 
 def compress_model(model, config, pruning_and_validation):
+    del pruning_and_validation
+    pruning_and_validation = LLMPruningAndValidation(config, model)
     if config.method == 'quant':
+        model = model.to(dtype=get_dtype(config.compression))
         pruning_and_validation.pseudoQuantization()
         model.to(f'cuda:{config.device}')
         return model
@@ -55,17 +59,6 @@ def compress_model(model, config, pruning_and_validation):
         return model
     else:
         raise ValueError(f"Invalid compression method: {config.method}")
-
-# def quantize_model(model, config, pruning_and_validation):
-#     pruning_and_validation.quantization()
-#     model.to(f'cuda:{config.device}')
-#     return model
-
-# def prune_model(model, config, pruning_and_validation):
-#     pruning_and_validation.get_Mask()  # Obtain mask once
-#     pruning_and_validation.prune()     # Apply pruning
-#     return model
-
 
 
 def unlearn_model(model, config):
@@ -157,10 +150,27 @@ def get_qa_results(model, config):
     return benchmark_results
 
 
-def get_dtype(config):
+def get_dtype(dtype_str):
     """Dynamically get the torch dtype based on the config"""
-    return torch.float if config.dtype == 'torch.float' else torch.bfloat16 if config.dtype == 'torch.bfloat16' else torch.bfloat16
-
+    dtype_mapping = {
+        'torch.float': torch.float,
+        'torch.float32': torch.float32,
+        'torch.float16': torch.float16,
+        'torch.bfloat16': torch.bfloat16,
+        'torch.float64': torch.float64,  # Adding more possible dtypes
+        'torch.half': torch.half,
+        'torch.double': torch.double,
+        'awq': torch.float16,
+        'gptq': torch.float16,
+        'ft': torch.bfloat16,
+        'memit': torch.bfloat16,
+        'lora': torch.float
+    }
+    
+    if dtype_str not in dtype_mapping:
+        raise ValueError(f"Invalid dtype specified in config: {dtype_str}")
+    
+    return dtype_mapping[dtype_str]
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 
@@ -187,7 +197,7 @@ def main(config):
             for key, value in config[section].items():
                 config[key] = value
             # Optionally delete the original section
-            del config[section]
+            # del config[section]
 
     # Apply command line overrides after flattening the configuration
     config = OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
@@ -216,7 +226,7 @@ def main(config):
     # Init model
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
-                torch_dtype=get_dtype(config),
+                torch_dtype=get_dtype(config.dtype),
                 # low_cpu_mem_usage=True, 
                 device_map="auto"
             )
@@ -239,7 +249,7 @@ def main(config):
         model.load_state_dict(state_dict)
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions)>1 and config.interventions[0] in ['compress', 'compression', 'quant', 'prune']:
+    if len(config.interventions)>1 and config.interventions[0] in ['compress', 'compression', 'quant', 'prune'] and config.method in ['quant', 'prune']:
         # Append the first operation to the end of the list if it's compression-related to make sure final model is compressed (not compression-aware editing)
         config.interventions.append(config.interventions[0])
 

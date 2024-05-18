@@ -6,6 +6,7 @@ mlp_module_tmp: "model.layers.{}.mlp"
 attn_module_tmp: "model.layers.{}.self_attn"
 ln_f_module: "model.norm"
 lm_head_module: "lm_head"
+dtype: torch.bfloat16
 
 # FT
 lr: 5e-5 #5e-4
