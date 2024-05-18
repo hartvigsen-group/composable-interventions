@@ -211,7 +211,7 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="AK_tests",
+        project="kyledevinobrien1/Composable_Interventions",
         config=config_dict,
         mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
