@@ -27,6 +27,7 @@ eval_zero_shot: false
 compress: false
 method: none
 sparsity_ratio: 0.0
+wbit: 16
 compression_dataset: c4
 dataset: c4
 

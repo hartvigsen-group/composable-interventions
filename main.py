@@ -29,6 +29,7 @@ import copy
 def edit_model(model, config, prompts, ground_truth, target_new, subject):
     # Use ModelEditWrapper for handling edits
     editable_model = ModelEditWrapper(model, config)
+    editable_model.train()
     editable_model.batch_edit(
         prompts=prompts,
         ground_truth=ground_truth,
@@ -48,9 +49,12 @@ def compress_model(model, config, pruning_and_validation):
         model.to(f'cuda:{config.device}')
         return model
     elif config.method == 'prune':
+        pruning_and_validation = LLMPruningAndValidation(config, model)
         pruning_and_validation.get_Mask()  # Obtain mask once
         pruning_and_validation.prune()     # Apply pruning
         return model
+    else:
+        raise ValueError(f"Invalid compression method: {config.method}")
 
 # def quantize_model(model, config, pruning_and_validation):
 #     pruning_and_validation.quantization()
@@ -235,10 +239,10 @@ def main(config):
         model.load_state_dict(state_dict)
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions)>1 and config.interventions[0][0] in ['compress','quant', 'prune']:
+    if len(config.interventions)>1 and config.interventions[0] in ['compress', 'compression', 'quant', 'prune']:
+        # Append the first operation to the end of the list if it's compression-related to make sure final model is compressed (not compression-aware editing)
+        config.interventions.append(config.interventions[0])
 
-        # Append the first operation to the end of the list if it's compression-related
-        config.interventions.append([operations[0][0]])
     for intervention in config.interventions:
         if intervention == 'edit':
             model = edit_model(model, config, prompts, ground_truth, target_new, subject)
@@ -249,8 +253,6 @@ def main(config):
             model = unlearn_model(model, config)
         else:
             raise ValueError(f"Invalid intervention: {intervention}")
-
-    print(model)
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
