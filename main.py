@@ -78,16 +78,14 @@ def unlearn_model(model, config):
     tokenizer.sep_token_id = tokenizer.eos_token_id
     tokenizer.cls_token_id = tokenizer.eos_token_id
 
-    unlearning_model = AutoModelForCausalLM.from_pretrained(
-        config.model_name,
-        torch_dtype=get_dtype(config),
-        # low_cpu_mem_usage=True,
-        device_map="auto"
-    )
+    # RMU only supports bfloat16
+    if model.dtype != torch.bfloat16:
+        model = model.type(torch.bfloat16)
+
+    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=torch.bfloat16).to(model.device)
     is_wrapper = isinstance(model, ModelEditWrapper)
     state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
     unlearning_model.load_state_dict(state_dict)
-    unlearning_model.to(f"cuda:{config.device}")
 
     rmu_config = {
         "model_name_or_path": config.model_name,
@@ -115,7 +113,7 @@ def unlearn_model(model, config):
         rmu_config["max_len"],
         rmu_config["batch_size"],
     )
-    return rmu_unlearn.run_rmu(
+    unlearned_model = rmu_unlearn.run_rmu(
         updated_model=unlearning_model,
         frozen_model=model.model if is_wrapper else model,
         tokenizer=tokenizer,
@@ -123,6 +121,12 @@ def unlearn_model(model, config):
         retain_data_list=retain_data_list,
         args=SimpleNamespace(**rmu_config)
     )
+
+    # Cast back to configured dtype
+    if unlearned_model.dtype != get_dtype(config):
+        unlearned_model = unlearned_model.type(get_dtype(config))
+
+    return ModelEditWrapper(unlearned_model, config)
 
 
 def get_qa_results(model, config):

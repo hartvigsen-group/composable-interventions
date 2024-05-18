@@ -1,7 +1,7 @@
 defaults:
   - edit: ft  # Choose any of [memit, lora, ft]
   - compression: gptq  # Choose any of [wanda, sparsegpt, gptq, awq]
-  - unlearn: none  # Choose any of [cut]
+  - unlearn: none  # Choose any of [rmu]
   - _self_
 
 model_name: meta-llama/Meta-Llama-3-8B
