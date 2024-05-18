@@ -1,6 +1,6 @@
 defaults:
-  - edit: ft  # Choose any of [memit, lora, ft]
-  - compression: gptq  # Choose any of [wanda, sparsegpt, gptq, awq]
+  - edit: none  # Choose any of [memit, lora, ft]
+  - compression: none  # Choose any of [wanda, sparsegpt, gptq, awq]
   - unlearn: none  # Choose any of [rmu]
   - _self_
 
@@ -13,7 +13,7 @@ model_parallel: true
 seed: 42
 tag: "default"
 wandb: disabled # disabled or online
-interventions: [compress]  # List of interventions, choose any number of [edit, compress, unlearn]
+interventions: []  # List of interventions, choose any number of [edit, compress, unlearn]
 
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
@@ -27,6 +27,7 @@ eval_zero_shot: false
 compress: false
 method: none
 sparsity_ratio: 0.0
+wbit: 16
 compression_dataset: c4
 dataset: c4
 
@@ -35,4 +36,4 @@ edit_set: 50
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240514_150528.pth
-save_ckpt: True
+save_ckpt: False
