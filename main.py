@@ -83,10 +83,10 @@ def unlearn_model(model, config):
     tokenizer.cls_token_id = tokenizer.eos_token_id
 
     # RMU only supports bfloat16
-    if model.dtype != torch.bfloat16:
+    if model.dtype == torch.float32:
         model = model.type(torch.bfloat16)
 
-    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=torch.bfloat16).to(model.device)
+    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype).to(model.device)
     is_wrapper = isinstance(model, ModelEditWrapper)
     state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
     unlearning_model.load_state_dict(state_dict)
@@ -145,8 +145,7 @@ def get_qa_results(model, config):
         num_fewshot=0,
         task_manager=task_manager,
         batch_size=16,
-        # TODO: Set the config limit from config for debugging
-        # limit=50
+        limit=config.qa_question_count_limit,
     )
     
     benchmark_results = {}
@@ -183,6 +182,11 @@ def main(config):
     # Temporarily disable strict structure enforcement
     OmegaConf.set_struct(config, False)
 
+    # Dynamicaly set the corect user in config path
+    for key, value in config.items():
+        if isinstance(value, str) and "{USER}" in value:
+            config[key] = value.replace("{USER}", os.environ["USER"])
+
     # Flatten the configuration
     sections_to_flatten = ['edit', 'compression', 'unlearn']
     for section in sections_to_flatten:
@@ -211,7 +215,7 @@ def main(config):
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
     wandb.init(
-        project="kyledevinobrien1/Composable_Interventions",
+        project="Composable_Interventions",
         config=config_dict,
         mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags

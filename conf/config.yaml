@@ -17,7 +17,7 @@ interventions: []  # List of interventions, choose any number of [edit, compress
 
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
-stats_dir: "/scratch/sux7mp/stats"
+stats_dir: "/scratch/{USER}/stats"
 max_length: 30
 batch_size: 50
 
@@ -33,6 +33,10 @@ dataset: c4
 
 number_of_edits: 50
 edit_set: 50
+
+# The max number of questions per QA set. Should be null for main
+# results,but can be set lower for fast debugging
+qa_question_count_limit: null
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240514_150528.pth
