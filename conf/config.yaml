@@ -1,7 +1,7 @@
 defaults:
   - edit: none  # Choose any of [memit, lora, ft]
   - compression: none  # Choose any of [wanda, sparsegpt, gptq, awq]
-  - unlearn: none  # Choose any of [cut]
+  - unlearn: none  # Choose any of [rmu]
   - _self_
 
 model_name: meta-llama/Meta-Llama-3-8B
@@ -17,7 +17,7 @@ interventions: []  # List of interventions, choose any number of [edit, compress
 
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
-stats_dir: "/scratch/sux7mp/stats"
+stats_dir: "/scratch/{USER}/stats"
 max_length: 30
 batch_size: 50
 
@@ -27,12 +27,19 @@ eval_zero_shot: false
 compress: false
 method: none
 sparsity_ratio: 0.0
-wbit: 16
+wbits: 16
 compression_dataset: c4
 dataset: c4
 
 number_of_edits: 50
 edit_set: 50
+
+# The max number of questions per QA set. Should be null for main
+# results,but can be set lower for fast debugging
+qa_question_count_limit: null
+
+# RMU configs which can be overwritten
+rmu_max_num_batches: 0
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240519_123419.pth
