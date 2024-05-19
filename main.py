@@ -78,7 +78,7 @@ def unlearn_model(model, config):
 
     # RMU only supports bfloat16
     model = model.to(get_dtype("rmu"))
-    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype).to(model.device)
+    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype, device_map="auto")
     is_wrapper = isinstance(model, ModelEditWrapper)
     state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
     unlearning_model.load_state_dict(state_dict)
