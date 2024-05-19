@@ -27,7 +27,7 @@ eval_zero_shot: false
 compress: false
 method: none
 sparsity_ratio: 0.0
-wbit: 16
+wbits: 16
 compression_dataset: c4
 dataset: c4
 
@@ -37,6 +37,9 @@ edit_set: 50
 # The max number of questions per QA set. Should be null for main
 # results,but can be set lower for fast debugging
 qa_question_count_limit: null
+
+# RMU configs which can be overwritten
+rmu_max_num_batches: 0
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240514_150528.pth
