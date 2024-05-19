@@ -1,7 +1,7 @@
 alg_name: "LoRA"
 lora_type: "adalora"
 layers: []
-num_steps: 70  #70
+num_steps: 70
 lr: 5e-3 # 5e-3
 weight_decay: 0.00
 kl_factor: 0
