@@ -227,8 +227,10 @@ def main(config):
     # Initialize W&B (Remove layer list since it can't handle lists)
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
+    experiment_id = f"{config.tag}-{timestamp}"
     wandb.init(
         project="Composable_Interventions",
+        name=experiment_id,
         config=config_dict,
         mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
@@ -260,7 +262,10 @@ def main(config):
         model.load_state_dict(state_dict)
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions) > 1 and config.interventions[0] in ['compress', 'compression', 'quant', 'prune'] and config.method in ['quant', 'prune']:
+    is_multiple_interventions = len(config.interventions) > 1
+    is_compress_first = is_multiple_interventions and config.interventions[0] in ['compress', 'compression', 'quant', 'prune'] and config.method in ['quant', 'prune']
+    is_not_awq = config.method != "quant" or config.quant_method != "autoawq"
+    if is_multiple_interventions and is_compress_first and is_not_awq:
         # Append the first operation to the end of the list if it's compression-related to make sure final model is compressed (not compression-aware editing)
         config.interventions.append(config.interventions[0])
         print(f"Appended {config.interventions[0]} to the end of the list to ensure final model is compressed")
