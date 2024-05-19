@@ -35,5 +35,5 @@ number_of_edits: 50
 edit_set: 50
 
 load_ckpt: False
-ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240514_150528.pth
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240519_123419.pth
 save_ckpt: False
