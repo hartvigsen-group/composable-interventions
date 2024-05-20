@@ -76,12 +76,18 @@ def unlearn_model(model, config):
     tokenizer.sep_token_id = tokenizer.eos_token_id
     tokenizer.cls_token_id = tokenizer.eos_token_id
 
+    # Cast model to CPU
+    # model = model.cpu()
+
     # RMU only supports bfloat16
     model = model.to(get_dtype("rmu"))
-    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype, device_map="auto")
+    frozen_copy_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype, device_map="auto")
     is_wrapper = isinstance(model, ModelEditWrapper)
     state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
-    unlearning_model.load_state_dict(state_dict)
+    frozen_copy_model.load_state_dict(state_dict)
+
+    # put model back on GPU
+    # model = model.to(unlearning_model.device)
 
     rmu_config = {
         "model_name_or_path": config.model_name,
@@ -110,8 +116,8 @@ def unlearn_model(model, config):
         rmu_config["batch_size"],
     )
     unlearned_model = rmu_unlearn.run_rmu(
-        updated_model=unlearning_model,
-        frozen_model=model.model if is_wrapper else model,
+        updated_model=model.model if is_wrapper else model,
+        frozen_model=frozen_copy_model,
         tokenizer=tokenizer,
         forget_data_list=forget_data_list,
         retain_data_list=retain_data_list,
@@ -123,7 +129,12 @@ def unlearn_model(model, config):
     if unlearned_model.dtype != config_type:
         unlearned_model = unlearned_model.to(config_type)
 
-    return ModelEditWrapper(unlearned_model, config)
+    # Clean up VRAM for original model
+    frozen_copy_model = frozen_copy_model.cpu()
+    del frozen_copy_model
+    torch.cuda.empty_cache()
+    
+    return model
 
 
 def get_qa_results(model, config):
@@ -279,6 +290,7 @@ def main(config):
             model = compress_model(model, config, pruning_and_validation)
         elif intervention == 'unlearn':
             model = unlearn_model(model, config)
+            editable_model.model.hf_device_map = device_map
         else:
             raise ValueError(f"Invalid intervention: {intervention}")
     

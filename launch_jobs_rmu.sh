@@ -42,9 +42,9 @@ sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=gptq unlear
 ##RMU then Edit ###
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=ft compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
 
 ##Edit then RMU ###
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=ft compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
