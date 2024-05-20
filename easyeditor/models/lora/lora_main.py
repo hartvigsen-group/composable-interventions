@@ -143,6 +143,7 @@ def execute_lora(
                     tokens["labels"][i][num_pad_toks[i]:num_pad_toks[i]+num_prompt_toks[i]] = mask_token
                 tokens["labels"][tokens["input_ids"] == tok.pad_token_id] = mask_token
                 tokens = tokens.to(device)
+                pred = peft_model(**tokens)
                 loss = pred.loss
                 # pred = peft_model(**tokens)
                 # loss = pred.loss

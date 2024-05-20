@@ -1,4 +1,4 @@
-  # RMU Unlearning Llama-3 Hyperparameters
+# RMU Unlearning Llama-3 Hyperparameters
 # RMU is quite sensitive to hyperparameters across different models 
 # and tasks. These settings are unlikely to work well for other models.
 # EX: https://x.com/KyleDevinOBrien/status/1775300088547402055
@@ -11,7 +11,7 @@ rmu_lr: 5e-5
 rmu_min_len: 0
 rmu_max_len: 2000
 rmu_batch_size: 4
-rmu_max_num_batches: 250
+rmu_max_num_batches: 500
 rmu_layer_id: 5
 rmu_layer_ids: [3, 4, 5]
 rmu_param_ids: [5]
