@@ -45,6 +45,7 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
         p.requires_grad_()
     return editable_model
 
+
 def compress_model(model, config, pruning_and_validation):
     del pruning_and_validation
     pruning_and_validation = LLMPruningAndValidation(config, model)
@@ -82,16 +83,12 @@ def unlearn_model(model, config):
     tokenizer.sep_token_id = tokenizer.eos_token_id
     tokenizer.cls_token_id = tokenizer.eos_token_id
 
-    unlearning_model = AutoModelForCausalLM.from_pretrained(
-        config.model_name,
-        torch_dtype=get_dtype(config),
-        # low_cpu_mem_usage=True,
-        device_map="auto"
-    )
+    # RMU only supports bfloat16
+    model = model.to(get_dtype("rmu"))
+    unlearning_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype).to(model.device)
     is_wrapper = isinstance(model, ModelEditWrapper)
     state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
     unlearning_model.load_state_dict(state_dict)
-    unlearning_model.to(f"cuda:{config.device}")
 
     rmu_config = {
         "model_name_or_path": config.model_name,
@@ -119,7 +116,7 @@ def unlearn_model(model, config):
         rmu_config["max_len"],
         rmu_config["batch_size"],
     )
-    return rmu_unlearn.run_rmu(
+    unlearned_model = rmu_unlearn.run_rmu(
         updated_model=unlearning_model,
         frozen_model=model.model if is_wrapper else model,
         tokenizer=tokenizer,
@@ -127,6 +124,13 @@ def unlearn_model(model, config):
         retain_data_list=retain_data_list,
         args=SimpleNamespace(**rmu_config)
     )
+
+    # Cast back to configured dtype
+    config_type = get_dtype(config.dtype)
+    if unlearned_model.dtype != config_type:
+        unlearned_model = unlearned_model.to(config_type)
+
+    return ModelEditWrapper(unlearned_model, config)
 
 
 def get_qa_results(model, config):
@@ -141,8 +145,7 @@ def get_qa_results(model, config):
         num_fewshot=0,
         task_manager=task_manager,
         batch_size=16,
-        # TODO: Set the config limit from config for debugging
-        # limit=50
+        limit=config.qa_question_count_limit,
     )
     
     benchmark_results = {}
@@ -158,6 +161,8 @@ def get_qa_results(model, config):
 
 
 def get_dtype(dtype_str):
+
+    
     """Dynamically get the torch dtype based on the config"""
     dtype_mapping = {
         'torch.float': torch.float,
@@ -173,7 +178,8 @@ def get_dtype(dtype_str):
         'sparsegpt': torch.bfloat16,
         'ft': torch.bfloat16,
         'memit': torch.bfloat16,
-        'lora': torch.float
+        'lora': torch.float,
+        "rmu": torch.bfloat16,
     }
     
     if dtype_str not in dtype_mapping:
@@ -197,6 +203,11 @@ def main(config):
 
     # Temporarily disable strict structure enforcement
     OmegaConf.set_struct(config, False)
+
+    # Dynamicaly set the corect user in config path
+    for key, value in config.items():
+        if isinstance(value, str) and "{USER}" in value:
+            config[key] = value.replace("{USER}", os.environ["USER"])
 
     # Flatten the configuration
     sections_to_flatten = ['edit', 'compression', 'unlearn']
@@ -225,8 +236,10 @@ def main(config):
     # Initialize W&B (Remove layer list since it can't handle lists)
     config_dict = OmegaConf.to_container(config, resolve=True) # Convert the DictConfig to a standard Python dictionary
     config_dict.pop('layers', None) # Remove the 'layers' key
+    experiment_id = f"{config.tag}-{timestamp}"
     wandb.init(
-        project="AK_tests",
+        project="Composable_Interventions",
+        name=experiment_id,
         config=config_dict,
         mode=config.wandb, # "disabled" for dry-runs, "online" for logging
         tags=[config.tag] # List of tags
@@ -258,11 +271,16 @@ def main(config):
         model.load_state_dict(state_dict)
 
     # Check if the first operation in the initial list is compression-related
-    if len(config.interventions)>1 and config.interventions[0] in ['compress', 'compression', 'quant', 'prune'] and config.method in ['quant', 'prune']:
+    is_multiple_interventions = len(config.interventions) > 1
+    is_compress_first = is_multiple_interventions and config.interventions[0] in ['compress', 'compression', 'quant', 'prune'] and config.method in ['quant', 'prune']
+    is_not_awq = config.method != "quant" or config.quant_method != "autoawq"
+    if is_multiple_interventions and is_compress_first and is_not_awq:
         # Append the first operation to the end of the list if it's compression-related to make sure final model is compressed (not compression-aware editing)
         config.interventions.append(config.interventions[0])
+        print(f"Appended {config.interventions[0]} to the end of the list to ensure final model is compressed")
 
     for intervention in config.interventions:
+        print(f"############# Begin intervention: {intervention} #############")
         if intervention == 'edit':
             model = edit_model(model, config, prompts, ground_truth, target_new, subject)
             editable_model.model.hf_device_map = device_map
@@ -272,6 +290,7 @@ def main(config):
             model = unlearn_model(model, config)
         else:
             raise ValueError(f"Invalid intervention: {intervention}")
+    
     # Save checkpoint and metadata
     if config.save_ckpt:
         save_ckpt_meta.save(editable_model, config, timestamp, '/scratch/sux7mp/saved_models/')
