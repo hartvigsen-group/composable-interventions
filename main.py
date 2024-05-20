@@ -6,6 +6,7 @@ from tabulate import tabulate
 import argparse
 import os 
 import sys
+import copy
 import numpy as np
 import pandas as pd
 import torch
@@ -81,10 +82,11 @@ def unlearn_model(model, config):
 
     # RMU only supports bfloat16
     model = model.to(get_dtype("rmu"))
-    frozen_copy_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype, device_map="auto")
     is_wrapper = isinstance(model, ModelEditWrapper)
-    state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
-    frozen_copy_model.load_state_dict(state_dict)
+    frozen_copy_model = copy.deepcopy(model.model) if is_wrapper else copy.deepcopy(model)
+    # frozen_copy_model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=model.dtype, device_map="auto")
+    # state_dict = model.model.state_dict() if is_wrapper else model.state_dict()
+    # frozen_copy_model.load_state_dict(state_dict)
 
     # put model back on GPU
     # model = model.to(unlearning_model.device)
@@ -101,7 +103,7 @@ def unlearn_model(model, config):
         "min_len": config.rmu_min_len,
         "max_len": config.rmu_max_len,
         "batch_size": config.rmu_batch_size,
-        "max_num_batches": config.rmu_max_num_batches,
+        "max_num_batches": 1000,
         "layer_id": config.rmu_layer_id,
         "layer_ids": config.rmu_layer_ids,
         "param_ids": config.rmu_param_ids,
