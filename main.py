@@ -112,8 +112,8 @@ def unlearn_model(model, config):
         "batch_size": config.rmu_batch_size,
         "max_num_batches": 1000,
         "layer_id": config.rmu_layer_id,
-        "layer_ids": config.rmu_layer_ids,
-        "param_ids": config.rmu_param_ids,
+        "layer_ids": [config.rmu_layer_id - 2, config.rmu_layer_id -1, config.rmu_layer_id],
+        "param_ids": config.rmu_layer_id,
         "seed": config.rmu_seed,
         "verbose": True,    
     }
@@ -251,7 +251,8 @@ def main(config):
     config_dict.pop('layers', None) # Remove the 'layers' key
     experiment_id = f"{config.tag}-{timestamp}"
     wandb.init(
-        project="Composable_Interventions",
+        project=config.wandb_project,
+        entity=config.wandb_entity,
         name=experiment_id,
         config=config_dict,
         mode=config.wandb, # "disabled" for dry-runs, "online" for logging
