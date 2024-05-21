@@ -47,32 +47,32 @@ done
 
 # Compress only - AWQ at different wbit levels
 for wbit in "${wbit_levels[@]}"; do
-    configs+=("edit=none compression=awq unlearn=none interventions=[compress] wbit=${wbit} tag='Compress_AWQ${wbit}bit'")
+    configs+=("edit=none compression=awq unlearn=none interventions=[compress] wbits=${wbit} tag='Compress_AWQ${wbit}bit'")
 done
 
 # Compress only - GPTQ at different wbit levels
 for wbit in "${wbit_levels[@]}"; do
-    configs+=("edit=none compression=gptq unlearn=none interventions=[compress] wbit=${wbit} tag='Compress_GPTQ${wbit}bit'")
+    configs+=("edit=none compression=gptq unlearn=none interventions=[compress] wbits=${wbit} tag='Compress_GPTQ${wbit}bit'")
 done
 
 # Edit then Compress - AWQ at different wbit levels
 for wbit in "${wbit_levels[@]}"; do
-    configs+=("edit=${common_editor} compression=awq unlearn=none interventions=[edit,compress] wbit=${wbit} tag='${common_editor}-to-AWQ${wbit}bit'")
+    configs+=("edit=${common_editor} compression=awq unlearn=none interventions=[edit,compress] wbits=${wbit} tag='${common_editor}-to-AWQ${wbit}bit'")
 done
 
 # Edit then Compress - GPTQ at different wbit levels
 for wbit in "${wbit_levels[@]}"; do
-    configs+=("edit=${common_editor} compression=gptq unlearn=none interventions=[edit,compress] wbit=${wbit} tag='${common_editor}-to-GPTQ${wbit}bit'")
+    configs+=("edit=${common_editor} compression=gptq unlearn=none interventions=[edit,compress] wbits=${wbit} tag='${common_editor}-to-GPTQ${wbit}bit'")
 done
 
 # Compress with AWQ then Edit at different wbit levels
 for wbit in "${wbit_levels[@]}"; do
-    configs+=("edit=${common_editor} compression=awq unlearn=none interventions=[compress,edit] wbit=${wbit} tag='AWQ${wbit}bit-to-${common_editor}'")
+    configs+=("edit=${common_editor} compression=awq unlearn=none interventions=[compress,edit] wbits=${wbit} tag='AWQ${wbit}bit-to-${common_editor}'")
 done
 
 # Compress with GPTQ then Edit at different wbit levels
 for wbit in "${wbit_levels[@]}"; do
-    configs+=("edit=${common_editor} compression=gptq unlearn=none interventions=[compress,edit] wbit=${wbit} tag='GPTQ${wbit}bit-to-${common_editor}'")
+    configs+=("edit=${common_editor} compression=gptq unlearn=none interventions=[compress,edit] wbits=${wbit} tag='GPTQ${wbit}bit-to-${common_editor}'")
 done
 
 # Loop through each configuration and launch a job
