@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##RMU only ###
-# sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=none unlearn=rmu interventions=[unlearn] tag="rmu-none"
+sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=none unlearn=rmu interventions=[unlearn] tag="rmu-none"
 
 ##RMU then Compress ###
 # GPTQ
@@ -38,7 +38,6 @@ sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=wanda unlea
 sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=sparsegpt unlearn=rmu interventions=[compress,unlearn] sparsity_ratio=0.25 tag="sparsegpt0.25\%-rmu"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=sparsegpt unlearn=rmu interventions=[compress,unlearn] sparsity_ratio=0.45 tag="sparsegpt0.45\%-rmu"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=sparsegpt unlearn=rmu interventions=[compress,unlearn] sparsity_ratio=0.65 tag="sparsegpt0.65\%-rmu"
-
 
 ##RMU then Edit ###
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"

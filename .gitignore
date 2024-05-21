@@ -10,6 +10,12 @@ wandb/
 slurm_logs/
 wmdp/images/
 multirun/
+out.txt
+
+# Extra files added to AutoGPTQ
+AutoGPTQ/autogptq_extension/qigen/backend.cpp
+AutoGPTQ/autogptq_extension/qigen/mmm
+AutoGPTQ/autogptq_extension/qigen/tmp.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
