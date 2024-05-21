@@ -31,7 +31,8 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
     # Use ModelEditWrapper for handling edits
     model = model.to(dtype=get_dtype(config.edit))
     editable_model = ModelEditWrapper(model, config)
-    editable_model.train()
+    if config.alg_name != 'LoRA':
+        editable_model.train()
     editable_model.batch_edit(
         prompts=prompts,
         ground_truth=ground_truth,
@@ -51,10 +52,16 @@ def compress_model(model, config, pruning_and_validation):
     pruning_and_validation = LLMPruningAndValidation(config, model)
     if config.method == 'quant':
         model = model.to(dtype=get_dtype(config.compression))
+        # Set any Nans to zero
+        # for param in model.parameters():
+        #     if param.requires_grad:
+        #         param.data.masked_fill_(torch.isnan(param.data), 0)
+
         pruning_and_validation.pseudoQuantization()
         model.to(f'cuda:{config.device}')
         return model
     elif config.method == 'prune':
+        model = model.to(dtype=get_dtype(config.compression))
         pruning_and_validation = LLMPruningAndValidation(config, model)
         pruning_and_validation.get_Mask()  # Obtain mask once
         pruning_and_validation.prune()     # Apply pruning
@@ -180,6 +187,8 @@ def get_dtype(dtype_str):
         'torch.double': torch.double,
         'awq': torch.float16,
         'gptq': torch.float16,
+        'wanda': torch.bfloat16,
+        'sparsegpt': torch.bfloat16,
         'ft': torch.bfloat16,
         'memit': torch.bfloat16,
         'lora': torch.float,
@@ -345,7 +354,7 @@ def main(config):
     else: flops = -1
     if hparams.method == 'quant' or hparams.compress == False:
         print('Starting latency eval...')
-        latency = pruning_and_validation.CalculateLatency(editable_model.model)
+        latency = pruning_and_validation.CalculateLatency(model)
     else: latency = -1
 
     # Save to WandB

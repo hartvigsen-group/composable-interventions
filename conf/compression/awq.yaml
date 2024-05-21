@@ -6,7 +6,7 @@ dtype: torch.float16
 compression_dataset: c4
 dataset: c4
 percdamp: 0.01
-wbits: 2
+wbits: 8
 zero_point: True
 groupsize: 128
 sym: true

@@ -47,5 +47,5 @@ rmu_max_num_batches: 0
 rmu_layer_id: -1
 
 load_ckpt: False
-ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240514_150528.pth
+ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240519_123419.pth
 save_ckpt: False
