@@ -48,8 +48,8 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 
 
 def compress_model(model, config, pruning_and_validation):
-    del pruning_and_validation
-    pruning_and_validation = LLMPruningAndValidation(config, model)
+    # del pruning_and_validation
+    # pruning_and_validation = LLMPruningAndValidation(config, model)
     if config.method == 'quant':
         model = model.to(dtype=get_dtype(config.compression))
         # Set any Nans to zero
@@ -292,6 +292,7 @@ def main(config):
         # Append the first operation to the end of the list if it's compression-related to make sure final model is compressed (not compression-aware editing)
         config.interventions.append(config.interventions[0])
         print(f"Appended {config.interventions[0]} to the end of the list to ensure final model is compressed")
+
 
     for intervention in config.interventions:
         print(f"############# Begin intervention: {intervention} #############")

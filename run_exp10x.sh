@@ -3,7 +3,7 @@
 #SBATCH --job-name=hydra-grid-search
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-#SBATCH --constraint=a100_80gb
+#SBATCH --constraint=a6000
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1

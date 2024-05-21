@@ -36,7 +36,7 @@ compression_dataset: c4
 dataset: c4
 
 number_of_edits: 50
-edit_set: 50
+edit_set: 1
 
 # The max number of questions per QA set. Should be null for main
 # results,but can be set lower for fast debugging~
