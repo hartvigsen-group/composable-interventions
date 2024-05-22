@@ -12,8 +12,12 @@ device: 0
 model_parallel: true
 seed: 42
 tag: "default"
-wandb: disabled # disabled or online
 interventions: []  # List of interventions, choose any number of [edit, compress, unlearn]
+
+# Weights and Biases Settings
+wandb: disabled # disabled or online
+wandb_entity: "dri-ice"
+wandb_project: "Composable_Interventions"
 
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
@@ -35,11 +39,12 @@ number_of_edits: 50
 edit_set: 1
 
 # The max number of questions per QA set. Should be null for main
-# results,but can be set lower for fast debugging
+# results,but can be set lower for fast debugging~
 qa_question_count_limit: null
 
 # RMU configs which can be overwritten
 rmu_max_num_batches: 0
+rmu_layer_id: -1
 
 load_ckpt: False
 ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240519_123419.pth

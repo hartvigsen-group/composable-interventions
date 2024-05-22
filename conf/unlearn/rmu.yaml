@@ -2,6 +2,9 @@
 # RMU is quite sensitive to hyperparameters across different models 
 # and tasks. These settings are unlikely to work well for other models.
 # EX: https://x.com/KyleDevinOBrien/status/1775300088547402055
+
+# EX: https://x.com/KyleDevinOBrien/status/1775300088547402055
+
 unlearn_method: rmu
 rmu_retain_corpora: ["wikitext", "wikitext"]
 rmu_forget_corpora: ["bio-forget-corpus", "cyber-forget-corpus"]
@@ -11,8 +14,11 @@ rmu_lr: 5e-5
 rmu_min_len: 0
 rmu_max_len: 2000
 rmu_batch_size: 4
-rmu_max_num_batches: 500
-rmu_layer_id: 5
-rmu_layer_ids: [3, 4, 5]
-rmu_param_ids: [5]
+rmu_max_num_batches: 250
 rmu_seed: 42
+
+# Parameters that give have less unlearning but more utility mmlu=0.592081	wmdp_bio=0.354281	wmdp_cyber=0.270257
+# rmu_layer_id: 5
+
+# Parameters that give have more unlearning but less utility mmlu=0.563595 wmdp_bio=0.258445	wmdp_cyber=0.278812
+rmu_layer_id: 3
