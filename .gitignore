@@ -11,6 +11,7 @@ slurm_logs/
 wmdp/images/
 multirun/
 out.txt
+notebooks/debug_csv.csv
 
 # Extra files added to AutoGPTQ
 AutoGPTQ/autogptq_extension/qigen/backend.cpp
