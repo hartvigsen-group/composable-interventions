@@ -113,7 +113,7 @@ def unlearn_model(model, config):
         "max_num_batches": 1000,
         "layer_id": config.rmu_layer_id,
         "layer_ids": [config.rmu_layer_id - 2, config.rmu_layer_id -1, config.rmu_layer_id],
-        "param_ids": config.rmu_layer_id,
+        "param_ids": [config.rmu_layer_id],
         "seed": config.rmu_seed,
         "verbose": True,    
     }
