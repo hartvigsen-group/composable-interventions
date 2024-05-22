@@ -3,8 +3,6 @@
 # and tasks. These settings are unlikely to work well for other models.
 # EX: https://x.com/KyleDevinOBrien/status/1775300088547402055
 
-# EX: https://x.com/KyleDevinOBrien/status/1775300088547402055
-
 unlearn_method: rmu
 rmu_retain_corpora: ["wikitext", "wikitext"]
 rmu_forget_corpora: ["bio-forget-corpus", "cyber-forget-corpus"]
