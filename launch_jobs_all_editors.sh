@@ -98,5 +98,5 @@ done
 for cfg in "${configs[@]}"; do
     # Use sbatch for SLURM and passing Hydra config overrides
     sbatch run_exp.sh $cfg
-    # echo sbatch run_exp.sh $cfg
+    echo sbatch run_exp.sh $cfg
 done
