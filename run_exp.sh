@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=hydra-grid-search
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:1
 #SBATCH --constraint=a100_80gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -11,7 +11,6 @@
 #SBATCH --time=02:59:00
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
-#SBATCH --constraint=a100_80gb
 
 # Load necessary modules or activate virtual environment
 source activate unlearning

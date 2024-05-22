@@ -48,8 +48,8 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 
 
 def compress_model(model, config, pruning_and_validation):
-    # del pruning_and_validation
-    # pruning_and_validation = LLMPruningAndValidation(config, model)
+    del pruning_and_validation
+    pruning_and_validation = LLMPruningAndValidation(config, model)
     if config.method == 'quant':
         model = model.to(dtype=get_dtype(config.compression))
         # Set any Nans to zero
