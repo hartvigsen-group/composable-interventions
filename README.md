@@ -1,16 +1,19 @@
 # Intervention Composability Evaluation Harness 
 
-## Overview
+ <img src="./notebooks/figures/title_fig_image.png"/>
 
-Test-time interventions for language models aim to enhance factual accuracy, reduce harmful outputs, and improve model efficiency, all while avoiding excessive training costs. However, existing interventions are developing independently. Often in practice, multiple interventions must be applied to the same model sequentially. This project provides a end-to-end framework for defining, executing, and evaluating intervention compositions on language models. 
+ ## Overview
 
-**Features**
-- Support for 8 interventions across model editing, unlearning, and compression.
+Test-time interventions for language models aim to enhance factual accuracy, reduce harmful outputs, and improve model efficiency, all while avoiding excessive training costs. However, existing interventions are developing independently. Often in practice, multiple interventions must be applied to the same model sequentially. `lm-compose` provides a end-to-end framework for defining, executing, and evaluating intervention compositions on language models. 
+
+### Features
+- Support for composing sesquential interventions across model editing, unlearning, and compression.
 - Evaluation for model performance, unlearning, knowledge editing, and compression.
-- Config-driven experiments via hydra.
-- Load models via HuggingFace's transformers.
-- Log results to Weights & Biases.
+- Load models via HuggingFace's [Transformers](https://huggingface.co/docs/transformers/en/index).
+- Config-driven experiments via [Hydra](https://hydra.cc/).
+- Log results to [Weights & Biases](https://wandb.ai/site).
 
+### Supported Interventions
 | Technique | Category | Introduced | 
 |-----------|----------|------------|
 | Fine-tune | Editing | NA | 
@@ -25,7 +28,23 @@ Test-time interventions for language models aim to enhance factual accuracy, red
 
 # Install
 
+This framework has been tested with Python 3.11. It's recommended to use a virtual envirnment. 
+```bash
+conda create -n lm-compose python=3.11
+```
+
+The following commands install the project's dependancies. We use a modified implementation of AutoAWQ and AutoGPTQ to support applying quantization multiple times.
+```bash
+pip install -e .
+pip install -e AutoAWQ
+pip install -e AutoGPTQ
+```
+
+RMU requires additional datasets which must be loaded manaully. The destinations for these datasets is `wmdp/data`. Instillation instruction can be found in the [WMDP repository](https://github.com/centerforaisafety/wmdp). 
+
 ## Basic Usage
+
+This project configures experiments using Hydra. 
 
 ## Advanced
 
