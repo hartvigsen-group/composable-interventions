@@ -1,4 +1,4 @@
-# Intervention Composability Evaluation Harness for Language Models
+# Intervention Composability Evaluation Harness for LMs
 
  <img src="./notebooks/figures/title_fig_image.png"/>
 
