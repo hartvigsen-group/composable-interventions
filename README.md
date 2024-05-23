@@ -34,13 +34,14 @@ This framework has been tested with Python 3.11. It's recommended that you use a
 ```bash
 conda create -n lm-compose python=3.11
 ```
-
-The following commands install the project's dependencies. We use a modified implementation of AutoAWQ and AutoGPTQ to support applying quantization multiple times. Installing AutoGPTQ take take 20+ minutes.
 ```bash
 pip install -e .
 pip install -e AutoAWQ
 pip install -e AutoGPTQ
 ```
+> [!Note]
+> We use a modified implementation of AutoAWQ and AutoGPTQ to support applying quantization multiple times. Installing AutoGPTQ take take 20+ minutes.
+
 > [!Note]
 > RMU requires additional datasets, which must be loaded manually. The destinations for these datasets are `wmdp/data`. Installation instructions can be found in the [WMDP repository](https://github.com/centerforaisafety/wmdp). 
 
