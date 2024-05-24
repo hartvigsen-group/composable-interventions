@@ -1,12 +1,12 @@
 # Intervention Composability Evaluation Harness
 
- <img src="./notebooks/figures/title_fig_image.png"/>
-
- Read our **[paper](TODO)** for more details!
+ <img src=./notebooks/figures/title_fig_image.png/>
 
  ## Overview
 
-Test-time interventions for language models aim to enhance factual accuracy, reduce harmful outputs, and improve model efficiency, all while avoiding excessive training costs. However, existing interventions are developing independently. Often, in practice, multiple interventions must be applied to the same model sequentially. `lm-compose` provides an end-to-end framework for defining, executing, and evaluating intervention compositions on language models. 
+Test-time interventions for language models aim to enhance factual accuracy, reduce harmful outputs, and improve model efficiency, all while avoiding excessive training costs. However, existing interventions are developing independently. In practice, multiple interventions must often be applied to the same model sequentially. It is unclear how these interventions interact and whether they can be combined effectively.
+
+`lm-compose` provides an end-to-end framework for defining, executing, and evaluating intervention compositions on language models.  Read our **[paper](TODO)** for more details!
 
 ### Features
 - Support for composing sequential interventions across model editing, unlearning, and compression.
@@ -34,30 +34,52 @@ This framework has been tested with Python 3.11. It's recommended that you use a
 ```bash
 conda create -n lm-compose python=3.11
 ```
+Dependencies can be installed via pip. 
 ```bash
 pip install -e .
 pip install -e AutoAWQ
 pip install -e AutoGPTQ
 ```
 > [!Note]
-> We use a modified implementation of AutoAWQ and AutoGPTQ to support applying quantization multiple times. Installing AutoGPTQ take take 20+ minutes.
+> We use a modified implementation of [AutoAWQ](https://github.com/casper-hansen/AutoAWQ) and [AutoGPTQ](https://github.com/AutoGPTQ/AutoGPTQ) to support applying quantization multiple times. Installing AutoGPTQ can take 20+ minutes.
 
 > [!Note]
 > RMU requires additional datasets, which must be loaded manually. The destinations for these datasets are `wmdp/data`. Installation instructions can be found in the [WMDP repository](https://github.com/centerforaisafety/wmdp). 
 
-## Basic Usage
+## Usage
 
-This project configures experiments using Hydra. 
+This project configures experiments using Hydra. The categories of interventions are configured using the `interventions` configuration. The specific intervention for the category is set using the category name config: EX: `unlearn=rmu edit=memit compression=awq`. The core logic is implemented in `main.py`
 
-## Advanced
+Default values for the model and interventions are stored in `conf/config.yaml`. These defaults can be overwritten by passing arguments to the `main.py` script.
 
-### Config Overwrites
+### Example: Editing + Compression
 
-### Weights & Biases
+The following command applied the `memit` editing intervention and the `awq` quantization intervention. Quantization is applied with 8-bit weights. Llama3-8B is used as the model.
+```bash
+python main.py model_name=meta-llama/Meta-Llama-3-8B interventions=[edit,compress] edit=memit compress=awq wbits=8
+```
+
+### Example: Unlearning + Editing
+
+The following command applied the `rmu` unlearning intervention and the `memit` editing intervention. The default values stored in `conf/config.yaml` for `model_name` and `interventions` are used.
+```bash
+python main.py interventions=[unlearn,edit] unlearn=rmu edit=memit
+```
 
 ## Saving Results
 
-## Contribute
+### Checkpoints
+
+TODO
+
+### Weights & Biases
+
+`lm-compose` logs evaluation results to Weights & Biases. To enable logging, set `wandb` to `online` in the `conf/config.yaml` file or pass `wandb=online` as an argument to the `main.py` script. Users must also point to their own entity and project via the `wandb_entity` and `wandb_project` arguments. See `conf/config.yaml` for more details.
+
+```bash
+python main.py wandb=online wandb_entity=your_entity wandb_project=your_project interventions=[unlearn,edit,compress] unlearn=rmu edit=memit compress=sparsegpt
+```
+## Contributing
 
 New interventions, tests, and bug fixes are more than welcome. 
 
