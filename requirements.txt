@@ -1,6 +1,4 @@
 apex==0.9.10dev
-auto_gptq.egg==info
-autoawq.egg==info
 autoawq_kernels==0.0.1
 bitsandbytes==0.43.1
 einops==0.4.0
@@ -14,23 +12,20 @@ lm_eval==0.4.0
 matplotlib==3.5.1
 nltk==3.6.5
 numpy==1.22.3
-numpy==1.22.1
 omegaconf==2.3.0
 openai==0.27.9
 opencv_python==4.9.0.80
 packaging==24.0
 pandas==1.4.0
 parameterized==0.9.0
-Pillow==10.0.1
 Pillow==10.3.0
 PyGithub==2.3.0
 pytest==8.2.0
-PyYAML==6.0
 PyYAML==6.0.1
 Requests==2.31.0
 rouge==1.0.1
 safetensors==0.4.3
-scikit_learn==1.0.2
+# scikit_learn==1.0.2
 scipy==1.7.3
 seaborn==0.13.2
 sentence_transformers==2.2.2
@@ -45,4 +40,4 @@ transformers==4.36.2
 triton==2.1.0
 typing_extensions==4.11.0
 vllm==0.4.1
-torch==2.0.1
+# torch==2.0.1
