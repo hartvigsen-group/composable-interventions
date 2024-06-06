@@ -44,6 +44,9 @@ qa_question_count_limit: null
 rmu_max_num_batches: 0
 rmu_layer_id: -1
 
+# GA configs which can be overwritten
+ga_train_sample_size: null
+
 load_ckpt: False
 ckpt_path: null
 save_ckpt: False

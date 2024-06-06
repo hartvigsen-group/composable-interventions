@@ -1,0 +1,10 @@
+unlearn_method: ga
+ga_data_path: "wmdp/data"
+ga_retain_corpora: ["wikitext", "wikitext"]
+ga_forget_corpora: ["bio-forget-corpus", "cyber-forget-corpus"]
+ga_lr: 1e-5
+ga_batch_size: 8
+ga_epochs: 1
+ga_train_sample_size: 500
+ga_test_sample_size: null
+qa_question_count_limit: 100

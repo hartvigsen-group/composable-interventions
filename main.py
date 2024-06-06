@@ -3,8 +3,11 @@ from sparsellm.lib.prune import AverageBits
 from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
 from tabulate import tabulate
+from tqdm import tqdm
 import argparse
+import random
 import os 
+import json
 import sys
 import copy
 import numpy as np
@@ -23,6 +26,7 @@ from wmdp.rmu import unlearn as rmu_unlearn
 from wmdp.rmu import utils as rmu_utils
 import lm_eval
 from lm_eval.models.huggingface import HFLM
+from ga_utils import get_ga_data
 from types import SimpleNamespace
 import copy
 
@@ -71,6 +75,78 @@ def compress_model(model, config, pruning_and_validation):
 
 
 def unlearn_model(model, config):
+    if config.unlearn_method == "rmu":
+        return apply_rmu(model, config)
+    if config.unlearn_method == "ga":
+        return apply_ga(model, config)
+    
+    raise ValueError(f"Invalid unlearn method: {config.unlearn_method}")
+
+
+def apply_ga(model, config):
+    # Prpeare model for training
+    # model.train()
+    # Freeze embedding layer
+    for param in model.model.embed_tokens.parameters():
+        param.requires_grad = False
+
+    # Freeze the first N layers of the transformer
+    N = 16  # Adjust this number based on your needs
+    for i in range(N):
+        for param in model.model.layers[i].parameters():
+            param.requires_grad = False
+    
+    # Make sure the final layers remain trainable
+    # Note: Adjust the indexing based on your model's architecture
+    for param in model.model.layers[N:].parameters():
+        param.requires_grad = True
+
+    # Also ensure the output layer remains trainable if present
+    for param in model.lm_head.parameters():
+        param.requires_grad = True
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.ga_lr)
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.model_name,
+        trust_remote_code=True,
+        use_fast=False
+    )
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.padding_side = "left"
+    tokenizer.mask_token_id = tokenizer.eos_token_id
+    tokenizer.sep_token_id = tokenizer.eos_token_id
+    tokenizer.cls_token_id = tokenizer.eos_token_id
+
+    # Get unlearning target
+    print("Loading Gradient Ascent Datasets")
+    ga_train, ga_test = get_ga_data(config.ga_forget_corpora, config.ga_retain_corpora, tokenizer)
+
+    # Sample if set
+    if config.ga_train_sample_size:
+        ga_train.data = random.sample(ga_train.data, config.ga_train_sample_size)
+    if config.ga_test_sample_size:
+        ga_test.data = random.sample(ga_test.data, config.ga_test_sample_size)
+
+    train_dataloader = torch.utils.data.DataLoader(ga_train, batch_size=config.ga_batch_size)
+    test_dataloader = torch.utils.data.DataLoader(ga_test, batch_size=config.ga_batch_size)
+
+    # Train model
+    for epoch in range(config.ga_epochs):
+        print(f"Epoch {epoch + 1}/{config.ga_epochs}")
+        for batch in tqdm(train_dataloader, desc="GA Train Batches"):
+            optimizer.zero_grad()
+            inputs = tokenizer(batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+            inputs["labels"] = inputs["input_ids"].clone()
+            outputs = model(**inputs)
+            loss = outputs.loss * -1
+            loss.backward()
+            optimizer.step()
+
+            print(f"Batch Loss: {loss.item()}")
+
+
+
+def apply_rmu(model, config):
     """Unlearn WMDB Bio & Cyber with Representation Misdirection Unlearning (RMU)"""
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -242,6 +318,7 @@ def main(config):
     torch.cuda.manual_seed_all(config.seed)
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
+    random.seed(10)
 
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()

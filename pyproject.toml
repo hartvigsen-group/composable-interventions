@@ -33,9 +33,6 @@ requires-python = ">=3.11"
 license = { "text" = "MIT" }
 dependencies = [
     "apex==0.9.10dev",
-    # "auto_gptq==0.7.1",
-    # "auto_gptq.egg==info",
-    # "autoawq.egg==info",
     "bitsandbytes==0.43.1",
     "einops==0.8.0",
     "fairscale==0.4.13",
@@ -75,5 +72,6 @@ dependencies = [
     "transformers==4.38.2",
     "triton==2.3.0",
     "typing_extensions==4.11.0",
-    "urllib3",
+    "urllib3==2.2.1",
+    "wandb==0.17.0"
 ]
