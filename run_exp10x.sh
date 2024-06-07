@@ -11,11 +11,10 @@
 #SBATCH --time=02:59:00
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
-#SBATCH --array=1
+#SBATCH --array=1-10
 
 # Load necessary modules or activate virtual environment
 source activate lm-compose
-module load cuda/12.2.2
 
 # Run the Python script with Hydra's grid search
 # The SLURM_ARRAY_TASK_ID environment variable will be different for each job in the array

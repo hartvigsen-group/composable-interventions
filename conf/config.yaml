@@ -5,19 +5,17 @@ defaults:
   - _self_
 
 model_name: meta-llama/Meta-Llama-3-8B
-#meta-llama/Meta-Llama-3-8B
-#meta-llama/Llama-2-7b-chat-hf
 dtype: torch.bfloat16
 device: 0
 model_parallel: true
 seed: 42
-tag: "default"
 interventions: []  # List of interventions, choose any number of [edit, compress, unlearn]
 
 # Weights and Biases Settings
 wandb: disabled # disabled or online
 wandb_entity: "dri-ice"
 wandb_project: "Composable_Interventions"
+tag: "default"
 
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
@@ -47,5 +45,5 @@ rmu_max_num_batches: 0
 rmu_layer_id: -1
 
 load_ckpt: False
-ckpt_path: /scratch/sux7mp/saved_models/checkpoint_20240519_123419.pth
+ckpt_path: null
 save_ckpt: False
