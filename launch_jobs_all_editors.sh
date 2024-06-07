@@ -97,6 +97,6 @@ done
 # Loop through each configuration and launch a job
 for cfg in "${configs[@]}"; do
     # Use sbatch for SLURM and passing Hydra config overrides
-    sbatch run_exp.sh $cfg
-    echo sbatch run_exp.sh $cfg
+    sbatch run_exp10x.sh $cfg
+    echo sbatch run_exp10x.sh $cfg
 done
