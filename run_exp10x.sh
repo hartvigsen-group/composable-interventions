@@ -14,7 +14,8 @@
 #SBATCH --array=1
 
 # Load necessary modules or activate virtual environment
-source activate llm_310
+source activate lm-compose
+module load cuda/12.2.2
 
 # Run the Python script with Hydra's grid search
 # The SLURM_ARRAY_TASK_ID environment variable will be different for each job in the array

@@ -13,7 +13,7 @@
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 
 # Load necessary modules or activate virtual environment
-source activate llm_310
+source activate lm-compose
 module load cuda/12.2.2
 
 # Run the Python script with Hydra's grid search
