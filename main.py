@@ -134,9 +134,11 @@ def apply_ga(model, config, include_retain_loss=False):
         ga_forget_set.data = ga_forget_set.data[:config.ga_train_size]
         ga_retain_set.data = ga_retain_set.data[:config.ga_train_size]
 
-    assert ga_forget_set.data[0].split()[0] == "Background", "Training data order is not correct"
     forget_dataloader = torch.utils.data.DataLoader(ga_forget_set, batch_size=config.ga_batch_size)
     retain_dataloader = torch.utils.data.DataLoader(ga_retain_set, batch_size=config.ga_batch_size)
+    
+    if include_retain_loss and config.ga_retain_weight != 1:
+        print(f"Gradient Difference Retain Weight: {config.ga_retain_weight}")
 
     # Train model
     for epoch in range(config.ga_epochs):
@@ -153,7 +155,7 @@ def apply_ga(model, config, include_retain_loss=False):
                 retain_inputs = tokenizer(retain_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
                 retain_inputs["labels"] = retain_inputs["input_ids"].clone()
                 retain_outputs = model(**retain_inputs)
-                retain_loss = (retain_outputs.loss) / config.ga_grad_accumulation_steps
+                retain_loss = config.ga_retain_weight * (retain_outputs.loss) / config.ga_grad_accumulation_steps
                 batch_loss = batch_loss + retain_loss
                 print(f"Batch Loss: {batch_loss.item()} Forget Loss: {forget_loss.item()} Retain Loss: {retain_loss.item()}")
             else:

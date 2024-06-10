@@ -7,4 +7,5 @@ ga_grad_accumulation_steps: 2
 ga_batch_size: 2
 ga_epochs: 1
 ga_train_size: 25
+ga_retain_weight: 1
 qa_question_count_limit: null

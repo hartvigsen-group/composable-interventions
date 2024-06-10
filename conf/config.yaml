@@ -48,6 +48,7 @@ rmu_layer_id: -1
 # GA configs which can be overwritten
 ga_train_size: null
 ga_lr: null
+ga_retain_weight: 1
 
 load_ckpt: False
 ckpt_path: null
