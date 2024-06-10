@@ -47,9 +47,15 @@ def get_ga_data(forget_corpora, retain_corpora, tokenizer, min_len=50, max_len=2
     raw_forget_set = [get_dataset(c) for c in forget_corpora]
     raw_forget_set = [item[0] for sublist in raw_forget_set for item in sublist]
     random.shuffle(raw_forget_set)
+    forget_set = GADataset(raw_forget_set, tokenizer, min_len=min_len, max_len=max_len)
 
-    # split raw_forget_set intro train and test
-    train_size = int(0.8 * len(raw_forget_set))
-    train_set = raw_forget_set[:train_size]
-    test_set = raw_forget_set[train_size:]
-    return GADataset(train_set, tokenizer, min_len=min_len, max_len=max_len), GADataset(test_set, tokenizer, min_len=min_len, max_len=max_len)
+    raw_retain_set = [get_dataset(c) for c in retain_corpora]
+    if set(retain_corpora) == { "wikitext" }:
+        raw_retain_set = [item[0] for item in raw_retain_set[0]]
+    else:
+        raw_retain_set = [item[0] for sublist in raw_retain_set for item in sublist]
+    
+    random.shuffle(raw_retain_set)
+    retain_set = GADataset(raw_retain_set, tokenizer, min_len=min_len, max_len=max_len)
+
+    return forget_set, retain_set

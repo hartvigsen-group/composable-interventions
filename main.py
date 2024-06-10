@@ -83,15 +83,22 @@ def unlearn_model(model, config):
     raise ValueError(f"Invalid unlearn method: {config.unlearn_method}")
 
 
-def apply_ga(model, config):
-    # Prpeare model for training
-    # model.train()
-    # Freeze embedding layer
+def apply_ga(model, config, include_retain_loss=False):
+    is_wrapper = isinstance(model, ModelEditWrapper)
+    if is_wrapper:
+        model = model.model
+
+    # RMU only supports bfloat16
+    ga_dtype = get_dtype("ga")
+    if model.dtype != ga_dtype:
+        print(f"GA: Converting model from {model.dtype} to {ga_dtype}")
+        model = model.to(ga_dtype)
+    
+    # Freeze the first N layers of the transformer
     for param in model.model.embed_tokens.parameters():
         param.requires_grad = False
 
-    # Freeze the first N layers of the transformer
-    N = 16  # Adjust this number based on your needs
+    N = 16
     for i in range(N):
         for param in model.model.layers[i].parameters():
             param.requires_grad = False
@@ -119,30 +126,50 @@ def apply_ga(model, config):
 
     # Get unlearning target
     print("Loading Gradient Ascent Datasets")
-    ga_train, ga_test = get_ga_data(config.ga_forget_corpora, config.ga_retain_corpora, tokenizer)
+    ga_forget_set, ga_retain_set = get_ga_data(config.ga_forget_corpora, config.ga_retain_corpora, tokenizer)
+    if config.ga_train_size:
+        ga_forget_set.data = ga_forget_set.data[:config.ga_train_size]
+        ga_retain_set.data = ga_retain_set.data[:config.ga_train_size]
 
-    # Sample if set
-    if config.ga_train_sample_size:
-        ga_train.data = random.sample(ga_train.data, config.ga_train_sample_size)
-    if config.ga_test_sample_size:
-        ga_test.data = random.sample(ga_test.data, config.ga_test_sample_size)
-
-    train_dataloader = torch.utils.data.DataLoader(ga_train, batch_size=config.ga_batch_size)
-    test_dataloader = torch.utils.data.DataLoader(ga_test, batch_size=config.ga_batch_size)
+    assert ga_forget_set.data[0].split()[0] == "Background", "Training data order is not correct"
+    forget_dataloader = torch.utils.data.DataLoader(ga_forget_set, batch_size=config.ga_batch_size)
+    retain_dataloader = torch.utils.data.DataLoader(ga_retain_set, batch_size=config.ga_batch_size)
 
     # Train model
     for epoch in range(config.ga_epochs):
         print(f"Epoch {epoch + 1}/{config.ga_epochs}")
-        for batch in tqdm(train_dataloader, desc="GA Train Batches"):
-            optimizer.zero_grad()
-            inputs = tokenizer(batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
-            inputs["labels"] = inputs["input_ids"].clone()
-            outputs = model(**inputs)
-            loss = outputs.loss * -1
-            loss.backward()
-            optimizer.step()
+        for batch_index, (forget_batch, retain_batch) in tqdm(enumerate(zip(forget_dataloader, retain_dataloader)), total=len(forget_dataloader)):            
+            forget_inputs = tokenizer(forget_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+            forget_inputs["labels"] = forget_inputs["input_ids"].clone()
+            forget_outputs = model(**forget_inputs)
+            forget_loss = (forget_outputs.loss * -1) / config.ga_grad_accumulation_steps
+            batch_loss = forget_loss
 
-            print(f"Batch Loss: {loss.item()}")
+            if include_retain_loss:
+                retain_inputs = tokenizer(retain_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+                retain_inputs["labels"] = retain_inputs["input_ids"].clone()
+                retain_outputs = model(**retain_inputs)
+                retain_loss = (retain_outputs.loss * -1) / config.ga_grad_accumulation_steps
+                print(f"Batch Loss: {batch_loss.item()} Forget Loss: {forget_loss.item()} Retain Loss: {retain_loss.item()}")
+            else:
+                print(f"Batch Loss: {batch_loss.item()}")
+
+            batch_loss.backward()
+            if (batch_index + 1) % config.ga_grad_accumulation_steps == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+            
+    
+    # Prepare model for inference
+    model.eval()
+
+    # Cast back to configured dtype
+    config_type = get_dtype(config.dtype)
+    if model.dtype != config_type:
+        print(f"Converting model to {config_type}")
+        model = model.to(config_type)
+    
+    return model
 
 
 
@@ -269,6 +296,7 @@ def get_dtype(dtype_str):
         'memit': torch.bfloat16,
         'lora': torch.float,
         "rmu": torch.bfloat16,
+        "ga": torch.bfloat16,
     }
     
     if dtype_str not in dtype_mapping:
@@ -311,14 +339,14 @@ def main(config):
     # Apply command line overrides after flattening the configuration
     config = OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
 
-    hparams=config
+    hparams = config.copy()
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
     torch.cuda.manual_seed(config.seed)
     torch.cuda.manual_seed_all(config.seed)
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
-    random.seed(10)
+    random.seed(config.seed)
 
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
@@ -340,13 +368,21 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config.dtype),
-                # low_cpu_mem_usage=True, 
                 device_map="auto"
             )
 
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
+
+    # Strange bug where config.device becomes a list somewhere. Cast back to an int.
+    if not isinstance(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
+        print("Resetting config.device")
+        config.device = int(config.device[-1])
+    
+    if not isinstance(hparams.device, int) and len(hparams.device) == 2 and hparams.device[0] == "cuda":
+        print("Resetting hparams.device")
+        hparams.device = int(hparams.device[-1])
 
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)

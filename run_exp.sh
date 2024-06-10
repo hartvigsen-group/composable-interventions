@@ -11,10 +11,12 @@
 #SBATCH --time=02:59:00
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
-#SBATCH --constraint=a100_80gb
+
+# udc-an37-1 has CUDA issues
+#SBATCH --exclude=udc-an37-1
 
 # Load necessary modules or activate virtual environment
-source activate unlearning
+source activate lm-compose
 
 # Run the Python script with Hydra's grid search
 # The SLURM_ARRAY_TASK_ID environment variable will be different for each job in the array
