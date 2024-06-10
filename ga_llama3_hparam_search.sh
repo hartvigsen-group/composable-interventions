@@ -9,10 +9,12 @@ jobs_args=()
 for lr in "${learning_rates[@]}"; do
     # Default ga_train_size
     jobs_args+=("tag=ga_llama3_hparam_search unlearn=ga interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_lr=$lr")
+    jobs_args+=("tag=gd_llama3_hparam_search unlearn=gd interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_lr=$lr")
 
     # Have runs with different number of training samples
     for train_sample_size in "${ga_train_sizes[@]}"; do
         job_args="tag=ga_llama3_hparam_search unlearn=ga interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_train_size=$train_sample_size ga_lr=$lr"
+        job_args="tag=gd_llama3_hparam_search unlearn=gd interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_train_size=$train_sample_size ga_lr=$lr"
         jobs_args+=("$job_args")
     done
 done

@@ -78,7 +78,9 @@ def unlearn_model(model, config):
     if config.unlearn_method == "rmu":
         return apply_rmu(model, config)
     if config.unlearn_method == "ga":
-        return apply_ga(model, config)
+        return apply_ga(model, config, include_retain_loss=False)
+    if config.unlearn_method == "gd":
+        return apply_ga(model, config, include_retain_loss=True)
     
     raise ValueError(f"Invalid unlearn method: {config.unlearn_method}")
 
@@ -125,7 +127,8 @@ def apply_ga(model, config, include_retain_loss=False):
     tokenizer.cls_token_id = tokenizer.eos_token_id
 
     # Get unlearning target
-    print("Loading Gradient Ascent Datasets")
+    ascent_method_name = "Gradient Difference" if include_retain_loss else "Gradient Ascent"
+    print(f"Loading {ascent_method_name} Datasets")
     ga_forget_set, ga_retain_set = get_ga_data(config.ga_forget_corpora, config.ga_retain_corpora, tokenizer)
     if config.ga_train_size:
         ga_forget_set.data = ga_forget_set.data[:config.ga_train_size]
@@ -138,18 +141,20 @@ def apply_ga(model, config, include_retain_loss=False):
     # Train model
     for epoch in range(config.ga_epochs):
         print(f"Epoch {epoch + 1}/{config.ga_epochs}")
-        for batch_index, (forget_batch, retain_batch) in tqdm(enumerate(zip(forget_dataloader, retain_dataloader)), total=len(forget_dataloader)):            
+        description = f"Training {ascent_method_name}"
+        for batch_index, (forget_batch, retain_batch) in tqdm(enumerate(zip(forget_dataloader, retain_dataloader)), total=len(forget_dataloader), desc=description):         
             forget_inputs = tokenizer(forget_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
             forget_inputs["labels"] = forget_inputs["input_ids"].clone()
             forget_outputs = model(**forget_inputs)
             forget_loss = (forget_outputs.loss * -1) / config.ga_grad_accumulation_steps
-            batch_loss = forget_loss
+            batch_loss = forget_loss.clone()
 
             if include_retain_loss:
                 retain_inputs = tokenizer(retain_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
                 retain_inputs["labels"] = retain_inputs["input_ids"].clone()
                 retain_outputs = model(**retain_inputs)
-                retain_loss = (retain_outputs.loss * -1) / config.ga_grad_accumulation_steps
+                retain_loss = (retain_outputs.loss) / config.ga_grad_accumulation_steps
+                batch_loss = batch_loss + retain_loss
                 print(f"Batch Loss: {batch_loss.item()} Forget Loss: {forget_loss.item()} Retain Loss: {retain_loss.item()}")
             else:
                 print(f"Batch Loss: {batch_loss.item()}")
