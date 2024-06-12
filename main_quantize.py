@@ -92,7 +92,7 @@ class LLMPruningAndValidation:
         if model is not None:
             model=model.to(self.device)
             if self.args.method=='quant':
-                # del self.model4Quant.model 
+                del self.model4Quant.model 
                 torch.cuda.empty_cache()
                 self.model4Quant.model=model
             #else:    

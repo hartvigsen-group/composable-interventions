@@ -52,8 +52,7 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 
 
 def compress_model(model, config, pruning_and_validation):
-    # del pruning_and_validation
-    # pruning_and_validation = LLMPruningAndValidation(config, model)
+    
     if config.method == 'quant':
         model = model.to(dtype=get_dtype(config.compression))
         # Set any Nans to zero
@@ -61,8 +60,17 @@ def compress_model(model, config, pruning_and_validation):
         #     if param.requires_grad:
         #         param.data.masked_fill_(torch.isnan(param.data), 0)
 
+        # Clean up model?
+        del model
+        torch.cuda.empty_cache()
+
         pruning_and_validation.pseudoQuantization()
+        model = pruning_and_validation.model
         model.to(f'cuda:{config.device}')
+
+        del pruning_and_validation
+        pruning_and_validation = LLMPruningAndValidation(config, model)
+        torch.cuda.empty_cache()
         return model
     elif config.method == 'prune':
         model = model.to(dtype=get_dtype(config.compression))
@@ -375,7 +383,7 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config.dtype),
-                device_map="auto"
+                device_map="balanced"
             )
 
     # Make editable
