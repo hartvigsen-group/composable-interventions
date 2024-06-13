@@ -7,7 +7,8 @@ defaults:
 model_name: meta-llama/Meta-Llama-3-8B
 dtype: torch.bfloat16
 device: 0
-model_parallel: true
+# model_parallel: true
+model_parallel: false
 seed: 42
 interventions: []  # List of interventions, choose any number of [edit, compress, unlearn]
 
@@ -44,6 +45,11 @@ qa_question_count_limit: null
 rmu_max_num_batches: 0
 rmu_layer_id: -1
 
+# GA configs which can be overwritten
+ga_train_size: null
+ga_lr: null
+ga_retain_weight: 1
+
 load_ckpt: False
 ckpt_path: null
-save_ckpt: False
+save_ckpt: Falsex

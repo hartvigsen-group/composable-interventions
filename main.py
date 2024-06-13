@@ -3,8 +3,11 @@ from sparsellm.lib.prune import AverageBits
 from easyeditor import MEMITHyperParams
 from easyeditor import BaseEditor, ModelEditWrapper
 from tabulate import tabulate
+from tqdm import tqdm
 import argparse
+import random
 import os 
+import json
 import sys
 import copy
 import numpy as np
@@ -23,6 +26,7 @@ from wmdp.rmu import unlearn as rmu_unlearn
 from wmdp.rmu import utils as rmu_utils
 import lm_eval
 from lm_eval.models.huggingface import HFLM
+from ga_utils import get_ga_data
 from types import SimpleNamespace
 import copy
 
@@ -48,8 +52,7 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 
 
 def compress_model(model, config, pruning_and_validation):
-    # del pruning_and_validation
-    # pruning_and_validation = LLMPruningAndValidation(config, model)
+    
     if config.method == 'quant':
         model = model.to(dtype=get_dtype(config.compression))
         # Set any Nans to zero
@@ -57,8 +60,17 @@ def compress_model(model, config, pruning_and_validation):
         #     if param.requires_grad:
         #         param.data.masked_fill_(torch.isnan(param.data), 0)
 
+        # Clean up model?
+        del model
+        torch.cuda.empty_cache()
+
         pruning_and_validation.pseudoQuantization()
+        model = pruning_and_validation.model
         model.to(f'cuda:{config.device}')
+
+        del pruning_and_validation
+        pruning_and_validation = LLMPruningAndValidation(config, model)
+        torch.cuda.empty_cache()
         return model
     elif config.method == 'prune':
         model = model.to(dtype=get_dtype(config.compression))
@@ -71,6 +83,112 @@ def compress_model(model, config, pruning_and_validation):
 
 
 def unlearn_model(model, config):
+    if config.unlearn_method == "rmu":
+        return apply_rmu(model, config)
+    if config.unlearn_method == "ga":
+        return apply_ga(model, config, include_retain_loss=False)
+    if config.unlearn_method == "gd":
+        return apply_ga(model, config, include_retain_loss=True)
+    
+    raise ValueError(f"Invalid unlearn method: {config.unlearn_method}")
+
+
+def apply_ga(model, config, include_retain_loss=False):
+    is_wrapper = isinstance(model, ModelEditWrapper)
+    if is_wrapper:
+        model = model.model
+
+    # RMU only supports bfloat16
+    ga_dtype = get_dtype("ga")
+    if model.dtype != ga_dtype:
+        print(f"GA: Converting model from {model.dtype} to {ga_dtype}")
+        model = model.to(ga_dtype)
+    
+    # Freeze the first N layers of the transformer
+    for param in model.model.embed_tokens.parameters():
+        param.requires_grad = False
+
+    N = 16
+    for i in range(N):
+        for param in model.model.layers[i].parameters():
+            param.requires_grad = False
+    
+    # Make sure the final layers remain trainable
+    # Note: Adjust the indexing based on your model's architecture
+    for param in model.model.layers[N:].parameters():
+        param.requires_grad = True
+
+    # Also ensure the output layer remains trainable if present
+    for param in model.lm_head.parameters():
+        param.requires_grad = True
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.ga_lr)
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.model_name,
+        trust_remote_code=True,
+        use_fast=False
+    )
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.padding_side = "left"
+    tokenizer.mask_token_id = tokenizer.eos_token_id
+    tokenizer.sep_token_id = tokenizer.eos_token_id
+    tokenizer.cls_token_id = tokenizer.eos_token_id
+
+    # Get unlearning target
+    ascent_method_name = "Gradient Difference" if include_retain_loss else "Gradient Ascent"
+    print(f"Loading {ascent_method_name} Datasets")
+    ga_forget_set, ga_retain_set = get_ga_data(config.ga_forget_corpora, config.ga_retain_corpora, tokenizer)
+    if config.ga_train_size:
+        ga_forget_set.data = ga_forget_set.data[:config.ga_train_size]
+        ga_retain_set.data = ga_retain_set.data[:config.ga_train_size]
+
+    forget_dataloader = torch.utils.data.DataLoader(ga_forget_set, batch_size=config.ga_batch_size)
+    retain_dataloader = torch.utils.data.DataLoader(ga_retain_set, batch_size=config.ga_batch_size)
+    
+    if include_retain_loss and config.ga_retain_weight != 1:
+        print(f"Gradient Difference Retain Weight: {config.ga_retain_weight}")
+
+    # Train model
+    for epoch in range(config.ga_epochs):
+        print(f"Epoch {epoch + 1}/{config.ga_epochs}")
+        description = f"Training {ascent_method_name}"
+        for batch_index, (forget_batch, retain_batch) in tqdm(enumerate(zip(forget_dataloader, retain_dataloader)), total=len(forget_dataloader), desc=description):         
+            forget_inputs = tokenizer(forget_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+            forget_inputs["labels"] = forget_inputs["input_ids"].clone()
+            forget_outputs = model(**forget_inputs)
+            forget_loss = (forget_outputs.loss * -1) / config.ga_grad_accumulation_steps
+            batch_loss = forget_loss.clone()
+
+            if include_retain_loss:
+                retain_inputs = tokenizer(retain_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+                retain_inputs["labels"] = retain_inputs["input_ids"].clone()
+                retain_outputs = model(**retain_inputs)
+                retain_loss = config.ga_retain_weight * (retain_outputs.loss) / config.ga_grad_accumulation_steps
+                batch_loss = batch_loss + retain_loss
+                print(f"Batch Loss: {batch_loss.item()} Forget Loss: {forget_loss.item()} Retain Loss: {retain_loss.item()}")
+            else:
+                print(f"Batch Loss: {batch_loss.item()}")
+
+            batch_loss.backward()
+            if (batch_index + 1) % config.ga_grad_accumulation_steps == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+            
+    
+    # Prepare model for inference
+    model.eval()
+
+    # Cast back to configured dtype
+    config_type = get_dtype(config.dtype)
+    if model.dtype != config_type:
+        print(f"Converting model to {config_type}")
+        model = model.to(config_type)
+    
+    return model
+
+
+
+def apply_rmu(model, config):
     """Unlearn WMDB Bio & Cyber with Representation Misdirection Unlearning (RMU)"""
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -193,6 +311,7 @@ def get_dtype(dtype_str):
         'memit': torch.bfloat16,
         'lora': torch.float,
         "rmu": torch.bfloat16,
+        "ga": torch.bfloat16,
     }
     
     if dtype_str not in dtype_mapping:
@@ -235,13 +354,14 @@ def main(config):
     # Apply command line overrides after flattening the configuration
     config = OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
 
-    hparams=config
+    hparams = config.copy()
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
     torch.cuda.manual_seed(config.seed)
     torch.cuda.manual_seed_all(config.seed)
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
+    random.seed(config.seed)
 
     # Create a timestamp
     timestamp = save_ckpt_meta.get_timestamp()
@@ -263,13 +383,21 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config.dtype),
-                # low_cpu_mem_usage=True, 
-                device_map="auto"
+                device_map="balanced"
             )
 
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
+
+    # Strange bug where config.device becomes a list somewhere. Cast back to an int.
+    if not isinstance(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
+        print("Resetting config.device")
+        config.device = int(config.device[-1])
+    
+    if not isinstance(hparams.device, int) and len(hparams.device) == 2 and hparams.device[0] == "cuda":
+        print("Resetting hparams.device")
+        hparams.device = int(hparams.device[-1])
 
     # Get edits to be made
     prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)

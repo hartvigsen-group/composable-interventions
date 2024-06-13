@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the common editor for all jobs, set this as required
-common_editor="memit"
+common_editor="lora"
 
 # Define sparsity levels and wbit levels to apply
 sparsity_levels=(0.25 0.45 0.65)
@@ -77,7 +77,12 @@ done
 
 # Loop through each configuration and launch a job
 for cfg in "${configs[@]}"; do
-    # Use sbatch for SLURM and passing Hydra config overrides
-    # sbatch run_exp.sh $cfg
-    echo sbatch run_exp.sh $cfg
+    # if edit=none not in cfg
+    if [[ $cfg != *"edit=none"* ]]; then
+        sbatch run_exp.sh $cfg edit_dataset=zsre
+        sbatch run_exp.sh $cfg edit_dataset=mquake
+        sbatch run_exp.sh $cfg edit_dataset=counterfact
+    else
+        sbatch run_exp.sh $cfg
+    fi
 done
