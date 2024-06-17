@@ -71,7 +71,7 @@ for editor in "${editors[@]}"; do
     for wbit in "${wbit_levels[@]}"; do
         configs+=("edit=${editor} compression=awq unlearn=none interventions=[edit,compress] wbits=${wbit} tag='${editor}-to-AWQ${wbit}bit'")
     done
-done
+# done
 
 for editor in "${editors[@]}"; do
     # Edit then Compress - GPTQ at different wbit levels
@@ -80,12 +80,12 @@ for editor in "${editors[@]}"; do
     done
 done
 
-for editor in "${editors[@]}"; do
-    # Compress with AWQ then Edit at different wbit levels
-    for wbit in "${wbit_levels[@]}"; do
-        configs+=("edit=${editor} compression=awq unlearn=none interventions=[compress,edit] wbits=${wbit} tag='AWQ${wbit}bit-to-${editor}'")
-    done
-done
+# for editor in "${editors[@]}"; do
+#     # Compress with AWQ then Edit at different wbit levels
+#     for wbit in "${wbit_levels[@]}"; do
+#         configs+=("edit=${editor} compression=awq unlearn=none interventions=[compress,edit] wbits=${wbit} tag='AWQ${wbit}bit-to-${editor}'")
+#     done
+# done
 
 for editor in "${editors[@]}"; do
     # Compress with GPTQ then Edit at different wbit levels
@@ -97,6 +97,6 @@ done
 # Loop through each configuration and launch a job
 for cfg in "${configs[@]}"; do
     # Use sbatch for SLURM and passing Hydra config overrides
-    sbatch run_exp.sh $cfg
-    echo sbatch run_exp.sh $cfg
+    sbatch run_exp10x.sh $cfg
+    echo sbatch run_exp10x.sh $cfg
 done

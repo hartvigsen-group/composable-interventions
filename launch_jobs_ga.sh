@@ -12,7 +12,7 @@ sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake co
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=gd interventions=[unlearn,edit] tag="gd-lora"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=gd interventions=[unlearn,edit] tag="gd-ft"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=gd interventions=[unlearn,edit] tag="gd-memit"
-# mquake
+# zsre
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=gd interventions=[unlearn,edit] tag="gd-lora"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=gd interventions=[unlearn,edit] tag="gd-ft"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=gd interventions=[unlearn,edit] tag="gd-memit"
@@ -26,7 +26,7 @@ sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake co
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=gd interventions=[edit,unlearn] tag="lora-gd"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=gd interventions=[edit,unlearn] tag="ft-gd"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=gd interventions=[edit,unlearn] tag="memit-gd"
-# mquake
+# zsre
 sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=gd interventions=[edit,unlearn] tag="lora-gd"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=gd interventions=[edit,unlearn] tag="ft-gd"
 sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=gd interventions=[edit,unlearn] tag="memit-gd"
