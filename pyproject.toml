@@ -33,7 +33,7 @@ requires-python = ">=3.11"
 license = { "text" = "MIT" }
 dependencies = [
     "apex==0.9.10dev",
-    "bitsandbytes==0.43.1",
+    "bitsandbytes==0.42.0",
     "einops==0.8.0",
     "fairscale==0.4.13",
     "gekko==1.1.1",
