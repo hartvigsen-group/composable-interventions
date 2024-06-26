@@ -13,6 +13,7 @@
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 #SBATCH --array=1-10
 #SBATCH --exclude=udc-an37-1
+#SBATCH --exclude=udc-an37-13
 
 # Load necessary modules or activate virtual environment
 source activate lm-compose
