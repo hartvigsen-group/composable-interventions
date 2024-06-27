@@ -49,7 +49,7 @@ dependencies = [
     "openai==1.30.2",
     "opencv_python==4.9.0.80",
     "packaging==24.0",
-    "pandas==2.2.2",
+    "pandas==1.4.0",
     "parameterized==0.9.0",
     "Pillow==10.3.0",
     "PyGithub==2.3.0",
