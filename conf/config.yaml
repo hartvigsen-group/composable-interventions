@@ -52,4 +52,4 @@ ga_retain_weight: 1
 
 load_ckpt: False
 ckpt_path: null
-save_ckpt: Falsex
+save_ckpt: False
