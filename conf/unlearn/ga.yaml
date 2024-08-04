@@ -5,6 +5,7 @@ ga_forget_corpora: ["bio-forget-corpus", "cyber-forget-corpus"]
 ga_lr: 0.00005
 ga_grad_accumulation_steps: 2
 ga_batch_size: 4
+ga_freeze_layers_count: 16
 ga_epochs: 1
 ga_train_size: 50
 qa_question_count_limit: null

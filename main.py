@@ -104,18 +104,18 @@ def apply_ga(model, config, include_retain_loss=False):
         print(f"GA: Converting model from {model.dtype} to {ga_dtype}")
         model = model.to(ga_dtype)
     
-    # Freeze the first N layers of the transformer
+    # Freeze the first 3/4 of the model
     for param in model.model.embed_tokens.parameters():
         param.requires_grad = False
 
-    N = 16
-    for i in range(N):
+    print(f"Freezing first {config.ga_freeze_layers_count} layers of the model")
+    for i in range(config.ga_freeze_layers_count):
         for param in model.model.layers[i].parameters():
             param.requires_grad = False
     
     # Make sure the final layers remain trainable
     # Note: Adjust the indexing based on your model's architecture
-    for param in model.model.layers[N:].parameters():
+    for param in model.model.layers[config.ga_freeze_layers_count:].parameters():
         param.requires_grad = True
 
     # Also ensure the output layer remains trainable if present
@@ -156,8 +156,8 @@ def apply_ga(model, config, include_retain_loss=False):
             forget_inputs = tokenizer(forget_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
             forget_inputs["labels"] = forget_inputs["input_ids"].clone()
             forget_outputs = model(**forget_inputs)
-            forget_loss = (forget_outputs.loss * -1) / config.ga_grad_accumulation_steps
-            batch_loss = forget_loss.clone()
+            batch_loss = (forget_outputs.loss * -1) / config.ga_grad_accumulation_steps
+            # batch_loss = forget_loss.clone()
 
             if include_retain_loss:
                 retain_inputs = tokenizer(retain_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
@@ -165,7 +165,7 @@ def apply_ga(model, config, include_retain_loss=False):
                 retain_outputs = model(**retain_inputs)
                 retain_loss = config.ga_retain_weight * (retain_outputs.loss) / config.ga_grad_accumulation_steps
                 batch_loss = batch_loss + retain_loss
-                print(f"Batch Loss: {batch_loss.item()} Forget Loss: {forget_loss.item()} Retain Loss: {retain_loss.item()}")
+                print(f"Batch Loss: {batch_loss.item()} Forget Loss: {batch_loss.item()} Retain Loss: {retain_loss.item()}")
             else:
                 print(f"Batch Loss: {batch_loss.item()}")
 
@@ -355,6 +355,7 @@ def main(config):
     config = OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
 
     hparams = config.copy()
+    hparams.model_parallel = "," in os.environ["CUDA_VISIBLE_DEVICES"]
     config.dataset = config.compression_dataset # hacky way to smuggle the dataset name into the config
 
     torch.cuda.manual_seed(config.seed)
@@ -383,7 +384,7 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config.dtype),
-                device_map="balanced"
+                device_map="auto"
             )
 
     # Make editable

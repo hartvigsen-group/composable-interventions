@@ -44,11 +44,14 @@ qa_question_count_limit: null
 # RMU configs which can be overwritten
 rmu_max_num_batches: 0
 rmu_layer_id: -1
+rmu_layer_ids: []
+rmu_alpha: [1000, 1000]
 
 # GA configs which can be overwritten
 ga_train_size: null
 ga_lr: null
 ga_retain_weight: 1
+ga_freeze_layers_count: null
 
 load_ckpt: False
 ckpt_path: null

@@ -64,7 +64,7 @@ class BaseEditor:
                  ):
 
         assert hparams is not None, print('Error: hparams is None.')
-        assert 'llama' in hparams.model_name.lower(), "Error: unverified model."
+        # assert 'llama' in hparams.model_name.lower(), "Error: unverified model."
 
 
         self.model = model
