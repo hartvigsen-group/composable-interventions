@@ -22,4 +22,4 @@ source activate lm-compose
 # python main.py --multirun edit_set=$SLURM_ARRAY_TASK_ID number_of_edits=50 edit=True\
 #  compress=True save_ckpt=False method=prune sparsity_ratio=0.35\
 #  tag=exp_memit_wanda35
-python main.py edit_set=$SLURM_ARRAY_TASK_ID seed=$SLURM_ARRAY_TASK_ID wandb=online $@
+python ../main.py edit_set=$SLURM_ARRAY_TASK_ID seed=$SLURM_ARRAY_TASK_ID wandb=online $@
