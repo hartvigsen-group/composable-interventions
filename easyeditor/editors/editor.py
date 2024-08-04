@@ -64,7 +64,7 @@ class BaseEditor:
                  ):
 
         assert hparams is not None, print('Error: hparams is None.')
-        assert 'llama' in hparams.model_name.lower(), "Error: unverified model."
+        # assert 'llama' in hparams.model_name.lower(), "Error: unverified model."
 
 
         self.model = model
@@ -115,6 +115,9 @@ class BaseEditor:
                 # self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch_dtype, device_map=device_map)
                 self.tok = AutoTokenizer.from_pretrained(self.model_name)
                 self.tok.pad_token_id = self.tok.eos_token_id
+            elif 'phi-3' in self.model_name.lower():
+                self.tok = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct") 
+                # self.tok.pad_token_id = self.tok.eos_token_id
             elif 'pythia' in self.model_name.lower():
                 # self.model = GPTNeoXForCausalLM.from_pretrained(
                 #       "EleutherAI/pythia-70m-deduped",
@@ -137,7 +140,7 @@ class BaseEditor:
                 LOG.info('AutoRegressive Model detected, set the padding side of Tokenizer to right...')
                 self.tok.padding_side = 'right'
             else:
-                print("WARNING: Unverified model. Consider checking tokenizer padding side.")
+                print("\nWARNING: Unverified model. Consider checking tokenizer padding side.\n")
                 # exit()
         else:
             self.model, self.tok = self.model_name

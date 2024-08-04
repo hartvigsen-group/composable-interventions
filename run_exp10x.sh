@@ -4,7 +4,7 @@
 #SBATCH --account=hartvigsen_lab
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-#SBATCH --constraint=a100_80gb
+# --constraint=a100_80gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -12,7 +12,7 @@
 #SBATCH --time=03:59:00
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
-#SBATCH --array=1-10
+#SBATCH --array=1
 #SBATCH --exclude=udc-an36-13
 
 # Load necessary modules or activate virtual environment
@@ -23,4 +23,4 @@ source activate lm-compose
 # python main.py --multirun edit_set=$SLURM_ARRAY_TASK_ID number_of_edits=50 edit=True\
 #  compress=True save_ckpt=False method=prune sparsity_ratio=0.35\
 #  tag=exp_memit_wanda35
-python main.py edit_set=$SLURM_ARRAY_TASK_ID seed=$SLURM_ARRAY_TASK_ID edit_dataset=counterfact wandb=online $@
+python main.py edit_set=$SLURM_ARRAY_TASK_ID seed=$SLURM_ARRAY_TASK_ID edit_dataset=zsre wandb=online $@

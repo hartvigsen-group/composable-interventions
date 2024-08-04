@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from utils import edit_generator
 
 
-def get_exclude_tokens(tokenizer, device):
+def get_exclude_tokens(tokenizer, device, config):
     space_tok = tokenizer(" Hello", return_tensors="np", add_special_tokens=False)['input_ids'][0][0]
     space_tok_check = tokenizer(" Word", return_tensors="np", add_special_tokens=False)['input_ids'][0][0]
     real_space_tok = tokenizer(" ", return_tensors="np", add_special_tokens=False)['input_ids'][0][0]
@@ -15,6 +15,10 @@ def get_exclude_tokens(tokenizer, device):
     else:
         exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, real_space_tok]
    
+    if 'Phi-3-mini' in config.model_name:
+        print('phi-3 detected')
+        exclude_tokens += [13]
+
     return torch.tensor(exclude_tokens, device=device)
 
 def get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special):
@@ -50,13 +54,20 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
     f1_scores = []
     recall_scores = []  # List to store recall scores
 
-    exclude_tokens_tensor = get_exclude_tokens(tokenizer, model.device)
+    exclude_tokens_tensor = get_exclude_tokens(tokenizer, model.device, config)
 
     for prompt, ground_truth in zip(prompts, target_new):
-        if len(ground_truth) > 0:
-            if ground_truth[0] != " ":
-                # Space required for correct tokenization
-                ground_truth = " " + ground_truth
+        if 'Phi-2-mini' in config.model_name:
+            if len(ground_truth) > 0:
+                if ground_truth[0] == " ":
+                    # Space required for correct tokenization
+                    ground_truth = ground_truth[4:]
+        else:
+            if len(ground_truth) > 0:
+                if ground_truth[0] != " ":
+                    print('adding space')
+                    # Space required for correct tokenization
+                    ground_truth = " " + ground_truth
         input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(model.device)
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
 

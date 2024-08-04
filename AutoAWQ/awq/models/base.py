@@ -27,7 +27,7 @@ from accelerate.big_modeling import (
 from accelerate.utils import get_balanced_memory
 
 class BaseAWQForCausalLM(nn.Module):
-    def __init__(self, model, model_type, is_quantized, config, quant_config):
+    def __init__(self, model, model_type, is_quantized, config, quant_config, download_kwargs=None):
         super().__init__()
         self.model:PreTrainedModel = model
         self.model_type:str = model_type
@@ -35,6 +35,7 @@ class BaseAWQForCausalLM(nn.Module):
         self.search_result = None
         self.config: PretrainedConfig = config
         self.quant_config: AwqConfig = quant_config
+        self.download_kwargs = download_kwargs,
     
     def to(self, device: str):
         return self.model.to(device)
@@ -119,13 +120,16 @@ class BaseAWQForCausalLM(nn.Module):
         
     @classmethod
     def from_pretrained(self, model_path, model_type, torch_dtype: torch.dtype = torch.float16, 
-                        trust_remote_code=True, safetensors=False, device_map=None,
+                        trust_remote_code=True, safetensors=False, device_map=None, download_kwargs=None,
                         **model_init_kwargs):
         # Get weights path and quant config
         model_weights_path, config, quant_config = self._load_config(
             self, model_path, '', safetensors, trust_remote_code=trust_remote_code
         )
 
+        # Filter out unexpected keyword arguments
+        if 'download_kwargs' in model_init_kwargs:
+            del model_init_kwargs['download_kwargs']
         # If not quantized, must load with AutoModelForCausalLM
         #print(model_weights_path)
         model = AutoModelForCausalLM.from_pretrained(

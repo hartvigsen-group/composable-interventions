@@ -19,3 +19,4 @@ from .xverse import *
 from .decilm import *
 from .stablelmepoch import *
 from .mixtral import *
+from .phi3 import Phi3GPTQForCausalLM

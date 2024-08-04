@@ -22,6 +22,7 @@ from .xverse import XverseGPTQForCausalLM
 from .decilm import DeciLMGPTQForCausalLM
 from .stablelmepoch import StableLMEpochGPTQForCausalLM
 from .mixtral import MixtralGPTQForCausalLM
+from .phi3 import Phi3GPTQForCausalLM
 
 GPTQ_CAUSAL_LM_MODEL_MAP = {
     "bloom": BloomGPTQForCausalLM,
@@ -45,6 +46,7 @@ GPTQ_CAUSAL_LM_MODEL_MAP = {
     "deci_lm": DeciLMGPTQForCausalLM,
     "stablelm_epoch": StableLMEpochGPTQForCausalLM,
     "mixtral": MixtralGPTQForCausalLM,
+    "phi3": Phi3GPTQForCausalLM,
 }
 
 
@@ -62,7 +64,7 @@ class AutoGPTQForCausalLM:
         pretrained_model_name_or_path: str,
         quantize_config: BaseQuantizeConfig,
         max_memory: Optional[dict] = None,
-        trust_remote_code: bool = False,
+        trust_remote_code: bool = True,
         **model_init_kwargs
     ) -> BaseGPTQForCausalLM:
         model_type = check_and_get_model_type(

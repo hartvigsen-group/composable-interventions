@@ -383,7 +383,8 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config.dtype),
-                device_map="balanced"
+                device_map="balanced",
+                trust_remote_code=True
             )
 
     # Make editable
@@ -442,7 +443,7 @@ def main(config):
     # Begin evaluations
     print("Starting eval...")
     print(f"Evaluating QA benchmarks...")
-    qa_results = get_qa_results(editable_model, config)
+    # qa_results = get_qa_results(editable_model, config)
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)

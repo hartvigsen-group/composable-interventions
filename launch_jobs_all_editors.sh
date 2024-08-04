@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the common editor for all jobs, set this as required
-editors=("lora" "ft" "memit")
+editors=("lora" "ft")
 
 # Define sparsity levels and wbit levels to apply
 sparsity_levels=(0.25 0.35 0.45 0.55 0.65 0.75)

@@ -80,11 +80,21 @@ def execute_memit(
 
     # Update target and print info
     requests = deepcopy(requests)
+
     for i, request in enumerate(requests):
         if len(request["target_new"]) > 0:
-            if request["target_new"][0] != " ":
-                # Space required for correct tokenization
-                requests[i]["target_new"] = " " + request["target_new"]
+                if request["target_new"][0] != " ":
+                    # Space required for correct tokenization
+                    print('adding space')
+                    requests[i]["target_new"] = " " + request["target_new"]
+
+        if 'Phi-2-mini' in hparams.model_name:
+            if len(request["target_new"]) > 0:
+                if request["target_new"][0] == " ":
+                    print('removeing space')
+                    # Space required for correct tokenization
+                    requests[i]["target_new"] = request["target_new"][1:]
+            
 
         if '{}' not in request['prompt']:
             assert request['subject'] in request['prompt'] or \
