@@ -100,7 +100,7 @@ def get_edits_mquake(number_of_edits=3, edit_set=1, file_path='data/MQuAKE/MQuAK
     
     return prompts, ground_truth, target_new, subject, rephrase_prompt, [singleHop_prompts, singleHop_answers]
 
-def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
+def get_edits_zsre(number_of_edits=3, edit_set=1, train=True, config=None):
     """
     Download data folder from: https://drive.google.com/file/d/1WRo2SqqgNtZF11Vq0sF5nL_-bHi18Wi4/view
     From the downloaded data folder move data/zsre to composable-interventions/data/zsre
@@ -137,7 +137,10 @@ def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
 }
     
     for entry in json_data[start_index:end_index]:
-        prompts.append(entry['src'])
+        if "Phi-2-mini" in config.model_name:
+            prompts.append('<|system|>\n' + 'You are a helpful assistant' + '<|end|>\n <|user|>\n' + entry['src'] + '<|end|> <|assistant|>\n')
+        else:
+            prompts.append(entry['src'])
         ground_truth.append(entry['answers'][0])
         target_new.append(entry['alt'])
         subject.append(entry['subject'])

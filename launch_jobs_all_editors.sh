@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Define the common editor for all jobs, set this as required
-editors=("lora" "ft" "memit")
+editors=("lora" "ft")
 
 # Define sparsity levels and wbit levels to apply
-sparsity_levels=(0.25 0.45 0.65)
-wbit_levels=(2 4 8)
+sparsity_levels=(0.25 0.35 0.45 0.55 0.65 0.75)
+wbit_levels=(2 3 4 5 6 8)
 
 # Define different sets of configurations to be run
 declare -a configs=(
@@ -71,7 +71,7 @@ for editor in "${editors[@]}"; do
     for wbit in "${wbit_levels[@]}"; do
         configs+=("edit=${editor} compression=awq unlearn=none interventions=[edit,compress] wbits=${wbit} tag='${editor}-to-AWQ${wbit}bit'")
     done
-# done
+done
 
 for editor in "${editors[@]}"; do
     # Edit then Compress - GPTQ at different wbit levels
@@ -80,12 +80,12 @@ for editor in "${editors[@]}"; do
     done
 done
 
-# for editor in "${editors[@]}"; do
-#     # Compress with AWQ then Edit at different wbit levels
-#     for wbit in "${wbit_levels[@]}"; do
-#         configs+=("edit=${editor} compression=awq unlearn=none interventions=[compress,edit] wbits=${wbit} tag='AWQ${wbit}bit-to-${editor}'")
-#     done
-# done
+for editor in "${editors[@]}"; do
+    # Compress with AWQ then Edit at different wbit levels
+    for wbit in "${wbit_levels[@]}"; do
+        configs+=("edit=${editor} compression=awq unlearn=none interventions=[compress,edit] wbits=${wbit} tag='AWQ${wbit}bit-to-${editor}'")
+    done
+done
 
 for editor in "${editors[@]}"; do
     # Compress with GPTQ then Edit at different wbit levels

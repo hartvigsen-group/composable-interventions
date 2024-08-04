@@ -9,5 +9,6 @@ rank: 8
 lora_alpha: 32
 lora_dropout: 0.0
 norm_constraint: false
-target_modules: ["q_proj", "v_proj"]  #["up_proj", "down_proj"] #["q_proj", "v_proj"]
+# target_modules: ["q_proj", "v_proj"]  #["up_proj", "down_proj"] #["q_proj", "v_proj"]
+target_modules: ["qkv_proj", "o_proj"] # for Phi-3
 dtype: torch.float

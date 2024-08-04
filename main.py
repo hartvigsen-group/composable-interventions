@@ -383,7 +383,8 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(
                 config.model_name,
                 torch_dtype=get_dtype(config.dtype),
-                device_map="balanced"
+                device_map="balanced",
+                trust_remote_code=True
             )
 
     # Make editable
@@ -400,7 +401,7 @@ def main(config):
         hparams.device = int(hparams.device[-1])
 
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set, config=config)
 
     # Use LLMPruningAndValidation for handling compression
     pruning_and_validation = LLMPruningAndValidation(config, model)

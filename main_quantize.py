@@ -122,12 +122,12 @@ class LLMPruningAndValidation:
                     desc_act=False,  # set to False can significantly speed up inference but the perplexity may slightly bad
                 )
                 # load un-quantized model, by default, the model will always be loaded into CPU memory
-                model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config)
+                model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config, trust_remote_code=True)
                 self.model=model.model.to(self.device)
                 self.model4Quant=model
             elif self.args.quant_method=='autoawq':
                 #quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-                model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True}, safetensors=True)
+                model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True}, safetensors=True, trust_remote_code=True)
                 #print(model)
                 self.model=model.model.to(self.device)
                 self.model4Quant=model
