@@ -401,7 +401,7 @@ def main(config):
         hparams.device = int(hparams.device[-1])
 
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set)
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set, config=config)
 
     # Use LLMPruningAndValidation for handling compression
     pruning_and_validation = LLMPruningAndValidation(config, model)
@@ -443,7 +443,7 @@ def main(config):
     # Begin evaluations
     print("Starting eval...")
     print(f"Evaluating QA benchmarks...")
-    # qa_results = get_qa_results(editable_model, config)
+    qa_results = get_qa_results(editable_model, config)
     
     print("Starting editing eval...")
     success_score, success_recall = evals.f1_accuracy_generate(editable_model, prompts, target_new, config, verbose=True)

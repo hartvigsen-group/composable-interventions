@@ -88,12 +88,12 @@ def execute_memit(
                     print('adding space')
                     requests[i]["target_new"] = " " + request["target_new"]
 
-        if 'Phi-2-mini' in hparams.model_name:
-            if len(request["target_new"]) > 0:
-                if request["target_new"][0] == " ":
-                    print('removeing space')
-                    # Space required for correct tokenization
-                    requests[i]["target_new"] = request["target_new"][1:]
+        # if 'Phi-2-mini' in hparams.model_name:
+        #     if len(request["target_new"]) > 0:
+        #         if request["target_new"][0] == " ":
+        #             print('removeing space')
+        #             # Space required for correct tokenization
+        #             requests[i]["target_new"] = request["target_new"][1:]
             
 
         if '{}' not in request['prompt']:
@@ -125,6 +125,11 @@ def execute_memit(
 
     for request in requests:
         # Retrieve k/v pair if already stored in cache
+        # request = {'prompt': 'What is the name of the fictional universe that {} is from?', 'target_new': ' Batman universe', 'ground_truth': 'DC Universe', 'portability': {}, 'locality': {}, 'subject': 'Jeremiah Arkham'}
+        # request = {'prompt': 'What is the ending year of {}?', 'target_new': ' 1928', 'ground_truth': '1939', 'portability': {}, 'locality': {}, 'subject': 'Danvignes'}
+        # request = {'prompt': 'You are a great and very helpful assistant. Who was {} designed by?' + '<|assistant|>\n', 'target_new': ' John A Pearson', 'ground_truth': 'Thomas Stent', 'portability': {}, 'locality': {}, 'subject': 'West Block'}
+        # request = {'prompt': '<|system|>\n' + 'You are a helpful assistant.' + '<|end|>\n <|user|>\n' + 'Who was {} designed by?' + '<|end|> <|assistant|>\n', 'target_new': ' Batman universe', 'ground_truth': 'DC Universe', 'portability': {}, 'locality': {}, 'subject': 'Jeremiah Arkham'}
+
         cache_fname = (
             Path(
                 str(cache_template).format(
@@ -134,6 +139,7 @@ def execute_memit(
             if cache_template is not None
             else None
         )
+
         data_loaded = False
         if (
             cache_fname is not None  # Require cache template
