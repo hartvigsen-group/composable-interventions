@@ -4,7 +4,6 @@
 #SBATCH --account=hartvigsen_lab
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-# --constraint=a100_80gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -13,6 +12,8 @@
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 #SBATCH --array=1
+
+# Exclude node(s) with 40GB A100
 #SBATCH --exclude=udc-an36-13
 
 # Load necessary modules or activate virtual environment
