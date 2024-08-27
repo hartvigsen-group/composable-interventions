@@ -5,8 +5,8 @@ defaults:
   - _self_
 
 # model_name: meta-llama/Meta-Llama-3-8B
-# model_name: microsoft/Phi-3-mini-4k-instruct
-model_name: mistralai/Mistral-7B-Instruct-v0.3
+model_name: microsoft/Phi-3-mini-4k-instruct
+# model_name: mistralai/Mistral-7B-Instruct-v0.3
 dtype: torch.bfloat16
 device: 0
 # model_parallel: true
@@ -23,7 +23,7 @@ tag: "default"
 alg_name: FT # overwritten by edit config but needs to be here
 edit_dataset: "zsre"
 stats_dir: "/scratch/{USER}/stats"
-max_length: 30
+max_length: 50
 batch_size: 50
 
 save: out/

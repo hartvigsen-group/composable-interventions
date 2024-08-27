@@ -137,7 +137,7 @@ def get_edits_zsre(number_of_edits=3, edit_set=1, train=True, config=None):
 }
     
     for entry in json_data[start_index:end_index]:
-        if "Phi-2-mini" in config.model_name:
+        if "Phi-3-mini" in config.model_name:
             prompts.append('<|system|>\n' + 'You are a helpful assistant' + '<|end|>\n <|user|>\n' + entry['src'] + '<|end|> <|assistant|>\n')
         else:
             prompts.append(entry['src'])
