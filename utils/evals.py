@@ -163,7 +163,7 @@ def ppl_QA(model, config, mask_prompt=False):
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     model.to(f'cuda:{config.device}')
     model.eval()
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=500, edit_set=2)
+    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=500, edit_set=2, config=config)
     
     total_loss = 0.0
     total_response_tokens = 0
