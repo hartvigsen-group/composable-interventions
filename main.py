@@ -1,9 +1,3 @@
-from main_quantize import LLMPruningAndValidation
-from sparsellm.lib.prune import AverageBits
-from easyeditor import MEMITHyperParams
-from easyeditor import BaseEditor, ModelEditWrapper
-from tabulate import tabulate
-from tqdm import tqdm
 import argparse
 import random
 import os 
@@ -29,6 +23,13 @@ from lm_eval.models.huggingface import HFLM
 from ga_utils import get_ga_data
 from types import SimpleNamespace
 import copy
+
+from main_quantize import LLMPruningAndValidation
+from sparsellm.lib.prune import AverageBits
+from easyeditor import MEMITHyperParams
+from easyeditor import BaseEditor, ModelEditWrapper
+from tabulate import tabulate
+from tqdm import tqdm
 
 
 def edit_model(model, config, prompts, ground_truth, target_new, subject):

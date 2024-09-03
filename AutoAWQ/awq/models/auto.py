@@ -25,6 +25,7 @@ AWQ_CAUSAL_LM_MODEL_MAP = {
     "llava": LlavaAWQForCausalLM,
     "qwen2": Qwen2AWQForCausalLM,
     "gemma": GemmaAWQForCausalLM,
+    "gemma2": Gemma2AWQForCausalLM,
     "stablelm": StableLmAWQForCausalLM,
     "starcoder2": Starcoder2AWQForCausalLM,
     "llava_next": LlavaNextAWQForCausalLM,
@@ -32,6 +33,7 @@ AWQ_CAUSAL_LM_MODEL_MAP = {
     "cohere": CohereAWQForCausalLM,
     "deepseek_v2": DeepseekV2AWQForCausalLM,
     "minicpm": MiniCPMAWQForCausalLM,
+    "internlm2": InternLM2AWQForCausalLM,
 }
 
 
@@ -72,6 +74,7 @@ class AutoAWQForCausalLM:
             trust_remote_code=trust_remote_code,
             safetensors=safetensors,
             device_map=device_map,
+            download_kwargs=download_kwargs,
             **model_init_kwargs,
         )
 
