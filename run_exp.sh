@@ -12,6 +12,11 @@
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 
+# udc-an28-1 is 40GB A100 which is not enough compute
+# udc-an34-7 is having CUDA issues
+# udc-an34-19 is having CUDA issues
+#SBATCH --exclude=udc-an28-1,udc-an34-7,udc-an34-19
+
 # Load necessary modules or activate virtual environment
 source activate lm-compose
 
