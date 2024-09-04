@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        // model_name=mistralai/Mistral-7B-Instruct-v0.3 tag=rmu_mistral_hparam_search unlearn=rmu interventions=[unlearn] seed=42 wandb=online save_ckpt=False rmu_alpha=[1,1] rmu_layer_ids= rmu_num_batches=100
+        {
+            "name": "RMU",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "model_name=mistralai/Mistral-7B-Instruct-v0.3",
+                "tag=rmu_mistral_hparam_search",
+                "unlearn=rmu",
+                "interventions=[unlearn]",
+                "seed=42",
+                "wandb=online",
+                "save_ckpt=False",
+                "rmu_alpha=[1000,1000]",
+                "rmu_layer_id=3",
+                "rmu_max_num_batches=250"
+            ]
+        }
+    ]
+}
