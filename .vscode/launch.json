@@ -1,0 +1,51 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "RMU",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "model_name=mistralai/Mistral-7B-Instruct-v0.3",
+                "tag=rmu_mistral_hparam_search",
+                "unlearn=rmu",
+                "interventions=[unlearn]",
+                "seed=42",
+                "wandb=online",
+                "save_ckpt=False",
+                "rmu_alpha=[1000,1000]",
+                "rmu_layer_id=3",
+                "rmu_max_num_batches=250"
+            ]
+        },
+        // run_xp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 tag=gd_mistral_hparam_search unlearn=gd interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_train_size=10 ga_lr=1e-3 ga_retain_weight=100
+        {
+            "name": "GD",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "model_name=mistralai/Mistral-7B-Instruct-v0.3",
+                "tag=gd_mistral_hparam_search",
+                "unlearn=gd",
+                "interventions=[unlearn]",
+                "seed=42",
+                "wandb=online",
+                "save_ckpt=False",
+                "ga_train_size=10",
+                "ga_lr=1e-3",
+                "ga_retain_weight=100"
+            ]
+        },
+    ]
+}

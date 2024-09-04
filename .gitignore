@@ -4,7 +4,6 @@ models/
 outputs/
 calflops/
 *.zip
-.vscode/
 out/
 wandb/
 slurm_logs/
