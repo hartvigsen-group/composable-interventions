@@ -5,7 +5,7 @@
 
 unlearn_method: rmu
 rmu_retain_corpora: ["wikitext", "wikitext"]
-rmu_forget_corpora: ["bio-forget-corpus", "cyber-forget-corpus"]
+rmu_forget_corpora: ["bio_remove_dataset", "cyber-forget-corpus"]
 rmu_alpha: [1000, 1000]
 rmu_steering_coeffs: [20, 20]
 rmu_lr: 5e-5

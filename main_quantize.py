@@ -21,7 +21,7 @@ from sparsellm.lib.quant import *
 from awq import AutoAWQForCausalLM
 
 DEV = torch.device('cuda:0')
-from calflops.calflops import calculate_flops
+from calflops import calculate_flops
 from transformers import AutoTokenizer, TextGenerationPipeline
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from auto_gptq.utils import Perplexity
