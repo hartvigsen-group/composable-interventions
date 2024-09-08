@@ -79,6 +79,7 @@ dependencies = [
     "wandb==0.17.0",
     "urllib3",
     "isort",
+    "ruff",
 ]
 
 [tool.setuptools.packages.find]

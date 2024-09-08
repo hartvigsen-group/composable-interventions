@@ -157,7 +157,7 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=get_dtype(config.dtype), device_map="balanced")
 
     # Make editable
-    editable_model = ModelEditWrapper(model, hparams)
+    editable_model = ModqwdwqdelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
 
     # Strange bug where config.device becomes a list somewhere. Cast back to an int.
