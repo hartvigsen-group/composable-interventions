@@ -17,7 +17,7 @@ device: 0
 # model_name: meta-llama/Llama-2-7b-chat-hf
 
 model_class: LlamaForCausalLM
-small_name: Cheng98/llama-160m 
+small_name: Cheng98/llama-160m
 tokenizer_class: LlamaTokenizer
 tokenizer_name: meta-llama/Llama-2-7b-chat-hf
 cls_name: distilbert-base-cased
@@ -86,7 +86,7 @@ edit_train_config:
   model_name: meta-llama/Llama-2-7b-chat-hf
 
   model_class: LlamaForCausalLM
-  small_name: Cheng98/llama-160m 
+  small_name: Cheng98/llama-160m
   tokenizer_class: LlamaTokenizer
   tokenizer_name: meta-llama/Llama-2-7b-chat-hf
   cls_name: distilbert-base-cased

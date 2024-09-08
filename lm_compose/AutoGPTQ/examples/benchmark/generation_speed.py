@@ -28,7 +28,9 @@ class CustomizedMinNewTokensLogitsProcessor(LogitsProcessor):
         self.min_new_tokens = min_new_tokens or 0
         self.current_step = 0
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+    def __call__(
+        self, input_ids: torch.LongTensor, scores: torch.FloatTensor
+    ) -> torch.FloatTensor:
         self.current_step += 1
 
         if self._skip_process():
@@ -37,7 +39,9 @@ class CustomizedMinNewTokensLogitsProcessor(LogitsProcessor):
         if any(each is not None for each in [self.eos_token_id]):
             banned_mask = torch.zeros_like(scores).to(scores.device)
             if self.eos_token_id and self.current_step <= self.min_new_tokens:
-                banned_mask = self._fill_banned_mask(input_ids, banned_mask, {1: [[self.eos_token_id]]})
+                banned_mask = self._fill_banned_mask(
+                    input_ids, banned_mask, {1: [[self.eos_token_id]]}
+                )
             scores = scores.masked_fill(banned_mask.bool(), -float("inf"))
 
         return scores
@@ -51,7 +55,7 @@ class CustomizedMinNewTokensLogitsProcessor(LogitsProcessor):
     def _fill_banned_mask(
         input_ids: torch.LongTensor,
         banned_mask: torch.Tensor,
-        len2words_ids: Dict[int, List[List[int]]]
+        len2words_ids: Dict[int, List[List[int]]],
     ):
         for token_len, token_ids in len2words_ids.items():
             if token_len == 1:
@@ -62,11 +66,13 @@ class CustomizedMinNewTokensLogitsProcessor(LogitsProcessor):
                 token_ids = torch.LongTensor(token_ids).to(input_ids.device)
                 hit_masks = torch.all(
                     token_ids[..., :-1].unsqueeze(0).repeat(input_ids.shape[0], 1, 1)
-                    == input_ids[..., -(token_ids.shape[-1] - 1):].unsqueeze(1),
-                    dim=-1
+                    == input_ids[..., -(token_ids.shape[-1] - 1) :].unsqueeze(1),
+                    dim=-1,
                 )
                 for idx in range(hit_masks.shape[0]):
-                    selected_token_ids = torch.masked_select(token_ids[..., -1], hit_masks[idx])
+                    selected_token_ids = torch.masked_select(
+                        token_ids[..., -1], hit_masks[idx]
+                    )
                     if len(selected_token_ids):
                         banned_mask[idx, selected_token_ids] = 1
         return banned_mask
@@ -97,20 +103,25 @@ def load_data(data_path, tokenizer, n_samples, max_new_tokens):
             else:
                 prompt = f"Instruction:\n{istr}\nOutput:\n"
                 text = prompt + opt
-            if len(tokenizer(prompt)["input_ids"]) >= tokenizer.model_max_length - max_new_tokens:
+            if (
+                len(tokenizer(prompt)["input_ids"])
+                >= tokenizer.model_max_length - max_new_tokens
+            ):
                 continue
 
             tokenized_data = tokenizer(text)
 
             input_ids.append(tokenized_data["input_ids"][: tokenizer.model_max_length])
-            attention_mask.append(tokenized_data["attention_mask"][: tokenizer.model_max_length])
+            attention_mask.append(
+                tokenized_data["attention_mask"][: tokenizer.model_max_length]
+            )
             prompts.append(prompt)
             texts.append(text)
 
         return {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
-            "prompt": prompts
+            "prompt": prompts,
         }
 
     dataset = Dataset.from_generator(dummy_gen)
@@ -122,7 +133,7 @@ def load_data(data_path, tokenizer, n_samples, max_new_tokens):
         num_proc=1,
         keep_in_memory=True,
         load_from_cache_file=False,
-        remove_columns=["instruction", "input"]
+        remove_columns=["instruction", "input"],
     )
 
     dataset = dataset.to_list()
@@ -147,12 +158,12 @@ def load_model_tokenizer(
     use_fast_tokenizer: bool = False,
     inject_fused_attention: bool = True,
     inject_fused_mlp: bool = True,
-    disable_exllama: bool = False
+    disable_exllama: bool = False,
 ):
     tokenizer = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path=tokenizer_name_or_path or model_name_or_path,
         use_fast=use_fast_tokenizer,
-        trust_remote_code=trust_remote_code
+        trust_remote_code=trust_remote_code,
     )
     if not tokenizer.pad_token_id:
         tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -162,7 +173,7 @@ def load_model_tokenizer(
             pretrained_model_name_or_path=model_name_or_path,
             quantize_config=BaseQuantizeConfig(),
             max_memory=max_memory,
-            trust_remote_code=trust_remote_code
+            trust_remote_code=trust_remote_code,
         )
     else:
         model = AutoGPTQForCausalLM.from_quantized(
@@ -178,7 +189,7 @@ def load_model_tokenizer(
             use_safetensors=use_safetensors,
             trust_remote_code=trust_remote_code,
             warmup_triton=False,
-            disable_exllama=disable_exllama
+            disable_exllama=disable_exllama,
         )
 
     return model, tokenizer
@@ -196,8 +207,10 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
             input_ids=input_ids.unsqueeze(0),
             generation_config=generation_config,
             logits_processor=[
-                CustomizedMinNewTokensLogitsProcessor(generation_config.max_new_tokens, tokenizer.eos_token_id)
-            ]
+                CustomizedMinNewTokensLogitsProcessor(
+                    generation_config.max_new_tokens, tokenizer.eos_token_id
+                )
+            ],
         )
         end = time.time()
 
@@ -206,7 +219,9 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
         for output_ids in outputs_ids:
             num_generated_tokens += len(
                 [
-                    token_id for token_id in output_ids[len(input_ids):] if token_id != tokenizer.pad_token_id
+                    token_id
+                    for token_id in output_ids[len(input_ids) :]
+                    if token_id != tokenizer.pad_token_id
                 ]
             )
         num_generated_tokens_list.append(num_generated_tokens)
@@ -214,7 +229,7 @@ def benchmark_generation_speed(model, tokenizer, examples, generation_config):
         progress_bar.set_postfix(
             num_tokens=num_generated_tokens_list[-1],
             time=generation_time_list[-1],
-            speed=f"{num_generated_tokens_list[-1] / generation_time_list[-1]:.4f}tokens/s"
+            speed=f"{num_generated_tokens_list[-1] / generation_time_list[-1]:.4f}tokens/s",
         )
 
     total_tokens = sum(num_generated_tokens_list)
@@ -251,7 +266,10 @@ def main():
     if args.per_gpu_max_memory is not None and args.per_gpu_max_memory > 0:
         if torch.cuda.is_available():
             max_memory.update(
-                {i: f"{args.per_gpu_max_memory}GIB" for i in range(torch.cuda.device_count())}
+                {
+                    i: f"{args.per_gpu_max_memory}GIB"
+                    for i in range(torch.cuda.device_count())
+                }
             )
     if args.cpu_max_memory is not None and args.cpu_max_memory > 0 and max_memory:
         max_memory["cpu"] = f"{args.cpu_max_memory}GIB"
@@ -262,10 +280,14 @@ def main():
 
     quantize_config = None
     if args.quantize_config_save_dir:
-        quantize_config = BaseQuantizeConfig.from_pretrained(args.quantize_config_save_dir)
+        quantize_config = BaseQuantizeConfig.from_pretrained(
+            args.quantize_config_save_dir
+        )
 
     if args.use_safetensors:
-        logger.warning("The command --use_safetensors is deprecated and will be removed in the next release. It is now by default activated.")
+        logger.warning(
+            "The command --use_safetensors is deprecated and will be removed in the next release. It is now by default activated."
+        )
 
     logger.info("loading model and tokenizer")
     start = time.time()
@@ -282,7 +304,7 @@ def main():
         use_fast_tokenizer=args.use_fast_tokenizer,
         inject_fused_attention=not args.no_inject_fused_attention,
         inject_fused_mlp=not args.no_inject_fused_mlp,
-        disable_exllama=args.disable_exllama
+        disable_exllama=args.disable_exllama,
     )
     end = time.time()
     logger.info(f"model and tokenizer loading time: {end - start:.4f}s")
@@ -296,7 +318,10 @@ def main():
 
     logger.info("loading data")
     examples = load_data(
-        "../quantization/dataset/alpaca_data_cleaned.json", tokenizer, args.num_samples, args.max_new_tokens
+        "../quantization/dataset/alpaca_data_cleaned.json",
+        tokenizer,
+        args.num_samples,
+        args.max_new_tokens,
     )
 
     generation_config = GenerationConfig(
@@ -305,7 +330,7 @@ def main():
         do_sample=args.do_sample,
         min_new_tokens=args.max_new_tokens,
         max_new_tokens=args.max_new_tokens,
-        pad_token_id=tokenizer.pad_token_id
+        pad_token_id=tokenizer.pad_token_id,
     )
     logger.info(f"generation config: {generation_config.to_dict()}")
 
@@ -315,7 +340,9 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S"
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     main()

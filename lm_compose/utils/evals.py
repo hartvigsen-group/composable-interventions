@@ -9,9 +9,18 @@ def get_exclude_tokens(tokenizer, device):
     real_space_tok = tokenizer(" ", return_tensors="np", add_special_tokens=False)["input_ids"][0][0]
 
     if space_tok == space_tok_check:
-        exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, space_tok, real_space_tok]
+        exclude_tokens = [
+            tokenizer.pad_token_id,
+            tokenizer.bos_token_id,
+            space_tok,
+            real_space_tok,
+        ]
     else:
-        exclude_tokens = [tokenizer.pad_token_id, tokenizer.bos_token_id, real_space_tok]
+        exclude_tokens = [
+            tokenizer.pad_token_id,
+            tokenizer.bos_token_id,
+            real_space_tok,
+        ]
 
     return torch.tensor(exclude_tokens, device=device)
 
@@ -38,7 +47,13 @@ def calculate_recall(generated_ids, ground_truth_ids, exclude_tokens_tensor, pro
 
 
 def f1_locality_generate(model, locality_inputs, config, verbose=False):
-    return f1_accuracy_generate(model, locality_inputs["data"]["prompt"], locality_inputs["data"]["ground_truth"], config, verbose=verbose)
+    return f1_accuracy_generate(
+        model,
+        locality_inputs["data"]["prompt"],
+        locality_inputs["data"]["ground_truth"],
+        config,
+        verbose=verbose,
+    )
 
 
 def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
@@ -62,7 +77,13 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
         prompt_length = input_ids.size(1)  # Number of tokens in the prompt
 
         ground_truth_ids = (
-            tokenizer(ground_truth, truncation=True, padding="max_length", max_length=max_length, return_tensors="pt")
+            tokenizer(
+                ground_truth,
+                truncation=True,
+                padding="max_length",
+                max_length=max_length,
+                return_tensors="pt",
+            )
             .input_ids.view(-1)
             .to(model.device)
         )
@@ -72,7 +93,12 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
         decoded_ground_truth = tokenizer.decode(ground_truth_ids_no_special, skip_special_tokens=False)
 
         with torch.no_grad():
-            outputs = model.generate(input_ids, top_k=1, max_length=max_length, pad_token_id=tokenizer.eos_token_id)
+            outputs = model.generate(
+                input_ids,
+                top_k=1,
+                max_length=max_length,
+                pad_token_id=tokenizer.eos_token_id,
+            )
         generated_ids = outputs
 
         # Exclude prompt and filter out special tokens
@@ -90,7 +116,13 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
         decoded_prediction = tokenizer.decode(generated_response_ids_no_special, skip_special_tokens=True)
 
         # Calculate recall
-        recall = calculate_recall(generated_response_ids_no_special, ground_truth_ids_no_special, exclude_tokens_tensor, prompt, ground_truth)
+        recall = calculate_recall(
+            generated_response_ids_no_special,
+            ground_truth_ids_no_special,
+            exclude_tokens_tensor,
+            prompt,
+            ground_truth,
+        )
         recall_scores.append(recall)
         # Calculate F1 score
         common_tokens = set(generated_response_ids_no_special.cpu().numpy()).intersection(set(ground_truth_ids_no_special.cpu().numpy()))
@@ -98,7 +130,11 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
         if len(common_tokens) == 0 or len(generated_response_ids_no_special) == 0:
             f1 = 0
         else:
-            f1 = get_f1(common_tokens, generated_response_ids_no_special, ground_truth_ids_no_special)
+            f1 = get_f1(
+                common_tokens,
+                generated_response_ids_no_special,
+                ground_truth_ids_no_special,
+            )
         f1_scores.append(f1)
 
         # Print info
@@ -114,7 +150,10 @@ def f1_accuracy_generate(model, prompts, target_new, config, verbose=False):
             print(f"Recall: {recall}")
             print("-" * 50)  # Separator for readability
 
-    return sum(f1_scores) / len(f1_scores), sum(recall_scores) / len(recall_scores) if f1_scores else 0
+    return (
+        sum(f1_scores) / len(f1_scores),
+        sum(recall_scores) / len(recall_scores) if f1_scores else 0,
+    )
 
 
 def ppl_responses(model, prompts, responses, config, mask_prompt=True):
@@ -158,9 +197,14 @@ def ppl_QA(model, config, mask_prompt=False):
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     model.to(f"cuda:{config.device}")
     model.eval()
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(
-        dataset=config.edit_dataset, number_of_edits=500, edit_set=2
-    )
+    (
+        prompts,
+        ground_truth,
+        target_new,
+        subject,
+        rephrase_prompt,
+        locality_inputs,
+    ) = edit_generator.get_edits(dataset=config.edit_dataset, number_of_edits=500, edit_set=2)
 
     total_loss = 0.0
     total_response_tokens = 0

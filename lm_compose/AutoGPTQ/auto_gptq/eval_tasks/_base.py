@@ -17,7 +17,7 @@ class BaseTask:
         prompt_col_name: str,
         label_col_name: str,
         device: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -30,7 +30,7 @@ class BaseTask:
             prompt_col_name=prompt_col_name,
             label_col_name=label_col_name,
             tokenizer=tokenizer,
-            **kwargs
+            **kwargs,
         )
 
         self.device = device

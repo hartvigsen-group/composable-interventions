@@ -103,13 +103,13 @@ def _logits(x):
 
 
 def add_sep(tokenizer, model):
-    tokenizer.add_special_tokens({'sep_token': '[SEP]'})
+    tokenizer.add_special_tokens({"sep_token": "[SEP]"})
     # model.resize_token_embeddings(len(tokenizer))
     # model.lm_head.weight.data[-1, :] = model.lm_head.weight.data.mean(0)
 
 
 def add_padding(tokenizer, model):
-    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    tokenizer.add_special_tokens({"pad_token": "[PAD]"})
     model.resize_token_embeddings(len(tokenizer))
     model.transformer.wte.weight.data[-1] = model.transformer.wte.weight.data.mean(0)
 
@@ -127,7 +127,9 @@ def set_dropout(model, p):
                     m.dropout = p
                     n_reset += 1
 
-            if hasattr(m, "activation_dropout"):  # Requires for BART, which uses F.dropout
+            if hasattr(
+                m, "activation_dropout"
+            ):  # Requires for BART, which uses F.dropout
                 if isinstance(m.activation_dropout, float):
                     m.activation_dropout = p
                     n_reset += 1
@@ -183,7 +185,7 @@ def flatten_dict(d):
 
 class EarlyStopper:
     def __init__(self, patience: int, key: str):
-        self.best_value = -1 if 'acc' in key else 1e9
+        self.best_value = -1 if "acc" in key else 1e9
         self.best_iter = 0
         self.current_iter = 0
         self.key = key
@@ -193,7 +195,7 @@ class EarlyStopper:
     def update(self, idx, stats):
         assert self.key in stats, f"'{self.key}' not in stats dict"
         value = stats[self.key]
-        if 'acc' in self.key:
+        if "acc" in self.key:
             new_best = value > self.best_value
         else:
             new_best = value < self.best_value

@@ -90,7 +90,14 @@ def get_edits_mquake(number_of_edits=3, edit_set=1, file_path="data/MQuAKE/MQuAK
         singleHop_prompts.append(json_element["single_hops"][0]["question"])
         singleHop_answers.append(json_element["single_hops"][0]["answer"])
 
-    return prompts, ground_truth, target_new, subject, rephrase_prompt, [singleHop_prompts, singleHop_answers]
+    return (
+        prompts,
+        ground_truth,
+        target_new,
+        subject,
+        rephrase_prompt,
+        [singleHop_prompts, singleHop_answers],
+    )
 
 
 def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
@@ -171,7 +178,11 @@ def get_edits_taxi(edit_method, number_of_edits=None):
         for e in edits_df.itertuples():
             if e.edit_type == "category membership":
                 if edit_method in ["ROME", "FT"]:  # can add GRACE HERE
-                    train_rewrite = {"prompts": [f"A {e.subj} is a kind of"], "target_new": [e.entity], "subject": [e.subj]}
+                    train_rewrite = {
+                        "prompts": [f"A {e.subj} is a kind of"],
+                        "target_new": [e.entity],
+                        "subject": [e.subj],
+                    }
 
                 else:
                     raise NotImplementedError(f"edit method {edit_method} not implemented")

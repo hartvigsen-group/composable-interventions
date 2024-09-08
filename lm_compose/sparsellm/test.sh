@@ -6,4 +6,4 @@ python main.py \
     --prune_method wanda \
     --sparsity_ratio 0.7 \
     --sparsity_type unstructured \
-    --save out/llama_7b/unstructured/wanda/ 
+    --save out/llama_7b/unstructured/wanda/

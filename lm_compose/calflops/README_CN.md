@@ -14,7 +14,7 @@
 <h4 align="center">
     <p>
         <a href="https://github.com/MrYxJ/calculate-flops.pytorch">English</a>|
-        <b>中文</b> 
+        <b>中文</b>
     <p>
 </h4>
 
@@ -33,7 +33,7 @@
 pip install calflops
 ```
 
-同时你也可以从pypi calflops官方网址: https://pypi.org/project/calflops/ 
+同时你也可以从pypi calflops官方网址: https://pypi.org/project/calflops/
  上下载最新版本的whl文件 `calflops-*-py3-none-any.whl` 到本地进行离线安装：
 
 ```python
@@ -52,17 +52,17 @@ from torchvision import models
 model = models.alexnet()
 batch_size = 1
 input_shape = (batch_size, 3, 224, 224)
-flops, macs, params = calculate_flops(model=model, 
+flops, macs, params = calculate_flops(model=model,
                                       input_shape=input_shape,
                                       output_as_string=True,
                                       output_precision=4)
 print("Alexnet FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Alexnet FLOPs:4.2892 GFLOPS   MACs:2.1426 GMACs   Params:61.1008 M 
+#Alexnet FLOPs:4.2892 GFLOPS   MACs:2.1426 GMACs   Params:61.1008 M
 ```
 
 如果需要计算FLOPs的模型有多个输入，你也只需要通过传入参数 ```args``` 或 ```kargs```进行构造, 具体可以见下面Tranformer Model给出的例子。
 
-### Transformer Model 
+### Transformer Model
 
 相比CNN Model，Transformer Model如果想使用参数 ```input_shape``` 指定输入数据的大小自动生成输入数据时额外还需要将其对应的```tokenizer```通过参数```transformer_tokenizer```进行传入，当然这种方式相比下面通过```kwargs```传入已构造输入数据方式更方便。
 
@@ -79,11 +79,11 @@ model_save = "../pretrain_models/" + model_name
 model = AutoModel.from_pretrained(model_save)
 tokenizer = AutoTokenizer.from_pretrained(model_save)
 
-flops, macs, params = calculate_flops(model=model, 
+flops, macs, params = calculate_flops(model=model,
                                       input_shape=(batch_size,max_seq_length),
                                       transformer_tokenizer=tokenizer)
 print("Bert(hfl/chinese-roberta-wwm-ext) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:67.1 GFLOPS   MACs:33.52 GMACs   Params:102.27 M 
+#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:67.1 GFLOPS   MACs:33.52 GMACs   Params:102.27 M
 ```
 
 如果希望使用自己生成的特定数据来计算FLOPs，可以使用参数```args```或```kwargs```，这种情况参数```input_shape```不能再传入值。下面给出一个例子，可以看出没有通过```transformer_tokenizer```方便。
@@ -103,7 +103,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_save)
 
 text = ""
 inputs = tokenizer(text,
-                   add_special_tokens=True, 
+                   add_special_tokens=True,
                    return_attention_mask=True,
                    padding=True,
                    truncation="longest_first",
@@ -114,7 +114,7 @@ if len(inputs["input_ids"]) < max_seq_length:
     inputs["input_ids"].extend([0]*apply_num)
     inputs["token_type_ids"].extend([0]*apply_num)
     inputs["attention_mask"].extend([0]*apply_num)
-    
+
 inputs["input_ids"] = torch.tensor([inputs["input_ids"]])
 inputs["token_type_ids"] = torch.tensor([inputs["token_type_ids"]])
 inputs["attention_mask"] = torch.tensor([inputs["attention_mask"]])
@@ -123,7 +123,7 @@ flops, macs, params = calculate_flops(model=model,
                                       kwargs = inputs,
                                       print_results=False)
 print("Bert(hfl/chinese-roberta-wwm-ext) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:22.36 GFLOPS   MACs:11.17 GMACs   Params:102.27 M 
+#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:22.36 GFLOPS   MACs:11.17 GMACs   Params:102.27 M
 ```
 
 
@@ -148,7 +148,7 @@ flops, macs, params = calculate_flops(model=model,
                                       input_shape=(batch_size, max_seq_length),
                                       transformer_tokenizer=tokenizer)
 print("Llama2(7B) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Llama2(7B) FLOPs:1.7 TFLOPS   MACs:850.00 GMACs   Params:6.74 B 
+#Llama2(7B) FLOPs:1.7 TFLOPS   MACs:850.00 GMACs   Params:6.74 B
 ```
 
 ### 显示每个子模块的FLOPs, mac, Params
@@ -203,18 +203,18 @@ from calflops import calculate_flops
 def calculate_flops(model,
                     input_shape=None,
                     transformer_tokenizer=None,
-                    args=[],   
+                    args=[],
                     kwargs={},
                     forward_mode="forward",
                     include_backPropagation=False,
-                    compute_bp_factor=2.0,         
+                    compute_bp_factor=2.0,
                     print_results=True,
                     print_detailed=True,
                     output_as_string=True,
                     output_precision=2,
                     output_unit=None,
                     ignore_modules=None):
-    
+
     """Returns the total floating-point operations, MACs, and parameters of a model.
 
     Args:
@@ -241,7 +241,7 @@ def calculate_flops(model,
 ``` python
 def generate_transformer_input(model_tokenizer, input_shape, device):
     """Automatically generates data in the form of transformes model input format.
-    
+
     Args:
         input_shape (tuple):transformers model input shape: (batch_size, seq_len).
         tokenizer (transformer.model.tokenization): transformers model tokenization.tokenizer.
@@ -277,16 +277,16 @@ Input data format: batch_size=1, seq_len=128
 
 另外注意这里fwd + bwd 没有包括模型参数激活的计算损耗，如果包括的对fwd的结果乘4即可。根据论文：https://arxiv.org/pdf/2205.05198.pdf
 
-Model         | Input Shape | Params(B)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs(G) | fwd + bwd MACs(G)  | 
----           |---          |---       |---          |---         |---       |---        |--- 
+Model         | Input Shape | Params(B)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs(G) | fwd + bwd MACs(G)  |
+---           |---          |---       |---          |---         |---       |---        |---
 bloom-1b7     |(1,128)      | 1.72B    | 1722408960  | 310.92     | 155.42   | 932.76    | 466.27
 bloom-7b1     |(1,128)      | 7.07B    | 7069016064  | 1550.39    | 775.11   | 4651.18   | 2325.32
 baichuan-7B   |(1,128)      | 7B       | 7000559616  | 1733.62    | 866.78   | 5200.85   | 2600.33
 chatglm-6b    |(1,128)      | 6.17B    | 6173286400  | 1587.66    | 793.75   | 4762.97   | 2381.24
-chatglm2-6b   |(1,128)      | 6.24B    | 6243584000  | 1537.68    | 768.8    | 4613.03   | 2306.4 
+chatglm2-6b   |(1,128)      | 6.24B    | 6243584000  | 1537.68    | 768.8    | 4613.03   | 2306.4
 Qwen-7B       |(1,128)      | 7.72B    | 7721324544  | 1825.83    | 912.88   | 5477.48   | 2738.65
 llama-7b      |(1,128)      | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550
-llama2-7b     |(1,128)      | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550   
+llama2-7b     |(1,128)      | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550
 llama2-7b-chat |(1,128)     | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550
 chinese-llama-7b | (1,128)  | 6.89B    | 6885486592  | 1718.89    | 859.41   |5156.67   | 2578.24
 chinese-llama-plus-7b| (1,128) | 6.89B | 6885486592  | 1718.89    | 859.41   |5156.67   | 2578.24
@@ -305,7 +305,7 @@ moss-moon-003-sft |(1,128) | 16.72B  | 16717980160 |  4124.93    | 2062.39  |  1
 
 Input data format: batch_size=1, seq_len=128
 
-Model         | Input Shape | Params(M)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs() | fwd + bwd MACs(G)  | 
+Model         | Input Shape | Params(M)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs() | fwd + bwd MACs(G)  |
 ---           |---          |---       |---          |---        |---       |---     |---
 hfl/chinese-roberta-wwm-ext | (1,128)| 102.27M | 102267648 |       67.1  |    33.52  |  201.3 | 100.57
 ......
@@ -320,7 +320,7 @@ Input data format: batch_size = 1, actually input_shape = (1, 3, 224, 224)
 
 注:表中FLOPs仅考虑模型正向传播的计算，**Total**为不含单位缩写的总数值表示。
 
-Model         | Input Resolution | Params(M)|Params(Total) | FLOPs(G) | FLOPs(Total) | Macs(G) | Macs(Total) 
+Model         | Input Resolution | Params(M)|Params(Total) | FLOPs(G) | FLOPs(Total) | Macs(G) | Macs(Total)
 ---           |---               |---        |---          |---     |---          |---     |---
 alexnet       |224x224           | 61.10     | 61100840    | 1.43   | 1429740000  | 741.19 | 7418800000
 vgg11         |224x224           | 132.86    | 132863000   | 15.24  | 15239200000 | 7.61   | 7609090000
@@ -344,7 +344,7 @@ densenet201   |224x224           | 20.01     | 20013900    | 8.66   | 8658520000
 densenet161   |224x224           | 28.68     | 28681000    | 15.55  | 1554650000  | 7.73   | 7727900000
 inception_v3  |224x224           | 27.16     | 27161300    | 5.29   | 5692390000  | 2.84   | 2837920000
 
-感谢 @[zigangzhao-ai](https://github.com/zigangzhao-ai) 帮忙使用 ```calflops``` 去统计表 torchvision的结果. 
+感谢 @[zigangzhao-ai](https://github.com/zigangzhao-ai) 帮忙使用 ```calflops``` 去统计表 torchvision的结果.
 
 你也可以将calflops计算FLOPs的结果与其他优秀的工具计算结果进行比较
 : [ptflops readme.md](https://github.com/sovrasov/flops-counter.pytorch/).

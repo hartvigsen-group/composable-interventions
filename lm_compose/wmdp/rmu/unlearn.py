@@ -8,6 +8,7 @@ import tqdm as tqdm
 
 from wmdp.rmu.utils import load_model, get_params, forward_with_cache, get_data
 
+
 def run_rmu(
     updated_model,
     frozen_model,
@@ -18,7 +19,7 @@ def run_rmu(
 ):
     rmu_config = vars(args)
     print("====rmu Config====")
-    print("\n".join(f"{k}={v}" for k,v in rmu_config.items()))
+    print("\n".join(f"{k}={v}" for k, v in rmu_config.items()))
     print("=====")
 
     updated_model = updated_model.train()
@@ -33,8 +34,16 @@ def run_rmu(
 
     control_vectors_list = []
     for i in range(len(forget_data_list)):
-        random_vector = torch.rand(1,1, updated_model.config.hidden_size, dtype=updated_model.dtype, device=updated_model.device)
-        control_vec = random_vector / torch.norm(random_vector) * args.steering_coeffs[i]
+        random_vector = torch.rand(
+            1,
+            1,
+            updated_model.config.hidden_size,
+            dtype=updated_model.dtype,
+            device=updated_model.device,
+        )
+        control_vec = (
+            random_vector / torch.norm(random_vector) * args.steering_coeffs[i]
+        )
         control_vectors_list.append(control_vec)
 
     num_batches = min(
@@ -42,9 +51,9 @@ def run_rmu(
         min([len(f) for f in forget_data_list]),
         min([len(r) for r in retain_data_list]),
     )
-    
+
     truncation_side = tokenizer.truncation_side
-    tokenizer.truncation_side="right"
+    tokenizer.truncation_side = "right"
 
     for epoch in range(1):
         print(f"======= Epoch {epoch} =======")
@@ -59,7 +68,11 @@ def run_rmu(
                 # Unlearning loss
                 max_length = 512 if topic_idx == 0 else 768
                 unlearn_inputs = tokenizer(
-                    unlearn_batch, return_tensors="pt", padding=True, truncation=True, max_length=max_length
+                    unlearn_batch,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=max_length,
                 ).to(updated_model.device)
                 updated_forget_activations = forward_with_cache(
                     updated_model, unlearn_inputs, module=updated_module, no_grad=False
@@ -71,7 +84,11 @@ def run_rmu(
 
                 # Retain loss
                 retain_inputs = tokenizer(
-                    retain_batch, return_tensors="pt", padding=True, truncation=True, max_length=512
+                    retain_batch,
+                    return_tensors="pt",
+                    padding=True,
+                    truncation=True,
+                    max_length=512,
                 ).to(updated_model.device)
                 updated_retain_activations = forward_with_cache(
                     updated_model, retain_inputs, module=updated_module, no_grad=False
@@ -90,26 +107,54 @@ def run_rmu(
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                print(f"loss: {loss.item():.4g} | unlearn_loss: {unlearn_loss.item():.4g} | retain_loss: {retain_loss.item():.4g} | param_change: {params[0].grad.abs().mean().item():.4g}")
-                
+                print(
+                    f"loss: {loss.item():.4g} | unlearn_loss: {unlearn_loss.item():.4g} | retain_loss: {retain_loss.item():.4g} | param_change: {params[0].grad.abs().mean().item():.4g}"
+                )
+
                 # ======= Logging ======
                 if args.verbose:
-                    frozen_forget_activations = forward_with_cache(frozen_model, unlearn_inputs, module=frozen_module, no_grad=True).to(updated_model.device)
-                    unlearn_cosine= torch.nn.functional.cosine_similarity(updated_forget_activations, frozen_forget_activations, dim=-1).mean()
-                    retain_cosine = torch.nn.functional.cosine_similarity(updated_retain_activations, frozen_retain_activations, dim=-1).mean()
-                    
+                    frozen_forget_activations = forward_with_cache(
+                        frozen_model, unlearn_inputs, module=frozen_module, no_grad=True
+                    ).to(updated_model.device)
+                    unlearn_cosine = torch.nn.functional.cosine_similarity(
+                        updated_forget_activations, frozen_forget_activations, dim=-1
+                    ).mean()
+                    retain_cosine = torch.nn.functional.cosine_similarity(
+                        updated_retain_activations, frozen_retain_activations, dim=-1
+                    ).mean()
+
                     print(f"unlearn_cosine_sim={unlearn_cosine.item()}")
                     print(f"retain_cosine_sim={retain_cosine.item()}")
-                    print(f"Topic {topic_idx} updated_forget_activations.norm=",torch.mean(updated_forget_activations.norm(dim=-1).mean(dim=1), dim=0).item())
-                    print(f"Topic {topic_idx} frozen_forget_activations.norm=",torch.mean(frozen_forget_activations.norm(dim=-1).mean(dim=1), dim=0).item())
-                    print(f"Topic {topic_idx} updated_retain_activations.norm=",torch.mean(updated_retain_activations.norm(dim=-1).mean(dim=1), dim=0).item())
-                    print(f"Topic {topic_idx} frozen_retain_activations.norm=",torch.mean(frozen_retain_activations.norm(dim=-1).mean(dim=1), dim=0).item())
+                    print(
+                        f"Topic {topic_idx} updated_forget_activations.norm=",
+                        torch.mean(
+                            updated_forget_activations.norm(dim=-1).mean(dim=1), dim=0
+                        ).item(),
+                    )
+                    print(
+                        f"Topic {topic_idx} frozen_forget_activations.norm=",
+                        torch.mean(
+                            frozen_forget_activations.norm(dim=-1).mean(dim=1), dim=0
+                        ).item(),
+                    )
+                    print(
+                        f"Topic {topic_idx} updated_retain_activations.norm=",
+                        torch.mean(
+                            updated_retain_activations.norm(dim=-1).mean(dim=1), dim=0
+                        ).item(),
+                    )
+                    print(
+                        f"Topic {topic_idx} frozen_retain_activations.norm=",
+                        torch.mean(
+                            frozen_retain_activations.norm(dim=-1).mean(dim=1), dim=0
+                        ).item(),
+                    )
 
                 pbar.update(1)
 
     tokenizer.truncation_side = truncation_side
     return updated_model
-    
+
     # NOTE: Disabled since the composable interventions pipline already handles saving
     # Save model
     # if args.output_dir:
@@ -133,9 +178,7 @@ def get_args():
     parser.add_argument(
         "--module_str", type=str, default="{model_name}.model.layers[{layer_id}]"
     )
-    parser.add_argument(
-        "--output_dir", type=str, default=None
-    )
+    parser.add_argument("--output_dir", type=str, default=None)
     ### Data arguments
     parser.add_argument(
         "--retain_corpora",
@@ -166,7 +209,11 @@ def get_args():
     parser.add_argument("--layer_ids", type=str, default="5,6,7", help="update layers")
     parser.add_argument("--param_ids", type=str, default="6", help="update params")
     parser.add_argument("--seed", type=int, default=42, help="Seed")
-    parser.add_argument("--verbose", action="store_true", help="Logging the activations norms and cosine at each step")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Logging the activations norms and cosine at each step",
+    )
 
     args = parser.parse_args()
     args.retain_corpora = args.retain_corpora.split(",")
@@ -175,7 +222,7 @@ def get_args():
     args.alpha = [float(c) for c in args.alpha.split(",")]
     args.layer_ids = [int(layer_id) for layer_id in args.layer_ids.split(",")]
     args.param_ids = [int(param_id) for param_id in args.param_ids.split(",")]
-    return args 
+    return args
 
 
 if __name__ == "__main__":

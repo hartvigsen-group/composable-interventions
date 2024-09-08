@@ -6,14 +6,13 @@ import yaml
 
 @dataclass
 class MALMENTrainingHparams(HyperParams):
-
     # Model
     model_name: str
     model_class: str
     tokenizer_class: str
     tokenizer_name: str
     inner_params: List[str]
-    
+
     archive: Any
 
     # Method
@@ -41,8 +40,8 @@ class MALMENTrainingHparams(HyperParams):
     editor_batch_size: int
     silent: bool
     log_interval: int
-    eval_log_interval:int
-    final_eval:bool
+    eval_log_interval: int
+    final_eval: bool
     val_interval: int
     early_stop_patience: int
     early_stop_key: str
@@ -52,7 +51,7 @@ class MALMENTrainingHparams(HyperParams):
     val_batch_size: Optional[int]
     val_steps: int
 
-    model_save_pt: Optional[int]=5000
+    model_save_pt: Optional[int] = 5000
     half: Optional[bool] = False
     model_parallel: bool = False
     max_epochs: Optional[int] = None
@@ -60,16 +59,16 @@ class MALMENTrainingHparams(HyperParams):
 
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):
-
-        if '.yaml' not in hparams_name_or_path:
-            hparams_name_or_path = hparams_name_or_path + '.yaml'
+        if ".yaml" not in hparams_name_or_path:
+            hparams_name_or_path = hparams_name_or_path + ".yaml"
 
         with open(hparams_name_or_path, "r") as stream:
             config = yaml.safe_load(stream)
             config = super().construct_float_from_scientific_notation(config)
 
-        assert (config and config['alg'] == 'MALMEN') or print(f'MALMENTrainingHyperParams can not load from {hparams_name_or_path}, '
-                                                f'alg_name is {config["alg"]} ')
-        config['val_batch_size'] = config['batch_size']
+        assert (config and config["alg"] == "MALMEN") or print(
+            f"MALMENTrainingHyperParams can not load from {hparams_name_or_path}, "
+            f'alg_name is {config["alg"]} '
+        )
+        config["val_batch_size"] = config["batch_size"]
         return cls(**config)
-    

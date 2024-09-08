@@ -23,4 +23,3 @@ eval_zero_shot: false
 
 compress: True
 method: prune # prune or quant
-

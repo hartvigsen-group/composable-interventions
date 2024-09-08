@@ -98,9 +98,12 @@ def generate_fast(
         gen_txt = model.generate(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            max_new_tokens=max_out_len
+            max_new_tokens=max_out_len,
         )
-        txt = [tok.decode(x, skip_special_tokens=True) for x in gen_txt.detach().cpu().numpy().tolist()]
+        txt = [
+            tok.decode(x, skip_special_tokens=True)
+            for x in gen_txt.detach().cpu().numpy().tolist()
+        ]
         txt = [
             unicodedata.normalize("NFKD", x)
             .replace("\n\n", " ")
@@ -120,7 +123,9 @@ def generate_fast(
         while input_ids.size(1) < max_out_len:  # while not exceeding max output length
             model_out = model(
                 input_ids=input_ids[:, cur_context],
-                attention_mask=None if 'llama'or'baichuan' in model.name_or_path.lower() else attention_mask[:, cur_context],
+                attention_mask=None
+                if "llama" or "baichuan" in model.name_or_path.lower()
+                else attention_mask[:, cur_context],
                 past_key_values=past_key_values,
                 use_cache=True,
             )
@@ -160,7 +165,10 @@ def generate_fast(
                     attention_mask[i][new_idx] = 1
 
             cur_context = slice(cur_context.stop, cur_context.stop + 1)
-    txt = [tok.decode(x, skip_special_tokens=True) for x in input_ids.detach().cpu().numpy().tolist()]
+    txt = [
+        tok.decode(x, skip_special_tokens=True)
+        for x in input_ids.detach().cpu().numpy().tolist()
+    ]
     txt = [
         unicodedata.normalize("NFKD", x)
         .replace("\n\n", " ")

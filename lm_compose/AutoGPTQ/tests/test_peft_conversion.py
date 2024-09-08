@@ -4,9 +4,14 @@ from peft.peft_model import PeftModelForCausalLM
 from transformers import AutoTokenizer
 from torch.optim import Adam
 from auto_gptq import AutoGPTQForCausalLM
-from auto_gptq.utils.peft_utils import GPTQLoraConfig, GPTQLoraLinear, GPTQSVDLinear, \
-    GPTQAdaLoraConfig, GPTQAdaLoraModel, \
-    get_gptq_peft_model
+from auto_gptq.utils.peft_utils import (
+    GPTQLoraConfig,
+    GPTQLoraLinear,
+    GPTQSVDLinear,
+    GPTQAdaLoraConfig,
+    GPTQAdaLoraModel,
+    get_gptq_peft_model,
+)
 from torch.utils.checkpoint import checkpoint
 from torch import Tensor
 import math
@@ -17,16 +22,14 @@ MODEL_NAME = "TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ"
 
 
 class TestPeftConversion(TestCase):
-    def check_model_trainable(self, model_lora: PeftModelForCausalLM,
-                              tokenizer: AutoTokenizer) -> None:
+    def check_model_trainable(
+        self, model_lora: PeftModelForCausalLM, tokenizer: AutoTokenizer
+    ) -> None:
         batch = tokenizer("Hello, world", return_tensors="pt")
-        batch = {
-            key: value.to(model_lora.device)
-            for key, value in batch.items()
-        }
+        batch = {key: value.to(model_lora.device) for key, value in batch.items()}
         batch["labels"] = batch["input_ids"]
-        batch['attention_mask'] = batch['attention_mask'].float()
-        batch['attention_mask'].requires_grad = True
+        batch["attention_mask"] = batch["attention_mask"].float()
+        batch["attention_mask"].requires_grad = True
         model_lora.gradient_checkpointing_enable()
         optimizer = Adam(model_lora.parameters(), lr=1e-4)
         model_lora.train()
@@ -50,7 +53,7 @@ class TestPeftConversion(TestCase):
             trainable=True,
             inject_fused_attention=True,
             inject_fused_mlp=False,
-            use_safetensors=True
+            use_safetensors=True,
         )
         peft_config = GPTQLoraConfig(
             r=16,
@@ -72,7 +75,7 @@ class TestPeftConversion(TestCase):
 
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         self.check_model_trainable(model_lora, tokenizer)
-    
+
     def test_adalora_conversion(self):
         model = AutoGPTQForCausalLM.from_quantized(
             MODEL_NAME,
@@ -81,7 +84,7 @@ class TestPeftConversion(TestCase):
             trainable=True,
             inject_fused_attention=True,
             inject_fused_mlp=False,
-            use_safetensors=True
+            use_safetensors=True,
         )
         peft_config = GPTQAdaLoraConfig(
             init_r=20,

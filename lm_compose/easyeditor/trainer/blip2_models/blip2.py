@@ -15,7 +15,12 @@ import torch.nn as nn
 import torch.distributed as dist
 import torch.nn.functional as F
 
-from .common.dist_utils import download_cached_file, get_world_size, get_rank, is_dist_avail_and_initialized
+from .common.dist_utils import (
+    download_cached_file,
+    get_world_size,
+    get_rank,
+    is_dist_avail_and_initialized,
+)
 from .common.utils import is_url
 from .common.logger import MetricLogger
 from .base_model import BaseModel
@@ -28,7 +33,9 @@ from transformers import BertTokenizer
 class Blip2Base(BaseModel):
     @classmethod
     def init_tokenizer(cls, qformer_name_or_path):
-        tokenizer = BertTokenizer.from_pretrained(qformer_name_or_path, cache_dir='./hugging_cache')
+        tokenizer = BertTokenizer.from_pretrained(
+            qformer_name_or_path, cache_dir="./hugging_cache"
+        )
         tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         return tokenizer
 
@@ -43,15 +50,23 @@ class Blip2Base(BaseModel):
             return contextlib.nullcontext()
 
     @classmethod
-    def init_Qformer(cls, num_query_token, vision_width, qformer_name_or_path="bert-base-uncased", cross_attention_freq=2):
-        encoder_config = BertConfig.from_pretrained(qformer_name_or_path, cache_dir='./hugging_cache')
+    def init_Qformer(
+        cls,
+        num_query_token,
+        vision_width,
+        qformer_name_or_path="bert-base-uncased",
+        cross_attention_freq=2,
+    ):
+        encoder_config = BertConfig.from_pretrained(
+            qformer_name_or_path, cache_dir="./hugging_cache"
+        )
         encoder_config.encoder_width = vision_width
         # insert cross-attention layer every other block
         encoder_config.add_cross_attention = True
         encoder_config.cross_attention_freq = cross_attention_freq
         encoder_config.query_length = num_query_token
         Qformer = BertLMHeadModel.from_pretrained(
-            qformer_name_or_path, config=encoder_config, cache_dir='./hugging_cache'
+            qformer_name_or_path, config=encoder_config, cache_dir="./hugging_cache"
         )
         query_tokens = nn.Parameter(
             torch.zeros(1, num_query_token, encoder_config.hidden_size)
@@ -61,7 +76,13 @@ class Blip2Base(BaseModel):
 
     @classmethod
     def init_vision_encoder(
-        cls, model_name, img_size, drop_path_rate, use_grad_checkpoint, precision, state_dict_file
+        cls,
+        model_name,
+        img_size,
+        drop_path_rate,
+        use_grad_checkpoint,
+        precision,
+        state_dict_file,
     ):
         assert model_name in [
             "eva_clip_g",
@@ -69,7 +90,11 @@ class Blip2Base(BaseModel):
         ], "vit model must be eva_clip_g or clip_L"
         if model_name == "eva_clip_g":
             visual_encoder = create_eva_vit_g(
-                img_size, drop_path_rate, use_grad_checkpoint, precision, state_dict_file
+                img_size,
+                drop_path_rate,
+                use_grad_checkpoint,
+                precision,
+                state_dict_file,
             )
         elif model_name == "clip_L":
             visual_encoder = create_clip_vit_L(img_size, use_grad_checkpoint, precision)
@@ -78,9 +103,17 @@ class Blip2Base(BaseModel):
 
     @classmethod
     def init_minigpt4_vision_encoder(
-        cls, model_name, img_size, drop_path_rate, use_grad_checkpoint, precision, state_dict_file
+        cls,
+        model_name,
+        img_size,
+        drop_path_rate,
+        use_grad_checkpoint,
+        precision,
+        state_dict_file,
     ):
-        assert model_name == "eva_clip_g", "vit model must be eva_clip_g for current version of MiniGPT-4"
+        assert (
+            model_name == "eva_clip_g"
+        ), "vit model must be eva_clip_g for current version of MiniGPT-4"
         visual_encoder = create_eva_vit_g(
             img_size, drop_path_rate, use_grad_checkpoint, precision, state_dict_file
         )

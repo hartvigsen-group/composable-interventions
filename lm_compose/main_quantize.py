@@ -10,7 +10,15 @@ from sparsellm.lib.data import get_c4
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
 from sparsellm.lib.gptq import *
 from sparsellm.lib.modelutils import *
-from sparsellm.lib.prune import AverageBits, check_sparsity, find_layers, prune_ablate, prune_magnitude, prune_sparsegpt, prune_wanda
+from sparsellm.lib.prune import (
+    AverageBits,
+    check_sparsity,
+    find_layers,
+    prune_ablate,
+    prune_magnitude,
+    prune_sparsegpt,
+    prune_wanda,
+)
 from sparsellm.lib.quant import *
 from torch.nn.functional import pad
 from transformers import AutoTokenizer
@@ -122,7 +130,11 @@ class LLMPruningAndValidation:
                 self.model4Quant = model
             elif self.args.quant_method == "autoawq":
                 # quant_config={ "zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM" }
-                model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True}, safetensors=True)
+                model = AutoAWQForCausalLM.from_pretrained(
+                    self.args.model_name,
+                    **{"low_cpu_mem_usage": True},
+                    safetensors=True,
+                )
                 # print(model)
                 self.model = model.model.to(self.device)
                 self.model4Quant = model
@@ -185,7 +197,12 @@ class LLMPruningAndValidation:
             self.model = self.model4Quant.model
 
         elif args.quant_method == "autoawq":
-            quant_config = {"zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM"}
+            quant_config = {
+                "zero_point": args.zero_point,
+                "q_group_size": args.groupsize,
+                "w_bit": args.wbits,
+                "version": "GEMM",
+            }
             self.model4Quant.quantize(self.tokenizer, quant_config=quant_config, calib_data="pileval")
             # self.model4Quant.save_quantized(args.save_model)
             self.model4Quant.model = self.model4Quant.model.to(self.device)
@@ -233,7 +250,12 @@ class LLMPruningAndValidation:
             self.model4Quant.post_init()
             self.model = self.model4Quant.model
         elif args.quant_method == "autoawq":
-            quant_config = {"zero_point": args.zero_point, "q_group_size": args.groupsize, "w_bit": args.wbits, "version": "GEMM"}
+            quant_config = {
+                "zero_point": args.zero_point,
+                "q_group_size": args.groupsize,
+                "w_bit": args.wbits,
+                "version": "GEMM",
+            }
             # model = AutoAWQForCausalLM.from_pretrained(self.args.model_name, **{"low_cpu_mem_usage": True})
             self.model4Quant.pseudoQuantize(self.tokenizer, quant_config=quant_config)
             self.model4Quant.model = self.model4Quant.model.to(self.device)
@@ -288,7 +310,10 @@ class LLMPruningAndValidation:
         assert self.args.method != "quant"
         batch_size, max_seq_length = 1, 128
         flops, macs, params = calculate_flops(
-            model=self.model, input_shape=(batch_size, max_seq_length), transformer_tokenizer=self.tokenizer, is_sparse=True
+            model=self.model,
+            input_shape=(batch_size, max_seq_length),
+            transformer_tokenizer=self.tokenizer,
+            is_sparse=True,
         )
         print("FLOPs:%s, MACs:%s, Params:%s \n" % (flops, macs, params))
         return flops
@@ -352,7 +377,15 @@ class LLMPruningAndValidation:
             accelerate = False
             if "30b" in args.model_name or "65b" in args.model_name or "70b" in args.model_name:
                 accelerate = True
-            task_list = ["boolq", "rte", "hellaswag", "winogrande", "arc_easy", "arc_challenge", "openbookqa"]
+            task_list = [
+                "boolq",
+                "rte",
+                "hellaswag",
+                "winogrande",
+                "arc_easy",
+                "arc_challenge",
+                "openbookqa",
+            ]
             num_shot = 0
             results = eval_zero_shot(args.model_name, model, tokenizer, task_list, num_shot, accelerate)
             print("zero_shot evaluation results")
@@ -377,34 +410,96 @@ def get_args(parser):
         "--prune_method",
         type=str,
         default="wanda",
-        choices=["magnitude", "wanda", "sparsegpt", "ablate_mag_seq", "ablate_wanda_seq", "ablate_mag_iter", "ablate_wanda_iter", "search"],
+        choices=[
+            "magnitude",
+            "wanda",
+            "sparsegpt",
+            "ablate_mag_seq",
+            "ablate_wanda_seq",
+            "ablate_mag_iter",
+            "ablate_wanda_iter",
+            "search",
+        ],
     )
     parser.add_argument("--cache_dir", default="llm_weights", type=str)
-    parser.add_argument("--use_variant", action="store_true", help="whether to use the wanda variant described in the appendix")
+    parser.add_argument(
+        "--use_variant",
+        action="store_true",
+        help="whether to use the wanda variant described in the appendix",
+    )
     parser.add_argument("--save", type=str, default="", help="Path to save results.")
     parser.add_argument("--save_model", type=str, default=None, help="Path to save the pruned model.")
     parser.add_argument("--eval_zero_shot", action="store_true")
     ############For Quantization##########################################
     parser.add_argument(
-        "--quant_method", type=str, default="autogptq", choices=["autoawq", "autogptq"], help="Where to extract calibration data from."
+        "--quant_method",
+        type=str,
+        default="autogptq",
+        choices=["autoawq", "autogptq"],
+        help="Where to extract calibration data from.",
     )
-    parser.add_argument("--method", type=str, default="sparse", choices=["sparse", "quant"], help="Where to extract calibration data from.")
     parser.add_argument(
-        "--dataset", type=str, default="wikitext", choices=["wikitext2", "wikitext", "ptb", "c4"], help="Where to extract calibration data from."
+        "--method",
+        type=str,
+        default="sparse",
+        choices=["sparse", "quant"],
+        help="Where to extract calibration data from.",
     )
-    parser.add_argument("--percdamp", type=float, default=0.01, help="Percent of the average Hessian diagonal to use for dampening.")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="wikitext",
+        choices=["wikitext2", "wikitext", "ptb", "c4"],
+        help="Where to extract calibration data from.",
+    )
+    parser.add_argument(
+        "--percdamp",
+        type=float,
+        default=0.01,
+        help="Percent of the average Hessian diagonal to use for dampening.",
+    )
     parser.add_argument("--nearest", action="store_true", help="Whether to run the RTN baseline.")
-    parser.add_argument("--wbits", type=int, default=16, choices=[3, 4], help="#bits to use for quantization; use 16 for evaluating base model.")
-    parser.add_argument("--groupsize", type=int, default=128, help="Groupsize to use for quantization; default uses full row.")
-    parser.add_argument("--sym", action="store_true", help="Whether to perform symmetric quantization.")
-    parser.add_argument("--new-eval", action="store_true", help="Whether to use the new PTB and C4 eval.")
-    parser.add_argument("--n_ctx", type=int, default=512, help="Context size.")
-    parser.add_argument("--act-order", action="store_true", default=True, help="Whether to apply the activation order GPTQ heuristic")
-    parser.add_argument("--split", type=str, default="test", help="Dataset split to use.")
-    parser.add_argument("--true-sequential", action="store_true", help="Whether to run in true sequential model.")
     parser.add_argument(
-        "--static-groups", action="store_true", help="Whether to use static groups; recommended when using `--actorder` for more efficient inference."
+        "--wbits",
+        type=int,
+        default=16,
+        choices=[3, 4],
+        help="#bits to use for quantization; use 16 for evaluating base model.",
+    )
+    parser.add_argument(
+        "--groupsize",
+        type=int,
+        default=128,
+        help="Groupsize to use for quantization; default uses full row.",
+    )
+    parser.add_argument("--sym", action="store_true", help="Whether to perform symmetric quantization.")
+    parser.add_argument(
+        "--new-eval",
+        action="store_true",
+        help="Whether to use the new PTB and C4 eval.",
+    )
+    parser.add_argument("--n_ctx", type=int, default=512, help="Context size.")
+    parser.add_argument(
+        "--act-order",
+        action="store_true",
+        default=True,
+        help="Whether to apply the activation order GPTQ heuristic",
+    )
+    parser.add_argument("--split", type=str, default="test", help="Dataset split to use.")
+    parser.add_argument(
+        "--true-sequential",
+        action="store_true",
+        help="Whether to run in true sequential model.",
+    )
+    parser.add_argument(
+        "--static-groups",
+        action="store_true",
+        help="Whether to use static groups; recommended when using `--actorder` for more efficient inference.",
     )
     ############################################################################################################
-    parser.add_argument("--zero_point", action="store_true", help="Whether to apply the activation order GPTQ heuristic")
+    parser.add_argument(
+        "--zero_point",
+        action="store_true",
+        help="Whether to apply the activation order GPTQ heuristic",
+    )
     return parser

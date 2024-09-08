@@ -6,7 +6,6 @@ import yaml
 
 @dataclass
 class SERACTrainingHparams(HyperParams):
-
     model_name: str
     model_class: str
     small_name: str
@@ -77,14 +76,15 @@ class SERACTrainingHparams(HyperParams):
 
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):
-
-        if '.yaml' not in hparams_name_or_path:
-            hparams_name_or_path = hparams_name_or_path + '.yaml'
+        if ".yaml" not in hparams_name_or_path:
+            hparams_name_or_path = hparams_name_or_path + ".yaml"
 
         with open(hparams_name_or_path, "r") as stream:
             config = yaml.safe_load(stream)
             config = super().construct_float_from_scientific_notation(config)
 
-        assert (config and config['alg'] == 'SERAC') or print(f'SERACTrainingHyperParams can not load from {hparams_name_or_path}, '
-                                                f'alg_name is {config["alg"]} ')
+        assert (config and config["alg"] == "SERAC") or print(
+            f"SERACTrainingHyperParams can not load from {hparams_name_or_path}, "
+            f'alg_name is {config["alg"]} '
+        )
         return cls(**config)

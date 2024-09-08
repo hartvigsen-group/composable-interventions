@@ -16,18 +16,15 @@ prompt_template = """\
 {prompt}</s>
 <|assistant|>"""
 
-prompt = "You're standing on the surface of the Earth. "\
-        "You walk one mile south, one mile west and one mile north. "\
-        "You end up exactly where you started. Where are you?"
+prompt = (
+    "You're standing on the surface of the Earth. "
+    "You walk one mile south, one mile west and one mile north. "
+    "You end up exactly where you started. Where are you?"
+)
 
 tokens = tokenizer(
-    prompt_template.format(prompt=prompt), 
-    return_tensors='pt'
+    prompt_template.format(prompt=prompt), return_tensors="pt"
 ).input_ids.cuda()
 
 # Generate output
-generation_output = model.generate(
-    tokens, 
-    streamer=streamer,
-    max_new_tokens=512
-)
+generation_output = model.generate(tokens, streamer=streamer, max_new_tokens=512)

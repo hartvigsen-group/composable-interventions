@@ -15,14 +15,14 @@ def get_predictions(
     output_ids: LongTensor,
     num_return_sequences: int,
     tokenizer: PreTrainedTokenizer,
-    classes: List[str]
+    classes: List[str],
 ) -> List[int]:
     predictions = []
     generated_texts = postprocess_generation_ids(
         input_ids=input_ids,
         output_ids=output_ids,
         num_return_sequences=num_return_sequences,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
     )
     for sub_generated_texts in generated_texts:
         sub_predictions = []
@@ -42,7 +42,7 @@ class SequenceClassificationTask(BaseTask):
         prompt_col_name: str,
         label_col_name: str,
         device: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         kwargs["merge_prompt_label"] = False
         super().__init__(
@@ -52,7 +52,7 @@ class SequenceClassificationTask(BaseTask):
             prompt_col_name=prompt_col_name,
             label_col_name=label_col_name,
             device=device,
-            **kwargs
+            **kwargs,
         )
         self.classes = [each.lower().strip() for each in classes]
         classes_ids = self.tokenizer(classes)
@@ -63,21 +63,25 @@ class SequenceClassificationTask(BaseTask):
         output_ids = self.model.generate(
             input_ids=batch_data["input_ids"],
             attention_mask=batch_data["attention_mask"],
-            generation_config=generation_config
+            generation_config=generation_config,
         )
         return get_predictions(
             batch_data["input_ids"],
             output_ids,
             generation_config.num_return_sequences,
             self.tokenizer,
-            self.classes
+            self.classes,
         )
 
     def _parse_labels(self, label_ids: LongTensor) -> List[int]:
         labels = []
         for one_label_ids in label_ids:
-            one_label_ids = one_label_ids[(one_label_ids == -100).sum():]
-            label = self.tokenizer.decode(one_label_ids, clean_up_tokenization_spaces=True).lower().strip()
+            one_label_ids = one_label_ids[(one_label_ids == -100).sum() :]
+            label = (
+                self.tokenizer.decode(one_label_ids, clean_up_tokenization_spaces=True)
+                .lower()
+                .strip()
+            )
             label = get_closest_label(label, self.classes)
             labels.append(label)
 
@@ -91,12 +95,12 @@ class SequenceClassificationTask(BaseTask):
 
         return {"acc": acc}
 
-    def run(self, generation_config: Optional[GenerationConfig] = None) -> Dict[str, float]:
+    def run(
+        self, generation_config: Optional[GenerationConfig] = None
+    ) -> Dict[str, float]:
         if not generation_config:
             generation_config = GenerationConfig(
-                num_beams=1,
-                do_sample=False,
-                num_return_sequences=1
+                num_beams=1, do_sample=False, num_return_sequences=1
             )
         generation_config.max_new_tokens = self.max_new_tokens
         generation_config.eos_token_id = self.tokenizer.eos_token_id

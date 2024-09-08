@@ -396,4 +396,3 @@ if __name__ == "__main__":
     a = RandomAugment()
     img = np.random.randn(32, 32, 3)
     a(img)
-    

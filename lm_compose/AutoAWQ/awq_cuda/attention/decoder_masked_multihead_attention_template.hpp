@@ -945,7 +945,7 @@ __global__ void masked_multihead_attention_kernel(Multihead_attention_params<T, 
     const int kv_rep = (params.num_heads / num_kv_heads);
     const int hi = blockIdx.x;
     const int hi_kv = hi / kv_rep;
-    
+
     // Combine the batch and the head indices.
     const int bhi = bi * params.num_heads + hi;
     const int bhi_kv = bi * (params.num_heads / kv_rep) + hi_kv;

@@ -6,15 +6,14 @@ import yaml
 
 @dataclass
 class SERACMultimodalTrainingHparams(HyperParams):
-
     # Multimodal
     qformer_name_or_path: str
     state_dict_file: str
-    
+
     # Image_dir
     coco_image: str
     rephrase_image: str
-    
+
     # Model
     name: str
     model_name: str
@@ -80,7 +79,7 @@ class SERACMultimodalTrainingHparams(HyperParams):
     val_steps: int
     opt: str
     grad_clip: float
-    
+
     qformer_checkpoint: str
     max_length: int = 32
     model_parallel: bool = False
@@ -89,18 +88,17 @@ class SERACMultimodalTrainingHparams(HyperParams):
     max_iters: Optional[int] = None
     pretrained_ckpt: Optional[str] = None
 
-
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):
-
-        if '.yaml' not in hparams_name_or_path:
-            hparams_name_or_path = hparams_name_or_path + '.yaml'
+        if ".yaml" not in hparams_name_or_path:
+            hparams_name_or_path = hparams_name_or_path + ".yaml"
 
         with open(hparams_name_or_path, "r") as stream:
             config = yaml.safe_load(stream)
             config = super().construct_float_from_scientific_notation(config)
 
-
-        assert (config and config['alg'] == 'SERAC_MULTI') or print(f'SERACMultimodalTrainingHyperParams can not load from {hparams_name_or_path}, '
-                                                f'alg_name is {config["alg"]} ')
+        assert (config and config["alg"] == "SERAC_MULTI") or print(
+            f"SERACMultimodalTrainingHyperParams can not load from {hparams_name_or_path}, "
+            f'alg_name is {config["alg"]} '
+        )
         return cls(**config)

@@ -9,7 +9,9 @@ from ..trainer import *
 from sklearn.metrics import f1_score
 
 
-def test_batch_prediction_acc(model, tok, hparams, prompts, target, device, locality=False):
+def test_batch_prediction_acc(
+    model, tok, hparams, prompts, target, device, locality=False
+):
     prompt_tok = tok(
         prompts,
         padding=True,
@@ -25,11 +27,13 @@ def test_batch_prediction_acc(model, tok, hparams, prompts, target, device, loca
         else:
             logits = outputs.logits
 
-        if tok.padding_side == 'left':
+        if tok.padding_side == "left":
             ans = torch.argmax(logits, dim=-1)[:, -1].squeeze()
         else:
             last_non_masked = prompt_tok["attention_mask"].sum(1) - 1
-            to_gather = last_non_masked.unsqueeze(1).repeat(1, logits.size(-1)).unsqueeze(1)
+            to_gather = (
+                last_non_masked.unsqueeze(1).repeat(1, logits.size(-1)).unsqueeze(1)
+            )
             gathered = torch.gather(logits, 1, to_gather).squeeze(1)
             ans = torch.argmax(gathered, dim=1)
 
@@ -41,9 +45,15 @@ def test_batch_prediction_acc(model, tok, hparams, prompts, target, device, loca
         return np.mean(np.equal(ans, target))
 
 
-def test_seq2seq_batch_prediction_acc(model, tok, hparams, prompts, targets, device, locality=False):
+def test_seq2seq_batch_prediction_acc(
+    model, tok, hparams, prompts, targets, device, locality=False
+):
     if isinstance(prompts, str):
-        prompts,targets = [prompts,], [targets,]
+        prompts, targets = [
+            prompts,
+        ], [
+            targets,
+        ]
     prompt_tok = tok(
         prompts,
         padding=True,
@@ -60,8 +70,8 @@ def test_seq2seq_batch_prediction_acc(model, tok, hparams, prompts, targets, dev
         return_tensors="pt",
     ).to(f"cuda:{device}")
 
-    prompt_tok['decoder_input_ids'] = trg_tok['input_ids']
-    prompt_tok['decoder_attention_mask'] = trg_tok['attention_mask']
+    prompt_tok["decoder_input_ids"] = trg_tok["input_ids"]
+    prompt_tok["decoder_attention_mask"] = trg_tok["attention_mask"]
 
     with torch.no_grad():
         outputs = model(**prompt_tok)
@@ -70,22 +80,50 @@ def test_seq2seq_batch_prediction_acc(model, tok, hparams, prompts, targets, dev
         else:
             logits = outputs.logits
 
-        assert logits.size(1) == trg_tok['input_ids'].size(1)
+        assert logits.size(1) == trg_tok["input_ids"].size(1)
         ans = torch.argmax(logits, dim=-1)
         if locality:
             answers = ans.squeeze().detach().cpu().numpy().tolist()
-            return answers if type(answers[0]) is list else [answers,]
-        return torch.mean((trg_tok['input_ids'][:,:-1] == ans[:,:-1]).float(), dim=-1).detach().cpu().numpy().tolist()
+            return (
+                answers
+                if type(answers[0]) is list
+                else [
+                    answers,
+                ]
+            )
+        return (
+            torch.mean((trg_tok["input_ids"][:, :-1] == ans[:, :-1]).float(), dim=-1)
+            .detach()
+            .cpu()
+            .numpy()
+            .tolist()
+        )
 
 
-def test_prediction_acc(model, tok, hparams, prompts, targets, device, locality=False, vanilla_generation=False):
+def test_prediction_acc(
+    model,
+    tok,
+    hparams,
+    prompts,
+    targets,
+    device,
+    locality=False,
+    vanilla_generation=False,
+):
     if vanilla_generation:
         if isinstance(prompts, str):
-            prompts, targets = [prompts, ], [targets, ]
+            prompts, targets = [
+                prompts,
+            ], [
+                targets,
+            ]
         results = []
         for prompt, target_new in zip(prompts, targets):
-            target_new_tokens = tok.encode(' ' + target_new)
-            if target_new_tokens[0] == tok.pad_token_id or (hasattr(tok, 'bos_token_id') and target_new_tokens[0] == tok.bos_token_id):
+            target_new_tokens = tok.encode(" " + target_new)
+            if target_new_tokens[0] == tok.pad_token_id or (
+                hasattr(tok, "bos_token_id")
+                and target_new_tokens[0] == tok.bos_token_id
+            ):
                 target_new_tokens = tok.encode(targets)
                 target_new_tokens = target_new_tokens[1:]
             prompt_tok = tok(
@@ -93,19 +131,38 @@ def test_prediction_acc(model, tok, hparams, prompts, targets, device, locality=
                 return_tensors="pt",
             ).to(device)
             gen_token = model.generate(
-                input_ids=prompt_tok['input_ids'],
-                attention_mask=prompt_tok['attention_mask'],
-                max_new_tokens=len(target_new_tokens)
+                input_ids=prompt_tok["input_ids"],
+                attention_mask=prompt_tok["attention_mask"],
+                max_new_tokens=len(target_new_tokens),
             )
             if locality:
-                results.append(gen_token.detach().cpu().numpy().tolist()[0][-len(target_new_tokens):])
+                results.append(
+                    gen_token.detach()
+                    .cpu()
+                    .numpy()
+                    .tolist()[0][-len(target_new_tokens) :]
+                )
             else:
-                results.append(np.mean(np.equal(target_new_tokens, gen_token.detach().cpu().numpy().tolist()[0][-len(target_new_tokens):])))
+                results.append(
+                    np.mean(
+                        np.equal(
+                            target_new_tokens,
+                            gen_token.detach()
+                            .cpu()
+                            .numpy()
+                            .tolist()[0][-len(target_new_tokens) :],
+                        )
+                    )
+                )
         return results
 
     if isinstance(prompts, str):
-        prompts,targets = [prompts,], [targets,]
-    prompt_target = [prompt + ' ' + target for prompt, target in zip(prompts,targets)]
+        prompts, targets = [
+            prompts,
+        ], [
+            targets,
+        ]
+    prompt_target = [prompt + " " + target for prompt, target in zip(prompts, targets)]
     max_prompt_len = max([len(tok.encode(_)) for _ in prompt_target]) + 1
     prompt_target_tok = tok(
         prompt_target,
@@ -121,9 +178,13 @@ def test_prediction_acc(model, tok, hparams, prompts, targets, device, locality=
         max_length=max(hparams.max_length, max_prompt_len),
         return_tensors="pt",
     )
-    num_prompt_toks = [int((i != tok.pad_token_id).sum()) for i in prompt_tok['input_ids']]
-    num_pad_toks = [int((i == tok.pad_token_id).sum()) for i in prompt_target_tok['input_ids'].cpu()]
-    prompt_len = [x+y for x,y in zip(num_pad_toks,num_prompt_toks)]
+    num_prompt_toks = [
+        int((i != tok.pad_token_id).sum()) for i in prompt_tok["input_ids"]
+    ]
+    num_pad_toks = [
+        int((i == tok.pad_token_id).sum()) for i in prompt_target_tok["input_ids"].cpu()
+    ]
+    prompt_len = [x + y for x, y in zip(num_pad_toks, num_prompt_toks)]
     with torch.no_grad():
         outputs = model(**prompt_target_tok)
         if type(outputs) is torch.Tensor:
@@ -131,14 +192,22 @@ def test_prediction_acc(model, tok, hparams, prompts, targets, device, locality=
         else:
             logits = outputs.logits
         answers = torch.argmax(logits, dim=-1).squeeze().detach().cpu().numpy().tolist()
-        labels = prompt_target_tok['input_ids'].squeeze().detach().cpu().numpy().tolist()
-        answers = slice_list(answers,prompt_len,left=True)
-        labels = slice_list(labels,prompt_len,left=False)
+        labels = (
+            prompt_target_tok["input_ids"].squeeze().detach().cpu().numpy().tolist()
+        )
+        answers = slice_list(answers, prompt_len, left=True)
+        labels = slice_list(labels, prompt_len, left=False)
         if locality:
-            return answers if type(answers[0]) is list else [answers,]
+            return (
+                answers
+                if type(answers[0]) is list
+                else [
+                    answers,
+                ]
+            )
         if isinstance(answers[0], list):
             res = []
-            for ans,label in zip(answers,labels):
+            for ans, label in zip(answers, labels):
                 temp_acc = np.mean(np.equal(ans, label))
                 if np.isnan(temp_acc):
                     continue
@@ -147,13 +216,14 @@ def test_prediction_acc(model, tok, hparams, prompts, targets, device, locality=
         else:
             return [np.mean(np.equal(answers, labels))]
 
+
 def test_generation_quality_serac(
     model,
     tok,
     prefixes: typing.List[str],
-    max_out_len: int,       
+    max_out_len: int,
 ):
-    #only single case
+    # only single case
     prompt_tok = tok(
         prefixes,
         padding=True,
@@ -161,23 +231,21 @@ def test_generation_quality_serac(
         max_length=512,
         return_tensors="pt",
     )
-    prompt_tok_length=len(prompt_tok['input_ids'])
-    gen_texts=model.generate(**prompt_tok,max_new_tokens=256)
-    if isinstance(model,SERAC):
-        gen_texts=tok.decode(gen_texts[prompt_tok_length:])
-        gen_texts=[gen_texts]
+    prompt_tok_length = len(prompt_tok["input_ids"])
+    gen_texts = model.generate(**prompt_tok, max_new_tokens=256)
+    if isinstance(model, SERAC):
+        gen_texts = tok.decode(gen_texts[prompt_tok_length:])
+        gen_texts = [gen_texts]
         print(len(gen_texts))
     else:
-        gen_texts=tok.decode(gen_texts[prompt_tok_length:])
-        gen_texts=[gen_texts]
-        print(len(gen_texts))      
+        gen_texts = tok.decode(gen_texts[prompt_tok_length:])
+        gen_texts = [gen_texts]
+        print(len(gen_texts))
     ngram_entropy = n_gram_entropy(gen_texts, return_list=True)
 
-
-    ret = {
-        "ngram_entropy": ngram_entropy
-    }
+    ret = {"ngram_entropy": ngram_entropy}
     return ret
+
 
 def test_generation_quality(
     model,
@@ -258,17 +326,25 @@ def PPL(
     device,
 ):
     if isinstance(prompt, str):
-        prompt,target_new = [prompt,], [target_new,]
+        prompt, target_new = [
+            prompt,
+        ], [
+            target_new,
+        ]
     full_prompt = [f"{p} {l}" for p, l in zip(prompt, target_new)]
-    prompt_ids = tok(list(prompt), return_tensors="pt", padding=True, truncation=True)["input_ids"]
+    prompt_ids = tok(list(prompt), return_tensors="pt", padding=True, truncation=True)[
+        "input_ids"
+    ]
     num_prompt_toks = [int((i != tok.pad_token_id).sum()) for i in prompt_ids]
     tokens = tok(full_prompt, return_tensors="pt", padding=True, truncation=True)
     tokens["labels"] = tokens["input_ids"].clone()
     for i in range(len(prompt)):
-        tokens["labels"][i][:num_prompt_toks[i]] = -100
-    tokens["labels"][tokens["input_ids"] == tok.pad_token_id] = -100 # What is this doing?
-    batch = {f"{k1}" : v1 for k1, v1 in tokens.items()}
-    input_ids = batch["input_ids"][:, :1024]#.to(device)
+        tokens["labels"][i][: num_prompt_toks[i]] = -100
+    tokens["labels"][
+        tokens["input_ids"] == tok.pad_token_id
+    ] = -100  # What is this doing?
+    batch = {f"{k1}": v1 for k1, v1 in tokens.items()}
+    input_ids = batch["input_ids"][:, :1024]  # .to(device)
     if "labels" not in batch:
         target_ids = batch["input_ids"][:, :1024].clone()
     else:
@@ -276,7 +352,7 @@ def PPL(
     with torch.no_grad():
         outputs = model(input_ids=input_ids.to(device), labels=target_ids.to(device))
         nll = outputs.loss
-    ppl = torch.exp(nll)#.clip(0, 100)
+    ppl = torch.exp(nll)  # .clip(0, 100)
     return ppl.cpu().numpy().tolist()
 
 
@@ -296,24 +372,30 @@ def answer_match(
     target_new: str,
     device,
 ):
-    inputs = tok.encode(prompt, return_tensors='pt').to(device)
+    inputs = tok.encode(prompt, return_tensors="pt").to(device)
     outputs = model.generate(inputs, temperature=0, max_new_tokens=30)
     predict = tok.decode(outputs[0], skip_special_tokens=True)
 
-    return verify_answer(predict,target_new)
+    return verify_answer(predict, target_new)
 
 
-def slice_list(matrix,start_indices,left):
+def slice_list(matrix, start_indices, left):
     if isinstance(matrix[0], list):
         if left:
-            return [row[start_index-1:-1] for row, start_index in zip(matrix, start_indices)]
+            return [
+                row[start_index - 1 : -1]
+                for row, start_index in zip(matrix, start_indices)
+            ]
         else:
-            return [row[start_index:] for row, start_index in zip(matrix, start_indices)]
+            return [
+                row[start_index:] for row, start_index in zip(matrix, start_indices)
+            ]
     else:
         if left:
-            return matrix[start_indices[0]-1:-1]
+            return matrix[start_indices[0] - 1 : -1]
         else:
-            return matrix[start_indices[0]:]
+            return matrix[start_indices[0] :]
+
 
 def gather_log_probs(logits, labels):
     # print(f"labels.shape: {labels.shape} , logits.shape[:-1] :{logits.shape[:-1]}")
@@ -335,12 +417,11 @@ def mask_hf_labels(labels, null_token=0):
 
 
 def es_sent(pre_logits, edit_logits, q_mask, labels, same_mask):
-    
     _, targ = mask_hf_labels(labels)
 
-    pos_mask = same_mask.unsqueeze(-1) * q_mask 
-    neg_mask = (~same_mask).unsqueeze(-1) * q_mask 
-        
+    pos_mask = same_mask.unsqueeze(-1) * q_mask
+    neg_mask = (~same_mask).unsqueeze(-1) * q_mask
+
     pre_token_log_probs = gather_log_probs(pre_logits, targ)
     edit_token_log_probs = gather_log_probs(edit_logits, targ)
 
@@ -354,28 +435,26 @@ def es_sent(pre_logits, edit_logits, q_mask, labels, same_mask):
 
     es_sent = z_sent * z_topic
     return es_sent
-        
 
 
 def es_per_icl(example, pre_logits, edit_logits):
     with torch.no_grad():
-        
         pre_q_mask = example["inner_pre_prompt"]["q_mask"]
         edit_q_mask = example["inner_edit_prompt"]["q_mask"]
-        
+
         pre_labels = example["inner_pre_prompt"]["labels"]
         edit_labels = example["inner_edit_prompt"]["labels"]
-        
+
         pre_mask, pre_targ = mask_hf_labels(pre_labels)
         edit_mask, edit_targ = mask_hf_labels(edit_labels)
-        
+
         same_per_mask = example["same_per_mask"]
 
-        pre_pos_mask = same_per_mask.unsqueeze(-1) * pre_q_mask 
-        pre_neg_mask = (~same_per_mask).unsqueeze(-1) * pre_q_mask 
-        edit_pos_mask = same_per_mask.unsqueeze(-1) * edit_q_mask 
-        edit_neg_mask = (~same_per_mask).unsqueeze(-1) * edit_q_mask 
-        
+        pre_pos_mask = same_per_mask.unsqueeze(-1) * pre_q_mask
+        pre_neg_mask = (~same_per_mask).unsqueeze(-1) * pre_q_mask
+        edit_pos_mask = same_per_mask.unsqueeze(-1) * edit_q_mask
+        edit_neg_mask = (~same_per_mask).unsqueeze(-1) * edit_q_mask
+
         pre_token_log_probs = gather_log_probs(pre_logits, pre_targ)
         edit_token_log_probs = gather_log_probs(edit_logits, edit_targ)
 
@@ -396,14 +475,12 @@ def es_per_icl(example, pre_logits, edit_logits):
             "correct_probs": mean_pos_edit,
             "wrong_probs": mean_neg_edit,
         }
-        
 
 
 def kl_loc_loss(pre, post, mask=None):
-    
     pre = pre.to(torch.float32).contiguous()
-    post = post[:,-pre.shape[1]:,:].to(torch.float32).contiguous()
-    
+    post = post[:, -pre.shape[1] :, :].to(torch.float32).contiguous()
+
     sequence = pre.dim() == 3
     pre_ = pre.view(-1, pre.shape[-1])
     post_ = post.view(pre_.shape)
@@ -419,15 +496,29 @@ def kl_loc_loss(pre, post, mask=None):
         if pre_.shape[-1] > 1:
             assert mask is not None
             mask_ = mask.view(pre_.shape[0])
-            kl = (pre_.softmax(-1) * (pre_.log_softmax(-1) - post_.log_softmax(-1))).sum(-1)
+            kl = (
+                pre_.softmax(-1) * (pre_.log_softmax(-1) - post_.log_softmax(-1))
+            ).sum(-1)
             return (kl * mask_).sum() / mask_.sum()
 
     raise NotImplementedError
 
-def F1(model, tok, hparams, prompts, targets, device, locality=False, vanilla_generation=True):
+
+def F1(
+    model,
+    tok,
+    hparams,
+    prompts,
+    targets,
+    device,
+    locality=False,
+    vanilla_generation=True,
+):
     if vanilla_generation:
-        target_new_tokens = tok.encode(' ' + targets)
-        if target_new_tokens[0] == tok.pad_token_id or (hasattr(tok, 'bos_token_id') and target_new_tokens[0] == tok.bos_token_id):
+        target_new_tokens = tok.encode(" " + targets)
+        if target_new_tokens[0] == tok.pad_token_id or (
+            hasattr(tok, "bos_token_id") and target_new_tokens[0] == tok.bos_token_id
+        ):
             target_new_tokens = tok.encode(targets)
             target_new_tokens = target_new_tokens[1:]
         prompt_tok = tok(
@@ -435,14 +526,22 @@ def F1(model, tok, hparams, prompts, targets, device, locality=False, vanilla_ge
             return_tensors="pt",
         ).to(device)
         gen_token = model.generate(
-            input_ids=prompt_tok['input_ids'],
-            attention_mask=prompt_tok['attention_mask'],
-            max_new_tokens=len(target_new_tokens)
+            input_ids=prompt_tok["input_ids"],
+            attention_mask=prompt_tok["attention_mask"],
+            max_new_tokens=len(target_new_tokens),
         )
-        return f1_score(target_new_tokens, gen_token.detach().cpu().numpy().tolist()[0][-len(target_new_tokens):], average='macro')
+        return f1_score(
+            target_new_tokens,
+            gen_token.detach().cpu().numpy().tolist()[0][-len(target_new_tokens) :],
+            average="macro",
+        )
     if isinstance(prompts, str):
-        prompts,targets = [prompts,], [targets,]
-    prompt_target = [prompt + ' ' + target for prompt, target in zip(prompts,targets)]
+        prompts, targets = [
+            prompts,
+        ], [
+            targets,
+        ]
+    prompt_target = [prompt + " " + target for prompt, target in zip(prompts, targets)]
     max_prompt_len = max([len(tok.encode(_)) for _ in prompt_target]) + 1
     prompt_target_tok = tok(
         prompt_target,
@@ -458,9 +557,13 @@ def F1(model, tok, hparams, prompts, targets, device, locality=False, vanilla_ge
         max_length=max(hparams.max_length, max_prompt_len),
         return_tensors="pt",
     )
-    num_prompt_toks = [int((i != tok.pad_token_id).sum()) for i in prompt_tok['input_ids']]
-    num_pad_toks = [int((i == tok.pad_token_id).sum()) for i in prompt_target_tok['input_ids'].cpu()]
-    prompt_len = [x+y for x,y in zip(num_pad_toks,num_prompt_toks)]
+    num_prompt_toks = [
+        int((i != tok.pad_token_id).sum()) for i in prompt_tok["input_ids"]
+    ]
+    num_pad_toks = [
+        int((i == tok.pad_token_id).sum()) for i in prompt_target_tok["input_ids"].cpu()
+    ]
+    prompt_len = [x + y for x, y in zip(num_pad_toks, num_prompt_toks)]
     with torch.no_grad():
         outputs = model(**prompt_target_tok)
         if type(outputs) is torch.Tensor:
@@ -468,24 +571,29 @@ def F1(model, tok, hparams, prompts, targets, device, locality=False, vanilla_ge
         else:
             logits = outputs.logits
         answers = torch.argmax(logits, dim=-1).squeeze().detach().cpu().numpy().tolist()
-        labels = prompt_target_tok['input_ids'].squeeze().detach().cpu().numpy().tolist()
-        answers = slice_list(answers,prompt_len,left=True)
-        labels = slice_list(labels,prompt_len,left=False)
+        labels = (
+            prompt_target_tok["input_ids"].squeeze().detach().cpu().numpy().tolist()
+        )
+        answers = slice_list(answers, prompt_len, left=True)
+        labels = slice_list(labels, prompt_len, left=False)
 
-        return f1_score(answers, labels, average='macro')
+        return f1_score(answers, labels, average="macro")
 
 
-
-def test_instance_change(model, tok, max_length, prompts, targets, device, P = None):
+def test_instance_change(model, tok, max_length, prompts, targets, device, P=None):
     demo1_str = "Whether FrancoAngeli belongs to category publisher? Yes\nWhether And Other Stories belongs to category people? No\n"
     if P is None:
-        prompts = demo1_str +prompts
+        prompts = demo1_str + prompts
     else:
         prompts = P + demo1_str + prompts
 
     if isinstance(prompts, str):
-        prompts,targets = [prompts,], [targets,]
-    prompt_target = [prompt + ' ' + target for prompt, target in zip(prompts,targets)]
+        prompts, targets = [
+            prompts,
+        ], [
+            targets,
+        ]
+    prompt_target = [prompt + " " + target for prompt, target in zip(prompts, targets)]
     max_prompt_len = max([len(tok.encode(_)) for _ in prompt_target]) + 1
     prompt_tok = tok(
         prompts,
@@ -496,14 +604,17 @@ def test_instance_change(model, tok, max_length, prompts, targets, device, P = N
     )
     with torch.no_grad():
         pre_edit_outputs = model.generate(
-            input_ids=prompt_tok['input_ids'].to(f"cuda:{device}"),
-            attention_mask=prompt_tok['attention_mask'].to(f"cuda:{device}"),
+            input_ids=prompt_tok["input_ids"].to(f"cuda:{device}"),
+            attention_mask=prompt_tok["attention_mask"].to(f"cuda:{device}"),
             max_new_tokens=2,
-            pad_token_id=tok.eos_token_id
+            pad_token_id=tok.eos_token_id,
         )
 
-        model_response = [tok.decode(x, skip_special_tokens=True) for x in pre_edit_outputs.detach().cpu().numpy().tolist()]
-        answer = model_response[0][model_response[0].rfind('?')+2:]
+        model_response = [
+            tok.decode(x, skip_special_tokens=True)
+            for x in pre_edit_outputs.detach().cpu().numpy().tolist()
+        ]
+        answer = model_response[0][model_response[0].rfind("?") + 2 :]
         # print(model_response[0], answer)
 
         if "yes" in answer.lower():
@@ -514,11 +625,16 @@ def test_instance_change(model, tok, max_length, prompts, targets, device, P = N
                 return np.array([-1.0])
             return np.zeros(1)
 
+
 def test_concept_gen(model, tok, max_length, prompts, targets, device):
     if isinstance(prompts, str):
-        prompts,targets = [prompts,], [targets,]
-    prompts = [prompt + ' ' for prompt in prompts]
-    prompt_target = [prompt + ' ' + target for prompt, target in zip(prompts,targets)]
+        prompts, targets = [
+            prompts,
+        ], [
+            targets,
+        ]
+    prompts = [prompt + " " for prompt in prompts]
+    prompt_target = [prompt + " " + target for prompt, target in zip(prompts, targets)]
     max_prompt_len = max([len(tok.encode(_)) for _ in prompt_target]) + 1
     prompt_tok = tok(
         prompts,
@@ -529,12 +645,15 @@ def test_concept_gen(model, tok, max_length, prompts, targets, device):
     )
     with torch.no_grad():
         pre_edit_outputs = model.generate(
-            input_ids=prompt_tok['input_ids'].to(f"cuda:{device}"),
-            attention_mask=prompt_tok['attention_mask'].to(f"cuda:{device}"),
+            input_ids=prompt_tok["input_ids"].to(f"cuda:{device}"),
+            attention_mask=prompt_tok["attention_mask"].to(f"cuda:{device}"),
             max_new_tokens=40,
-            pad_token_id=tok.eos_token_id
+            pad_token_id=tok.eos_token_id,
         )
 
-        model_response = [tok.decode(x, skip_special_tokens=True) for x in pre_edit_outputs.detach().cpu().numpy().tolist()]
-        answer = model_response[0][len(prompts[0]):]
+        model_response = [
+            tok.decode(x, skip_special_tokens=True)
+            for x in pre_edit_outputs.detach().cpu().numpy().tolist()
+        ]
+        answer = model_response[0][len(prompts[0]) :]
         return answer

@@ -6,7 +6,6 @@ import yaml
 
 @dataclass
 class MENDTrainingHparams(HyperParams):
-
     # Model
     model_name: str
     model_class: str
@@ -51,8 +50,8 @@ class MENDTrainingHparams(HyperParams):
     model_save_pt: int
     silent: bool
     log_interval: int
-    eval_log_interval:int
-    final_eval:bool
+    eval_log_interval: int
+    final_eval: bool
     val_interval: int
     early_stop_patience: int
     early_stop_key: str
@@ -73,14 +72,15 @@ class MENDTrainingHparams(HyperParams):
 
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):
-
-        if '.yaml' not in hparams_name_or_path:
-            hparams_name_or_path = hparams_name_or_path + '.yaml'
+        if ".yaml" not in hparams_name_or_path:
+            hparams_name_or_path = hparams_name_or_path + ".yaml"
 
         with open(hparams_name_or_path, "r") as stream:
             config = yaml.safe_load(stream)
             config = super().construct_float_from_scientific_notation(config)
 
-        assert (config and config['alg'] == 'MEND') or print(f'MENDTrainingHyperParams can not load from {hparams_name_or_path}, '
-                                                f'alg_name is {config["alg"]} ')
+        assert (config and config["alg"] == "MEND") or print(
+            f"MENDTrainingHyperParams can not load from {hparams_name_or_path}, "
+            f'alg_name is {config["alg"]} '
+        )
         return cls(**config)

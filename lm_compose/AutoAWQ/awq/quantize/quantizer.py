@@ -10,15 +10,33 @@ from awq.utils.utils import clear_memory
 from awq.utils.calib_data import get_calib_dataset
 from awq.quantize.scale import apply_scale, apply_clip
 from awq.modules.linear import WQLinear_GEMM, WQLinear_GEMV
-from awq.utils.module import append_str_prefix, get_op_name, get_named_linears, set_op_by_name
+from awq.utils.module import (
+    append_str_prefix,
+    get_op_name,
+    get_named_linears,
+    set_op_by_name,
+)
 import copy
 
+
 class AwqQuantizer:
-    def __init__(self, awq_model, model, tokenizer, w_bit, group_size, version, 
-                       calib_data, split, text_column, duo_scaling, modules_to_not_convert=None) -> None:
+    def __init__(
+        self,
+        awq_model,
+        model,
+        tokenizer,
+        w_bit,
+        group_size,
+        version,
+        calib_data,
+        split,
+        text_column,
+        duo_scaling,
+        modules_to_not_convert=None,
+    ) -> None:
         self.awq_model = awq_model
         self.model = model
-        self.pseudo_qmodel=copy.deepcopy(self.model)
+        self.pseudo_qmodel = copy.deepcopy(self.model)
         self.tokenizer = tokenizer
         self.w_bit = w_bit
         self.group_size = group_size
@@ -27,9 +45,11 @@ class AwqQuantizer:
         self.split = split
         self.text_column = text_column
         self.duo_scaling = duo_scaling
-        self.modules_to_not_convert = modules_to_not_convert if modules_to_not_convert is not None else []
+        self.modules_to_not_convert = (
+            modules_to_not_convert if modules_to_not_convert is not None else []
+        )
         self.modules, self.module_kwargs, self.inps = self.init_quant()
-    
+
     def pseudo_quantize_tensor(self, w: torch.Tensor, get_scale_zp=False):
         org_w_shape = w.shape
         if self.group_size > 0:
@@ -40,7 +60,7 @@ class AwqQuantizer:
         # zero point quantization
         max_val = w.amax(dim=1, keepdim=True)
         min_val = w.amin(dim=1, keepdim=True)
-        max_int = 2 ** self.w_bit - 1
+        max_int = 2**self.w_bit - 1
         min_int = 0
         scales = (max_val - min_val).clamp(min=1e-5) / max_int
         zeros = (-torch.round(min_val / scales)).clamp_(min_int, max_int)
@@ -48,7 +68,9 @@ class AwqQuantizer:
         assert torch.isnan(scales).sum() == 0
         assert torch.isnan(w).sum() == 0
 
-        w = (torch.clamp(torch.round(w / scales) + zeros, min_int, max_int) - zeros) * scales
+        w = (
+            torch.clamp(torch.round(w / scales) + zeros, min_int, max_int) - zeros
+        ) * scales
         assert torch.isnan(w).sum() == 0
 
         w = w.reshape(org_w_shape)
@@ -57,8 +79,10 @@ class AwqQuantizer:
             return w, scales.view(w.shape[0], -1), zeros.view(w.shape[0], -1)
         else:
             return w
-    
-    def pseudo_dequantize_tensor(self, w: nn.Linear, scales: torch.Tensor, zeros: torch.Tensor):
+
+    def pseudo_dequantize_tensor(
+        self, w: nn.Linear, scales: torch.Tensor, zeros: torch.Tensor
+    ):
         # get repeated count
         repeat_count = w.weight.data.shape[-1] // zeros.shape[-1]
 
@@ -70,14 +94,14 @@ class AwqQuantizer:
         w = (w.weight.data - zeros) * scales
 
         return w
-    
+
     def _exclude_layers_to_not_quantize(self, linear_layers):
         filtered_layers = {}
         for name, linear_layer in linear_layers.items():
             if not any(key in name for key in self.modules_to_not_convert):
                 filtered_layers[name] = linear_layer
         return filtered_layers
-    
+
     def quantize(self):
         for i in tqdm(range(len(self.modules)), desc="AWQ"):
             # Move module and inputs to correct device
@@ -85,7 +109,7 @@ class AwqQuantizer:
             if common_device is None or str(common_device) == "cpu":
                 self.modules[i] = self.modules[i].cuda()
                 common_device = next(self.modules[i].parameters()).device
-            
+
             self.inps = self.inps.to(common_device)
 
             # [STEP 1]: Get layer, extract linear modules, extract input features
@@ -101,18 +125,28 @@ class AwqQuantizer:
             module_config: List[Dict] = self.awq_model.get_layers_for_scaling(
                 self.modules[i], input_feat, self.module_kwargs
             )
-            scales_list = [self._search_best_scale(self.modules[i], **layer) for layer in module_config]
+            scales_list = [
+                self._search_best_scale(self.modules[i], **layer)
+                for layer in module_config
+            ]
             apply_scale(self.modules[i], scales_list, input_feat_dict=input_feat)
-            scales_list = append_str_prefix(scales_list, get_op_name(self.model, self.modules[i]) + ".")
+            scales_list = append_str_prefix(
+                scales_list, get_op_name(self.model, self.modules[i]) + "."
+            )
 
             # [STEP 3]: Compute and apply clipping list
-            clip_list = self._search_best_clip(self.modules[i], named_linears, input_feat)
+            clip_list = self._search_best_clip(
+                self.modules[i], named_linears, input_feat
+            )
             apply_clip(self.modules[i], clip_list)
-            clip_list = append_str_prefix(clip_list, get_op_name(self.model, self.modules[i]) + ".")
+            clip_list = append_str_prefix(
+                clip_list, get_op_name(self.model, self.modules[i]) + "."
+            )
 
             # [STEP 4]: Quantize weights
             self._apply_quant(self.modules[i], named_linears)
             clear_memory()
+
     def pseudoQuantize(self):
         for i in tqdm(range(len(self.modules)), desc="AWQ"):
             # Move module and inputs to correct device
@@ -120,7 +154,7 @@ class AwqQuantizer:
             if common_device is None or str(common_device) == "cpu":
                 self.modules[i] = self.modules[i].cuda()
                 common_device = next(self.modules[i].parameters()).device
-            
+
             self.inps = self.inps.to(common_device)
 
             # [STEP 1]: Get layer, extract linear modules, extract input features
@@ -136,71 +170,88 @@ class AwqQuantizer:
             module_config: List[Dict] = self.awq_model.get_layers_for_scaling(
                 self.modules[i], input_feat, self.module_kwargs
             )
-            scales_list = [self._search_best_scale(self.modules[i], **layer) for layer in module_config]
+            scales_list = [
+                self._search_best_scale(self.modules[i], **layer)
+                for layer in module_config
+            ]
             apply_scale(self.modules[i], scales_list, input_feat_dict=input_feat)
-            scales_list = append_str_prefix(scales_list, get_op_name(self.model, self.modules[i]) + ".")
+            scales_list = append_str_prefix(
+                scales_list, get_op_name(self.model, self.modules[i]) + "."
+            )
 
             # [STEP 3]: Compute and apply clipping list
-            clip_list = self._search_best_clip(self.modules[i], named_linears, input_feat)
+            clip_list = self._search_best_clip(
+                self.modules[i], named_linears, input_feat
+            )
             apply_clip(self.modules[i], clip_list)
-            clip_list = append_str_prefix(clip_list, get_op_name(self.model, self.modules[i]) + ".")
+            clip_list = append_str_prefix(
+                clip_list, get_op_name(self.model, self.modules[i]) + "."
+            )
 
             # [STEP 4]: Quantize weights
             self._pseduo_apply_quant(self.modules[i], named_linears)
-            clear_memory()    
+            clear_memory()
+
     def _apply_quant(self, module, named_linears: Dict[str, nn.Linear]):
         for name, linear_layer in named_linears.items():
             # NOTE: small regression in perplexity if linear layer uses .cpu().float()
             linear_layer = linear_layer.cuda().half()
 
             linear_layer.weight.data, scales, zeros = self.pseudo_quantize_tensor(
-                linear_layer.weight.data, 
-                get_scale_zp=True
+                linear_layer.weight.data, get_scale_zp=True
             )
 
-            if self.version == 'GEMM':
+            if self.version == "GEMM":
                 scales = scales.t().contiguous()
                 zeros = zeros.t().contiguous()
                 q_linear_module = WQLinear_GEMM
 
-            elif self.version  == 'GEMV':
+            elif self.version == "GEMV":
                 q_linear_module = WQLinear_GEMV
-            
+
             q_linear = q_linear_module.from_linear(
                 linear=linear_layer,
                 w_bit=self.w_bit,
                 group_size=self.group_size,
                 init_only=False,
                 scales=scales,
-                zeros=zeros
+                zeros=zeros,
             )
 
             linear_layer.cpu()
             q_linear.to(next(module.parameters()).device)
             set_op_by_name(module, name, q_linear)
             clear_memory()
+
     def _pseduo_apply_quant(self, module, named_linears: Dict[str, nn.Linear]):
         for name, linear_layer in named_linears.items():
             # NOTE: small regression in perplexity if linear layer uses .cpu().float()
             linear_layer = linear_layer.cuda().half()
 
             linear_layer.weight.data, scales, zeros = self.pseudo_quantize_tensor(
-                linear_layer.weight.data, 
-                get_scale_zp=True
+                linear_layer.weight.data, get_scale_zp=True
             )
 
             set_op_by_name(module, name, linear_layer)
             clear_memory()
 
     @torch.no_grad()
-    def _search_best_scale(self, module, prev_op, layers: List[nn.Linear], inp: torch.Tensor, module2inspect=None, kwargs={}):
+    def _search_best_scale(
+        self,
+        module,
+        prev_op,
+        layers: List[nn.Linear],
+        inp: torch.Tensor,
+        module2inspect=None,
+        kwargs={},
+    ):
         if module2inspect is None:
             assert len(layers) == 1
             module2inspect = layers[0]
-        
+
         if "use_cache" in kwargs:
             kwargs.pop("use_cache")
-        
+
         # Put x on the right device
         inp = inp.to(next(module2inspect.parameters()).device)
 
@@ -223,17 +274,28 @@ class AwqQuantizer:
             fp16_output = module2inspect(inp, **module_kwargs)
             if isinstance(fp16_output, tuple):
                 fp16_output = fp16_output[0]
-        
+
         # [STEP 4]: Compute loss
         best_scales = self._compute_best_scale(
-            inp, w_max, x_max, module2inspect,
-            layers, fp16_output, module_kwargs
+            inp, w_max, x_max, module2inspect, layers, fp16_output, module_kwargs
         )
-        
-        return (get_op_name(module, prev_op), tuple([get_op_name(module, m) for m in layers]), best_scales)
 
-    def _compute_best_scale(self, x, w_max, x_max, module2inspect, linears2scale: List[nn.Linear],
-                                  fp16_output, kwargs={}):
+        return (
+            get_op_name(module, prev_op),
+            tuple([get_op_name(module, m) for m in layers]),
+            best_scales,
+        )
+
+    def _compute_best_scale(
+        self,
+        x,
+        w_max,
+        x_max,
+        module2inspect,
+        linears2scale: List[nn.Linear],
+        fp16_output,
+        kwargs={},
+    ):
         """
         Compute loss and select best scales
 
@@ -247,21 +309,21 @@ class AwqQuantizer:
         history = []
         best_ratio = -1
         best_scales = None
-        best_error = float('inf')
+        best_error = float("inf")
 
         org_sd = {k: v.cpu() for k, v in module2inspect.state_dict().items()}
-        
+
         device = x.device
         x_max = x_max.view(-1).to(device)
         w_max = w_max.view(-1).to(device)
-        
+
         for ratio in range(n_grid):
             # create new scales
             ratio = ratio / n_grid
 
             # NOTE: s^-1 * x is fused here, according to paper
             if self.duo_scaling:
-                scales = (x_max.pow(ratio) / w_max.pow(1-ratio)).clamp(min=1e-4)
+                scales = (x_max.pow(ratio) / w_max.pow(1 - ratio)).clamp(min=1e-4)
             else:
                 scales = x_max.pow(ratio).clamp(min=1e-4).view(-1)
             scales = scales / (scales.max() * scales.min()).sqrt()
@@ -270,15 +332,19 @@ class AwqQuantizer:
             # Q(W * s)
             for fc in linears2scale:
                 fc.weight.mul_(scales_view)
-                fc.weight.data = self.pseudo_quantize_tensor(fc.weight.data) / scales_view
+                fc.weight.data = (
+                    self.pseudo_quantize_tensor(fc.weight.data) / scales_view
+                )
 
             # W * X
             int_w_output = module2inspect(x, **kwargs)
             if isinstance(int_w_output, tuple):
                 int_w_output = int_w_output[0]
-            
+
             # compute mean squared error (L2 norm)
-            loss = (fp16_output - int_w_output).float().pow(2).mean().item() # NOTE: float prevents overflow
+            loss = (
+                (fp16_output - int_w_output).float().pow(2).mean().item()
+            )  # NOTE: float prevents overflow
 
             history.append(loss)
             if loss < best_error:
@@ -306,15 +372,24 @@ class AwqQuantizer:
                 continue
 
             named_linears[name].cuda()
-            max_val = self._compute_best_clip(named_linears[name].weight, input_feat[name])
+            max_val = self._compute_best_clip(
+                named_linears[name].weight, input_feat[name]
+            )
             clip_list.append((name, max_val))
 
             named_linears[name].cpu()
-        
+
         return clip_list
 
     @torch.no_grad()
-    def _compute_best_clip(self, w: torch.Tensor, input_feat: torch.Tensor, n_grid=20, max_shrink=0.5, n_sample_token=512):
+    def _compute_best_clip(
+        self,
+        w: torch.Tensor,
+        input_feat: torch.Tensor,
+        n_grid=20,
+        max_shrink=0.5,
+        n_sample_token=512,
+    ):
         assert w.dim() == 2
         org_w_shape = w.shape
         # w           [co, ci]      -> [co, 1, n_group, group size]
@@ -322,7 +397,7 @@ class AwqQuantizer:
         group_size = self.group_size if self.group_size > 0 else w.shape[1]
         input_feat = input_feat.view(-1, input_feat.shape[-1])
         input_feat = input_feat.reshape(1, input_feat.shape[0], -1, group_size)
-        input_feat = input_feat[:, 0::input_feat.shape[1] // n_sample_token]
+        input_feat = input_feat[:, 0 :: input_feat.shape[1] // n_sample_token]
         w = w.reshape(w.shape[0], 1, -1, group_size)
 
         oc_batch_size = 256 if w.shape[0] % 256 == 0 else 64  # prevent OOM
@@ -331,7 +406,7 @@ class AwqQuantizer:
         best_max_val_all = []
 
         for i_b in range(w.shape[0] // oc_batch_size):
-            w = w_all[i_b * oc_batch_size: (i_b + 1) * oc_batch_size]
+            w = w_all[i_b * oc_batch_size : (i_b + 1) * oc_batch_size]
 
             org_max_val = w.abs().amax(dim=-1, keepdim=True)  # co, 1, n_group, 1
 
@@ -342,7 +417,7 @@ class AwqQuantizer:
 
             for i_s in range(int(max_shrink * n_grid)):
                 max_val = org_max_val * (1 - i_s / n_grid)
-                min_val = - max_val
+                min_val = -max_val
                 cur_w = torch.clamp(w, min_val, max_val)
                 q_w = self.pseudo_quantize_tensor(cur_w)
                 cur_out = (input_feat * q_w).sum(dim=-1)
@@ -366,8 +441,12 @@ class AwqQuantizer:
     def init_quant(self, n_samples=128, seqlen=512):
         modules = self.awq_model.get_model_layers(self.model)
         samples = get_calib_dataset(
-            data=self.calib_data, tokenizer=self.tokenizer, n_samples=n_samples, block_size=seqlen,
-            split=self.split, text_column=self.text_column
+            data=self.calib_data,
+            tokenizer=self.tokenizer,
+            n_samples=n_samples,
+            block_size=seqlen,
+            split=self.split,
+            text_column=self.text_column,
         )
         samples = torch.cat(samples, dim=0)
 
@@ -376,7 +455,7 @@ class AwqQuantizer:
 
         modules[0] = modules[0].cuda()
         self.awq_model.move_embed(self.model, "cuda")
-        
+
         # get input and kwargs to layer 0
         # with_kwargs is only supported in PyTorch 2.0
         # use this Catcher hack for now
@@ -404,7 +483,7 @@ class AwqQuantizer:
             self.model(samples.to(next(self.model.parameters()).device))
         except ValueError:  # work with early exit
             pass
-        
+
         # Update the layer kwargs with `prepare_inputs_for_generation` method
         # that takes care of everything to avoid unexpected errors.
         layer_kwargs = self.model.prepare_inputs_for_generation(samples, **layer_kwargs)
@@ -417,14 +496,14 @@ class AwqQuantizer:
 
         modules[0] = modules[0].cpu()
         self.awq_model.move_embed(self.model, "cpu")
-        
+
         clear_memory()
-        
+
         if layer_kwargs.get("attention_mask") is not None:
             layer_kwargs["attention_mask"] = layer_kwargs["attention_mask"].to("cuda")
 
         return modules, layer_kwargs, inps
-    
+
     def _get_input_feat(self, layer, named_linears):
         # firstly, get input features of all linear layers
         def cache_input_hook(m, x, y, name, feat_dict):
@@ -435,12 +514,14 @@ class AwqQuantizer:
         input_feat = defaultdict(list)
         handles = []
         for name in named_linears:
-            handles.append(named_linears[name].register_forward_hook(
-                functools.partial(cache_input_hook, name=name,
-                                feat_dict=input_feat)))
+            handles.append(
+                named_linears[name].register_forward_hook(
+                    functools.partial(cache_input_hook, name=name, feat_dict=input_feat)
+                )
+            )
         self.inps = self.inps.to(next(layer.parameters()).device)  # in case multi-gpu
         # get output as next layer's input
-        
+
         # Sanitize the kwargs in case we use transformers version that contains
         # kwargs that are not handled by the module.
         # Useful for trust_remote_code models.
@@ -451,15 +532,14 @@ class AwqQuantizer:
             h.remove()
         # now solve for scaling and clipping
         input_feat = {k: torch.cat(v, dim=0) for k, v in input_feat.items()}
-        
-        return input_feat
 
+        return input_feat
 
     def _sanitize_kwargs(self, inputs_kwargs, module):
         """
         Remove the arguments that are not supported in the module's
         forward pass to avoid breaking behaviour between different versions
-        of transformers. 
+        of transformers.
 
         Args:
             inputs_kwargs (`dict`):
@@ -469,7 +549,7 @@ class AwqQuantizer:
         """
         module_signature = inspect.signature(module.forward).parameters
         sanitized_kwargs = {}
-        for k, v in  inputs_kwargs.items():
+        for k, v in inputs_kwargs.items():
             if k in module_signature:
                 sanitized_kwargs[k] = v
         return sanitized_kwargs

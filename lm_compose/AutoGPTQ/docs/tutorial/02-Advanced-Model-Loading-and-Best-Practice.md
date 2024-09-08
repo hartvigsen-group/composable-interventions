@@ -54,7 +54,7 @@ max_memory = {0: "20GIB", "cpu": "20GIB"}
 In this case, you can also load model that smaller than 40GB but the rest 20GB will be kept in CPU memory, only be collected into GPU when needed.
 
 ### device_map
-So far, only `.from_quantized` supports this argument. 
+So far, only `.from_quantized` supports this argument.
 
 You can provide a string to this argument to use pre-set model loading strategies. Current valid values are `["auto", "balanced", "balanced_low_0", "sequential"]`
 

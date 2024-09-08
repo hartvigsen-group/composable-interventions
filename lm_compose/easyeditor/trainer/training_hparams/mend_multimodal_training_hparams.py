@@ -6,15 +6,14 @@ import yaml
 
 @dataclass
 class MENDMultimodalTrainingHparams(HyperParams):
-    
     # Multimodal
     qformer_name_or_path: str
     state_dict_file: str
-    
+
     # Image_dir
     coco_image: str
     rephrase_image: str
-    
+
     # Model
     name: str
     model_name: str
@@ -62,8 +61,8 @@ class MENDMultimodalTrainingHparams(HyperParams):
     model_save_pt: int
     silent: bool
     log_interval: int
-    eval_log_interval:int
-    final_eval:bool
+    eval_log_interval: int
+    final_eval: bool
     val_interval: int
     early_stop_patience: int
     early_stop_key: str
@@ -82,20 +81,20 @@ class MENDMultimodalTrainingHparams(HyperParams):
     model_parallel: bool = False
     freeze_qformer: bool = True
     max_epochs: Optional[int] = None
-    max_iters: Optional[int] = None  
-    pretrained_ckpt: Optional[str] = None  
-    
+    max_iters: Optional[int] = None
+    pretrained_ckpt: Optional[str] = None
+
     @classmethod
     def from_hparams(cls, hparams_name_or_path: str):
-
-        if '.yaml' not in hparams_name_or_path:
-            hparams_name_or_path = hparams_name_or_path + '.yaml'
+        if ".yaml" not in hparams_name_or_path:
+            hparams_name_or_path = hparams_name_or_path + ".yaml"
 
         with open(hparams_name_or_path, "r") as stream:
             config = yaml.safe_load(stream)
             config = super().construct_float_from_scientific_notation(config)
 
-        assert (config and config['alg'] == 'MEND') or print(f'MENDMultimodalTrainingHyperParams can not load from {hparams_name_or_path}, '
-                                                f'alg_name is {config["alg"]} ')
+        assert (config and config["alg"] == "MEND") or print(
+            f"MENDMultimodalTrainingHyperParams can not load from {hparams_name_or_path}, "
+            f'alg_name is {config["alg"]} '
+        )
         return cls(**config)
-

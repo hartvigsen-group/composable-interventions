@@ -30,6 +30,7 @@ from torchvision.datasets.utils import (
     extract_archive,
 )
 
+
 def now():
     from datetime import datetime
 
@@ -47,10 +48,10 @@ def get_cache_path(rel_path):
 
 def get_abs_path(rel_path):
     cwd = os.getcwd()
-    
+
     # Join the relative path with the current working directory to get the absolute path
     abs_path = os.path.join(cwd, rel_path)
-    
+
     # Return the absolute path
     return abs_path
 
@@ -119,7 +120,6 @@ def download_google_drive_url(url: str, output_path: str, output_file_name: str)
     import requests
 
     with requests.Session() as session:
-
         # First get the confirmation token and append it to the URL
         with session.get(url, stream=True, allow_redirects=True) as response:
             for k, v in response.cookies.items():

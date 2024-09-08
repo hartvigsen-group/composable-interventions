@@ -39,7 +39,7 @@ Note: The English README is likely to be more up to date.
 
 ### 推理速度
 > 以下结果通过[这个脚本](examples/benchmark/generation_speed.py)生成，文本输入的 batch size 为1，解码策略为 beam search 并且强制模型生成512个 token，速度的计量单位为 tokens/s（越大越好）。
-> 
+>
 > 量化模型通过能够最大化推理速度的方式加载。
 
 | model         | GPU           | num_beams | fp16  | gptq-int4 |
@@ -152,7 +152,7 @@ model.save_quantized(quantized_model_dir)
 # 使用 safetensors 保存量化好的模型
 model.save_quantized(quantized_model_dir, use_safetensors=True)
 
-# 将量化好的模型直接上传至 Hugging Face Hub 
+# 将量化好的模型直接上传至 Hugging Face Hub
 # 当使用 use_auth_token=True 时, 确保你已经首先使用 huggingface-cli login 进行了登录
 # 或者可以使用 use_auth_token="hf_xxxxxxx" 来显式地添加账户认证 token
 # （取消下面三行代码的注释来使用该功能）
@@ -201,8 +201,8 @@ class OPTGPTQForCausalLM(BaseGPTQForCausalLM):
         "model.decoder.project_in", "model.decoder.final_layer_norm"
     ]
     # chained attribute names of linear layers in transformer layer module
-    # normally, there are four sub lists, for each one the modules in it can be seen as one operation, 
-    # and the order should be the order when they are truly executed, in this case (and usually in most cases), 
+    # normally, there are four sub lists, for each one the modules in it can be seen as one operation,
+    # and the order should be the order when they are truly executed, in this case (and usually in most cases),
     # they are: attention q_k_v projection, attention output projection, MLP project input, MLP project output
     inside_layer_modules = [
         ["self_attn.k_proj", "self_attn.v_proj", "self_attn.q_proj"],
@@ -274,14 +274,14 @@ task = SequenceClassificationTask(
             "num_samples": 1000,  # how many samples will be sampled to evaluation
             "sample_max_len": 1024,  # max tokens for each sample
             "block_max_len": 2048,  # max tokens for each data block
-            # function to load dataset, one must only accept data_name_or_path as input 
+            # function to load dataset, one must only accept data_name_or_path as input
             # and return datasets.Dataset
-            "load_fn": partial(datasets.load_dataset, name="english"),  
-            # function to preprocess dataset, which is used for datasets.Dataset.map, 
+            "load_fn": partial(datasets.load_dataset, name="english"),
+            # function to preprocess dataset, which is used for datasets.Dataset.map,
             # must return Dict[str, list] with only two keys: [prompt_col_name, label_col_name]
-            "preprocess_fn": ds_refactor_fn,  
+            "preprocess_fn": ds_refactor_fn,
             # truncate label when sample's length exceed sample_max_len
-            "truncate_prompt": False  
+            "truncate_prompt": False
         }
     )
 
@@ -310,7 +310,7 @@ print(
 ## 支持的模型
 
 > 你可以使用 `model.config.model_type` 来对照下表以检查你正在使用的一个模型是否被 `auto_gptq` 所支持。
-> 
+>
 > 比如， `WizardLM`，`vicuna` 和 `gpt4all` 模型的 `model_type` 皆为 `llama`， 因此这些模型皆被 `auto_gptq` 所支持。
 
 | model type                         | quantization | inference | peft-lora | peft-ada-lora | peft-adaption_prompt                                                              |

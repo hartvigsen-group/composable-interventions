@@ -69,7 +69,7 @@ void vecquant2matmul_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize
-); 
+);
 
 void vecquant2matmul_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -84,7 +84,7 @@ void vecquant3matmul_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize
-); 
+);
 
 void vecquant3matmul_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -99,7 +99,7 @@ void vecquant4matmul_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize
-); 
+);
 
 void vecquant4matmul_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -114,7 +114,7 @@ void vecquant8matmul_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize
-); 
+);
 
 void vecquant8matmul_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -129,7 +129,7 @@ void vecquant2matmul_faster_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize, int vec_height
-); 
+);
 
 void vecquant2matmul_faster_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -144,7 +144,7 @@ void vecquant3matmul_faster_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize, int vec_height
-); 
+);
 
 void vecquant3matmul_faster_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -159,7 +159,7 @@ void vecquant4matmul_faster_cuda_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros,
   int groupsize, int vec_height
-); 
+);
 
 void vecquant4matmul_faster_old(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
@@ -176,7 +176,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("vecquant3matmul", &vecquant3matmul, "Vector 3-bit Quantized Matrix Multiplication (CUDA) (desc_act)");
   m.def("vecquant4matmul", &vecquant4matmul, "Vector 4-bit Quantized Matrix Multiplication (CUDA) (desc_act)");
   m.def("vecquant8matmul", &vecquant8matmul, "Vector 8-bit Quantized Matrix Multiplication (CUDA) (desc_act)");
-  
+
   m.def("vecquant2matmul_old", &vecquant2matmul_old, "Vector 2-bit Quantized Matrix Multiplication (CUDA)");
   m.def("vecquant3matmul_old", &vecquant3matmul_old, "Vector 3-bit Quantized Matrix Multiplication (CUDA)");
   m.def("vecquant4matmul_old", &vecquant4matmul_old, "Vector 4-bit Quantized Matrix Multiplication (CUDA)");

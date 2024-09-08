@@ -13,9 +13,12 @@ logger = getLogger(__name__)
 try:
     from exllama_kernels import make_q4, q4_matmul
 except ImportError as exllama_import_exception:
+
     def error_raiser_exllama(*args, **kwargs):
-        raise ValueError(f"Trying to use the exllama backend, but could not import the C++/CUDA dependencies with the following error: {exllama_import_exception}")
-    
+        raise ValueError(
+            f"Trying to use the exllama backend, but could not import the C++/CUDA dependencies with the following error: {exllama_import_exception}"
+        )
+
     make_q4 = error_raiser_exllama
     q4_matmul = error_raiser_exllama
 
@@ -25,11 +28,9 @@ none_tensor = torch.empty((1, 1), device="meta")
 
 def ext_make_q4(qweight, qzeros, scales, g_idx, device):
     """Construct Q4Matrix, return handle"""
-    return make_q4(qweight,
-                   qzeros,
-                   scales,
-                   g_idx if g_idx is not None else none_tensor,
-                   device)
+    return make_q4(
+        qweight, qzeros, scales, g_idx if g_idx is not None else none_tensor, device
+    )
 
 
 def ext_q4_matmul(x, q4, q4_width):
@@ -48,11 +49,14 @@ class QuantLinear(nn.Module):
 
     """Linear layer implementation with per-group 4-bit quantization of the weights"""
 
-    def __init__(self, bits, group_size, infeatures, outfeatures, bias, trainable=False, **kwargs):
+    def __init__(
+        self, bits, group_size, infeatures, outfeatures, bias, trainable=False, **kwargs
+    ):
         super().__init__()
         if bits != 4:
             raise ValueError(
-                f"Exllama kernel supports only bits=4, requested bits={bits}. Something is wrong in the model initialization.")
+                f"Exllama kernel supports only bits=4, requested bits={bits}. Something is wrong in the model initialization."
+            )
         if trainable:
             raise NotImplementedError("Exllama kernel does not support training.")
 
@@ -61,34 +65,48 @@ class QuantLinear(nn.Module):
         self.bits = bits
         self.group_size = group_size if group_size != -1 else infeatures
         self.trainable = trainable
-        self.maxq = 2 ** self.bits - 1
+        self.maxq = 2**self.bits - 1
 
         assert infeatures % 32 == 0
         assert infeatures % self.group_size == 0
         assert outfeatures % 32 == 0
 
         self.register_buffer(
-            'qweight',
-            torch.zeros((infeatures // 32 * self.bits, outfeatures), dtype=torch.int32)
+            "qweight",
+            torch.zeros((infeatures // 32 * self.bits, outfeatures), dtype=torch.int32),
         )
         self.register_buffer(
-            'qzeros',
-            torch.zeros((math.ceil(infeatures / self.group_size), outfeatures // 32 * self.bits), dtype=torch.int32)
+            "qzeros",
+            torch.zeros(
+                (
+                    math.ceil(infeatures / self.group_size),
+                    outfeatures // 32 * self.bits,
+                ),
+                dtype=torch.int32,
+            ),
         )
         self.register_buffer(
-            'scales',
-            torch.zeros((math.ceil(infeatures / self.group_size), outfeatures), dtype=torch.float16)
+            "scales",
+            torch.zeros(
+                (math.ceil(infeatures / self.group_size), outfeatures),
+                dtype=torch.float16,
+            ),
         )
         self.register_buffer(
-            'g_idx',
-            torch.tensor([i // self.group_size for i in range(infeatures)], dtype=torch.int32)
+            "g_idx",
+            torch.tensor(
+                [i // self.group_size for i in range(infeatures)], dtype=torch.int32
+            ),
         )
 
         if bias:
-            self.register_buffer('bias', torch.zeros((outfeatures), dtype=torch.float16))
+            self.register_buffer(
+                "bias", torch.zeros((outfeatures), dtype=torch.float16)
+            )
         else:
             self.bias = None
-        #self.post_init()
+        # self.post_init()
+
     def post_init(self):
         assert self.qweight.device.type == "cuda"
         assert self.qweight.device.index is not None
@@ -101,7 +119,7 @@ class QuantLinear(nn.Module):
             self.qzeros,
             self.scales,
             self.g_idx.to("cpu") if self._use_act_order else None,
-            self.qweight.device.index
+            self.qweight.device.index,
         )
 
     def pack(self, linear, scales, zeros, g_idx=None):
@@ -124,8 +142,8 @@ class QuantLinear(nn.Module):
         for idx in range(self.infeatures):
             intweight.append(
                 torch.round(
-                    (
-                        W[:, idx] + scale_zeros[self.g_idx[idx]]) / self.scales[self.g_idx[idx]]
+                    (W[:, idx] + scale_zeros[self.g_idx[idx]])
+                    / self.scales[self.g_idx[idx]]
                 ).to(torch.int)[:, None]
             )
         intweight = torch.cat(intweight, dim=1)
@@ -151,7 +169,9 @@ class QuantLinear(nn.Module):
 
         zeros -= 1
         zeros = zeros.numpy().astype(np.uint32)
-        qzeros = np.zeros((zeros.shape[0], zeros.shape[1] // 32 * self.bits), dtype=np.uint32)
+        qzeros = np.zeros(
+            (zeros.shape[0], zeros.shape[1] // 32 * self.bits), dtype=np.uint32
+        )
         i = 0
         col = 0
         while col < qzeros.shape[1]:
@@ -168,7 +188,9 @@ class QuantLinear(nn.Module):
 
     def forward(self, x):
         if x.dtype != torch.float16:
-            logger.warning_once(f"The exllama kernel for GPTQ requires a float16 input activation, while {x.dtype} was passed. Casting to float16.\nMake sure you loaded your model with torch_dtype=torch.float16, that the model definition does not inadvertently cast to float32, or disable AMP Autocast that may produce float32 intermediate activations in the model.")
+            logger.warning_once(
+                f"The exllama kernel for GPTQ requires a float16 input activation, while {x.dtype} was passed. Casting to float16.\nMake sure you loaded your model with torch_dtype=torch.float16, that the model definition does not inadvertently cast to float32, or disable AMP Autocast that may produce float32 intermediate activations in the model."
+            )
 
             x = x.half()
 

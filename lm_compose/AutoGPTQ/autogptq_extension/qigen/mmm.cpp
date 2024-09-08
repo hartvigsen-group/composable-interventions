@@ -144,7 +144,7 @@ void quantize(float* A, int* BQ, float* scales, float* zeros, int n, int m, int 
 					int temp31 = ((int)((A[(i1+31)*m+j] - zeros[row*m+j])/scales[row*m+j])) << 29;
 
 					int acc0 = 0, acc1 = 0, acc2 = 0;
-					
+
 					acc0 |= temp0;
 					acc0 |= temp1;
 					acc0 |= temp2;
@@ -258,7 +258,7 @@ int main(int argc, char *argv[]){
 
 	float norm = 0.0;
 	for (int i = 0; i < n*t; i++){
-		norm += (C[i] - C2[i]) * (C[i] - C2[i]); 
+		norm += (C[i] - C2[i]) * (C[i] - C2[i]);
 	}
 	if(norm / (n*t) < 0.0001){
 		int iter = 30;
@@ -297,6 +297,5 @@ int main(int argc, char *argv[]){
 		outfile << cycles_final << std::endl;
 	}
 
-	return 0;	
+	return 0;
 }
-

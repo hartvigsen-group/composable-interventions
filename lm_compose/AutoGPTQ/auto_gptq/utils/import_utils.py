@@ -26,14 +26,14 @@ try:
     EXLLAMA_KERNELS_AVAILABLE = True
 except:
     EXLLAMA_KERNELS_AVAILABLE = False
-    
+
 try:
     import exllamav2_kernels
 
     EXLLAMAV2_KERNELS_AVAILABLE = True
 except:
     EXLLAMAV2_KERNELS_AVAILABLE = False
-    
+
 try:
     import cQIGen as qinfer
 
@@ -46,15 +46,27 @@ except Exception as e:
 logger = getLogger(__name__)
 
 
-def dynamically_import_QuantLinear(use_triton: bool, desc_act: bool, group_size: int, bits: int, disable_exllama: Optional[bool] = None, disable_exllamav2:bool = False, use_qigen: bool = False):
+def dynamically_import_QuantLinear(
+    use_triton: bool,
+    desc_act: bool,
+    group_size: int,
+    bits: int,
+    disable_exllama: Optional[bool] = None,
+    disable_exllamav2: bool = False,
+    use_qigen: bool = False,
+):
     if use_qigen:
         if not QIGEN_AVAILABLE:
-            raise ValueError(f"QIGen appears to be not available with the error: {QIGEN_EXCEPTION}. Please check your installation or use `use_qigen=False`.")
+            raise ValueError(
+                f"QIGen appears to be not available with the error: {QIGEN_EXCEPTION}. Please check your installation or use `use_qigen=False`."
+            )
         from ..nn_modules.qlinear.qlinear_qigen import QuantLinear
     else:
         if use_triton:
             if torch.version.hip:
-                logger.warning("Running GPTQ triton version on AMD GPUs is untested and may result in errors or wrong predictions. Please use use_triton=False.")
+                logger.warning(
+                    "Running GPTQ triton version on AMD GPUs is untested and may result in errors or wrong predictions. Please use use_triton=False."
+                )
 
             from ..nn_modules.qlinear.qlinear_triton import QuantLinear
         else:
@@ -64,7 +76,7 @@ def dynamically_import_QuantLinear(use_triton: bool, desc_act: bool, group_size:
                     disable_exllama = False
                 else:
                     disable_exllama = True
-            
+
             if bits == 4 and not disable_exllamav2 and EXLLAMAV2_KERNELS_AVAILABLE:
                 from ..nn_modules.qlinear.qlinear_exllamav2 import QuantLinear
             elif bits == 4 and not disable_exllama and EXLLAMA_KERNELS_AVAILABLE:
@@ -77,10 +89,7 @@ def dynamically_import_QuantLinear(use_triton: bool, desc_act: bool, group_size:
     return QuantLinear
 
 
-def compare_transformers_version(
-    version: str = "v4.28.0",
-    op: str = "eq"
-):
+def compare_transformers_version(version: str = "v4.28.0", op: str = "eq"):
     assert op in ["eq", "lt", "le", "gt", "ge"]
 
     from transformers import __version__
@@ -88,10 +97,7 @@ def compare_transformers_version(
     return getattr(parse_version(__version__), f"__{op}__")(parse_version(version))
 
 
-def compare_pytorch_version(
-    version: str = "v2.0.0",
-    op: str = "eq"
-):
+def compare_pytorch_version(version: str = "v2.0.0", op: str = "eq"):
     assert op in ["eq", "lt", "le", "gt", "ge"]
 
     from torch import __version__

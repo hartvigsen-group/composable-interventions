@@ -70,16 +70,30 @@ def apply_ga(model, config, include_retain_loss=False):
         print(f"Epoch {epoch + 1}/{config.ga_epochs}")
         description = f"Training {ascent_method_name}"
         for batch_index, (forget_batch, retain_batch) in tqdm(
-            enumerate(zip(forget_dataloader, retain_dataloader)), total=len(forget_dataloader), desc=description
+            enumerate(zip(forget_dataloader, retain_dataloader)),
+            total=len(forget_dataloader),
+            desc=description,
         ):
-            forget_inputs = tokenizer(forget_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+            forget_inputs = tokenizer(
+                forget_batch,
+                padding="max_length",
+                truncation=True,
+                max_length=1024,
+                return_tensors="pt",
+            ).to(model.device)
             forget_inputs["labels"] = forget_inputs["input_ids"].clone()
             forget_outputs = model(**forget_inputs)
             forget_loss = (forget_outputs.loss * -1) / config.ga_grad_accumulation_steps
             batch_loss = forget_loss.clone()
 
             if include_retain_loss:
-                retain_inputs = tokenizer(retain_batch, padding="max_length", truncation=True, max_length=1024, return_tensors="pt").to(model.device)
+                retain_inputs = tokenizer(
+                    retain_batch,
+                    padding="max_length",
+                    truncation=True,
+                    max_length=1024,
+                    return_tensors="pt",
+                ).to(model.device)
                 retain_inputs["labels"] = retain_inputs["input_ids"].clone()
                 retain_outputs = model(**retain_inputs)
                 retain_loss = config.ga_retain_weight * (retain_outputs.loss) / config.ga_grad_accumulation_steps
@@ -120,7 +134,13 @@ class GADataset(Dataset):
         return self.data[idx]
 
     def collate_fn(self, batch):
-        inputs = self.tokenizer(batch, padding="max_length", truncation=True, max_length=self.max_len, return_tensors="pt")
+        inputs = self.tokenizer(
+            batch,
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_len,
+            return_tensors="pt",
+        )
         return inputs
 
 
@@ -206,7 +226,11 @@ def apply_rmu(model, config):
         "batch_size": config.rmu_batch_size,
         "max_num_batches": 1000,
         "layer_id": config.rmu_layer_id,
-        "layer_ids": [config.rmu_layer_id - 2, config.rmu_layer_id - 1, config.rmu_layer_id],
+        "layer_ids": [
+            config.rmu_layer_id - 2,
+            config.rmu_layer_id - 1,
+            config.rmu_layer_id,
+        ],
         "param_ids": [config.rmu_layer_id],
         "seed": config.rmu_seed,
         "verbose": True,

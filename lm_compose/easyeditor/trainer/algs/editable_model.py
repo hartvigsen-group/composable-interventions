@@ -14,21 +14,24 @@ class EditableModel(nn.Module):
         self.model_constructor = model_constructor
 
         def _edit_loss_fn(config, pred, targ, **kwargs):
-            if 'minigpt4' in config.model_name.lower() or 'blip' in self.config.model_name.lower():
+            if (
+                "minigpt4" in config.model_name.lower()
+                or "blip" in self.config.model_name.lower()
+            ):
                 return masked_log_probs(config, pred, targ, shift=True)
-            elif 't5' in config.model_class.lower():
+            elif "t5" in config.model_class.lower():
                 return masked_log_probs(config, pred, targ)
-            elif 'gpt' in config.model_class.lower():
+            elif "gpt" in config.model_class.lower():
                 return masked_log_probs(config, pred, targ, shift=True, **kwargs)
-            elif 'llama' in config.model_class.lower():
+            elif "llama" in config.model_class.lower():
                 return masked_log_probs(config, pred, targ, shift=True)
-            elif 'internlm' in config.model_name.lower():
+            elif "internlm" in config.model_name.lower():
                 return masked_log_probs(config, pred, targ, shift=True)
-            elif 'chatglm' in config.model_name.lower():
+            elif "chatglm" in config.model_name.lower():
                 return masked_log_probs(config, pred, targ, shift=True)
-            elif 'qwen' in config.model_name.lower():
+            elif "qwen" in config.model_name.lower():
                 return masked_log_probs(config, pred, targ, shift=True)
-            elif 'mistral' in config.model_name.lower():
+            elif "mistral" in config.model_name.lower():
                 return masked_log_probs(config, pred, targ, shift=True)
             else:
                 return masked_log_probs(config, pred, targ)

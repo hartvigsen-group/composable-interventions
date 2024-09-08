@@ -109,5 +109,5 @@ CUDA_VISIBLE_DEVICES=0 python peft_adaption_prompt_clm_instruction_tuning.py --m
 
 Use `--help` flag to see detailed descriptions for more command arguments.
 
-If you want to try models other than llama, you can install peft from source using [this branch](https://github.com/PanQiWei/peft/tree/multi_modal_adaption_prompt), see [here](https://github.com/PanQiWei/peft/blob/a5f8f74f07591efe5eb3d08cb1b31b981e84a069/src/peft/tuners/adaption_prompt.py#L235) 
+If you want to try models other than llama, you can install peft from source using [this branch](https://github.com/PanQiWei/peft/tree/multi_modal_adaption_prompt), see [here](https://github.com/PanQiWei/peft/blob/a5f8f74f07591efe5eb3d08cb1b31b981e84a069/src/peft/tuners/adaption_prompt.py#L235)
 to check what other models are also supported, and with this branch installed, you can also use `ADAPTION_PROMPT_V2` peft type (llama-adapter-v2) by simply replace `AdaptionPromptConfig` with `AdaptionPromptV2Config` in the script.

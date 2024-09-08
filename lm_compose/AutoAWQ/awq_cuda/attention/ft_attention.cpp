@@ -150,7 +150,7 @@ torch::Tensor single_query_attention(const torch::Tensor q,
       auto alibi_slopes = alibi_slopes_.value();
       CHECK_DEVICE(alibi_slopes);
       CHECK_SHAPE(alibi_slopes, nheads);
-      CHECK_CONTIGUOUS(alibi_slopes); 
+      CHECK_CONTIGUOUS(alibi_slopes);
       TORCH_CHECK(alibi_slopes.dtype() == torch::kFloat32);
     }
 
@@ -163,7 +163,7 @@ torch::Tensor single_query_attention(const torch::Tensor q,
     DISPATCH_FLOAT_AND_HALF_AND_BF16(q.scalar_type(), "single_query_attention", [&] {
         using DataType = typename SATypeConverter<scalar_t>::Type;
         Masked_multihead_attention_params<DataType> params;
-        set_params(params, batch_size, nheads, nheads_kv, memory_max_seqlen, headdim, 
+        set_params(params, batch_size, nheads, nheads_kv, memory_max_seqlen, headdim,
                    timestep, rotary_embedding_dim, rotary_base, neox_rotary_style, q.stride(0),
                    reinterpret_cast<DataType*>(q.data_ptr()),
                    reinterpret_cast<DataType*>(k.data_ptr()),
@@ -172,7 +172,7 @@ torch::Tensor single_query_attention(const torch::Tensor q,
                    reinterpret_cast<DataType*>(v_cache.data_ptr()),
                    length_per_sample_.has_value()
                        ? length_per_sample_.value().data_ptr<int>() : nullptr,
-                   alibi_slopes_.has_value() 
+                   alibi_slopes_.has_value()
                        ? alibi_slopes_.value().data_ptr<float>(): nullptr,
                    reinterpret_cast<DataType*>(out.data_ptr()));
         auto stream = at::cuda::getCurrentCUDAStream();

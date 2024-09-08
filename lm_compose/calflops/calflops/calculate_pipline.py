@@ -1,8 +1,8 @@
 # !usr/bin/env python
 # -*- coding:utf-8 -*-
 
-'''
- Description  : 
+"""
+ Description  :
  Version      : 1.0
  Author       : MrYXJ
  Mail         : yxj2017@gmail.com
@@ -10,11 +10,11 @@
  Date         : 2023-08-20 11:04:11
  LastEditTime : 2023-09-08 23:42:00
  Copyright (C) 2023 mryxj. All rights reserved.
-'''
+"""
 
-'''
+"""
 The part of code is inspired by ptflops and deepspeed profiling.
-'''
+"""
 
 from functools import partial
 
@@ -38,7 +38,7 @@ old_functions = {}
 
 class CalFlopsPipline(object):
     """The Pipline of calculating FLOPs（number of estimated floating-point operations） and Parameters of each module in a PyTorch model.
-    The pipline is calculating the forward(and alson include back propagation) pass of a PyTorch model and prints the model graph with the calculated static attached to each module. 
+    The pipline is calculating the forward(and alson include back propagation) pass of a PyTorch model and prints the model graph with the calculated static attached to each module.
     It can easily get only final resulst of FLOPs about model, and also can be showed how flops and parameters are spent in the model and which modules or layers could be the bottleneck in detailed.
     """
 
@@ -54,7 +54,9 @@ class CalFlopsPipline(object):
         self.include_backPropagation = include_backPropagation  # Whether the calculation results include model backpropagation
         self.compute_bp_factor = compute_bp_factor  # Backpropagation takes twice as much computation as forward propagation
         self.pipline_started = False  # The flag of calculating FLOPs pipline started
-        self.func_patched = False  # The flag of wheather calculating functional are patched
+        self.func_patched = (
+            False  # The flag of wheather calculating functional are patched
+        )
         self.is_sparse = is_sparse  # Whether to exclude sparse matrix flops
 
     def start_flops_calculate(self, ignore_list=None):
@@ -77,7 +79,9 @@ class CalFlopsPipline(object):
             # if computing the flops of a module directly
             if type(module) in MODULE_HOOK_MAPPING:
                 if not hasattr(module, "__flops_handle__"):
-                    module.__flops_handle__ = module.register_forward_hook(MODULE_HOOK_MAPPING[type(module)])
+                    module.__flops_handle__ = module.register_forward_hook(
+                        MODULE_HOOK_MAPPING[type(module)]
+                    )
                 return
 
             # if computing the flops of the functionals in a module
@@ -134,10 +138,15 @@ class CalFlopsPipline(object):
         def add_or_reset_attrs(module):
             module.__flops__ = 0
             module.__macs__ = 0
-            module.__params__ = sum(
-                p.count_nonzero().item() for p in module.parameters() if p.requires_grad
-            ) if self.is_sparse else sum(
-                p.numel() for p in module.parameters() if p.requires_grad)
+            module.__params__ = (
+                sum(
+                    p.count_nonzero().item()
+                    for p in module.parameters()
+                    if p.requires_grad
+                )
+                if self.is_sparse
+                else sum(p.numel() for p in module.parameters() if p.requires_grad)
+            )
             # just calculate parameter need training.
 
         self.model.apply(add_or_reset_attrs)
@@ -199,8 +208,13 @@ class CalFlopsPipline(object):
         total_params = self.model.__params__
         return params_to_string(total_params) if as_string else total_params
 
-    def print_return_model_pipline(self, units=None, precision=DEFAULT_PRECISION, print_detailed=True,
-                                   print_results=True):
+    def print_return_model_pipline(
+        self,
+        units=None,
+        precision=DEFAULT_PRECISION,
+        print_detailed=True,
+        print_results=True,
+    ):
         """Prints the model graph with the calculateing pipline attached to each module.
 
         Args:
@@ -221,25 +235,55 @@ class CalFlopsPipline(object):
 
         prints = []
         prints.append(
-            "\n------------------------------------- Calculate Flops Results -------------------------------------")
+            "\n------------------------------------- Calculate Flops Results -------------------------------------"
+        )
 
-        prints.append("Notations:\n" +
-                      "number of parameters (Params), number of multiply-accumulate operations(MACs),\n" +
-                      "number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),\n" +
-                      "fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),\n" +
-                      "default model backpropagation takes %.2f times as much computation as forward propagation.\n" % self.compute_bp_factor)
+        prints.append(
+            "Notations:\n"
+            + "number of parameters (Params), number of multiply-accumulate operations(MACs),\n"
+            + "number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),\n"
+            + "fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),\n"
+            + "default model backpropagation takes %.2f times as much computation as forward propagation.\n"
+            % self.compute_bp_factor
+        )
 
-        line_fmt = '{:<70}  {:<8}'
-        prints.append(line_fmt.format('Total Training Params: ', params_to_string(total_params)))
+        line_fmt = "{:<70}  {:<8}"
+        prints.append(
+            line_fmt.format("Total Training Params: ", params_to_string(total_params))
+        )
 
-        prints.append(line_fmt.format('fwd MACs: ', macs_to_string(total_macs, units=units,
-                                                                   precision=precision)))
-        prints.append(line_fmt.format('fwd FLOPs: ', flops_to_string(total_flops, units=units,
-                                                                     precision=precision)))
-        prints.append(line_fmt.format('fwd+bwd MACs: ', macs_to_string(total_macs * (1 + self.compute_bp_factor),
-                                                                       units=units, precision=precision)))
-        prints.append(line_fmt.format('fwd+bwd FLOPs: ', flops_to_string(total_flops * (1 + self.compute_bp_factor),
-                                                                         units=units, precision=precision)))
+        prints.append(
+            line_fmt.format(
+                "fwd MACs: ",
+                macs_to_string(total_macs, units=units, precision=precision),
+            )
+        )
+        prints.append(
+            line_fmt.format(
+                "fwd FLOPs: ",
+                flops_to_string(total_flops, units=units, precision=precision),
+            )
+        )
+        prints.append(
+            line_fmt.format(
+                "fwd+bwd MACs: ",
+                macs_to_string(
+                    total_macs * (1 + self.compute_bp_factor),
+                    units=units,
+                    precision=precision,
+                ),
+            )
+        )
+        prints.append(
+            line_fmt.format(
+                "fwd+bwd FLOPs: ",
+                flops_to_string(
+                    total_flops * (1 + self.compute_bp_factor),
+                    units=units,
+                    precision=precision,
+                ),
+            )
+        )
 
         def flops_repr(module):
             params = module.__params__
@@ -248,11 +292,18 @@ class CalFlopsPipline(object):
             items = [
                 "{} = {:g}% Params".format(
                     params_to_string(params),
-                    round(100 * params / total_params, precision) if total_params else 0),
-                "{} = {:g}% MACs".format(macs_to_string(macs),
-                                         round(100 * macs / total_macs, precision) if total_macs else 0),
-                "{} = {:g}% FLOPs".format(flops_to_string(flops),
-                                          round(100 * macs / total_flops, precision) if total_flops else 0),
+                    round(100 * params / total_params, precision)
+                    if total_params
+                    else 0,
+                ),
+                "{} = {:g}% MACs".format(
+                    macs_to_string(macs),
+                    round(100 * macs / total_macs, precision) if total_macs else 0,
+                ),
+                "{} = {:g}% FLOPs".format(
+                    flops_to_string(flops),
+                    round(100 * macs / total_flops, precision) if total_flops else 0,
+                ),
             ]
             original_extra_repr = module.original_extra_repr()
             if original_extra_repr:
@@ -275,7 +326,8 @@ class CalFlopsPipline(object):
 
         if print_detailed:
             prints.append(
-                "\n-------------------------------- Detailed Calculated FLOPs Results --------------------------------")
+                "\n-------------------------------- Detailed Calculated FLOPs Results --------------------------------"
+            )
             prints.append(
                 "Each module caculated is listed after its name in the following order: \nparams, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs"
             )
@@ -287,7 +339,8 @@ class CalFlopsPipline(object):
         self.model.apply(del_extra_repr)
 
         prints.append(
-            "---------------------------------------------------------------------------------------------------")
+            "---------------------------------------------------------------------------------------------------"
+        )
 
         return_print = ""
         for line in prints:
@@ -296,7 +349,9 @@ class CalFlopsPipline(object):
             return_print += line + "\n"
         return return_print
 
-    def print_model_pipline(self, units=None, precision=DEFAULT_PRECISION, print_detailed=True):
+    def print_model_pipline(
+        self, units=None, precision=DEFAULT_PRECISION, print_detailed=True
+    ):
         """Prints the model graph with the calculateing pipline attached to each module.
 
         Args:
@@ -315,26 +370,57 @@ class CalFlopsPipline(object):
         self.macs = total_macs
         self.params = total_params
 
-        print("\n------------------------------------- Calculate Flops Results -------------------------------------")
+        print(
+            "\n------------------------------------- Calculate Flops Results -------------------------------------"
+        )
 
-        print("Notations:\n"
-              "number of parameters (Params), number of multiply-accumulate operations(MACs),\n"
-              "number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),\n"
-              "fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),\n"
-              "default model backpropagation takes %.2f times as much computation as forward propagation.\n" % self.compute_bp_factor)
+        print(
+            "Notations:\n"
+            "number of parameters (Params), number of multiply-accumulate operations(MACs),\n"
+            "number of floating-point operations (FLOPs), floating-point operations per second (FLOPS),\n"
+            "fwd FLOPs (model forward propagation FLOPs), bwd FLOPs (model backward propagation FLOPs),\n"
+            "default model backpropagation takes %.2f times as much computation as forward propagation.\n"
+            % self.compute_bp_factor
+        )
 
-        line_fmt = '{:<70}  {:<8}'
+        line_fmt = "{:<70}  {:<8}"
 
-        print(line_fmt.format('Total Training Params: ', params_to_string(total_params)))
+        print(
+            line_fmt.format("Total Training Params: ", params_to_string(total_params))
+        )
 
-        print(line_fmt.format('fwd MACs: ', macs_to_string(total_macs, units=units,
-                                                           precision=precision)))
-        print(line_fmt.format('fwd FLOPs: ', flops_to_string(total_flops, units=units,
-                                                             precision=precision)))
-        print(line_fmt.format('fwd+bwd MACs: ', macs_to_string(total_macs * (1 + self.compute_bp_factor),
-                                                               units=units, precision=precision)))
-        print(line_fmt.format('fwd+bwd FLOPs: ', flops_to_string(total_flops * (1 + self.compute_bp_factor),
-                                                                 units=units, precision=precision)))
+        print(
+            line_fmt.format(
+                "fwd MACs: ",
+                macs_to_string(total_macs, units=units, precision=precision),
+            )
+        )
+        print(
+            line_fmt.format(
+                "fwd FLOPs: ",
+                flops_to_string(total_flops, units=units, precision=precision),
+            )
+        )
+        print(
+            line_fmt.format(
+                "fwd+bwd MACs: ",
+                macs_to_string(
+                    total_macs * (1 + self.compute_bp_factor),
+                    units=units,
+                    precision=precision,
+                ),
+            )
+        )
+        print(
+            line_fmt.format(
+                "fwd+bwd FLOPs: ",
+                flops_to_string(
+                    total_flops * (1 + self.compute_bp_factor),
+                    units=units,
+                    precision=precision,
+                ),
+            )
+        )
 
         def flops_repr(module):
             params = module.__params__
@@ -343,11 +429,18 @@ class CalFlopsPipline(object):
             items = [
                 "{} = {:g}% Params".format(
                     params_to_string(params),
-                    round(100 * params / total_params, precision) if total_params else 0),
-                "{} = {:g}% MACs".format(macs_to_string(macs),
-                                         round(100 * macs / total_macs, precision) if total_macs else 0),
-                "{} = {:g}% FLOPs".format(flops_to_string(flops),
-                                          round(100 * macs / total_flops, precision) if total_flops else 0),
+                    round(100 * params / total_params, precision)
+                    if total_params
+                    else 0,
+                ),
+                "{} = {:g}% MACs".format(
+                    macs_to_string(macs),
+                    round(100 * macs / total_macs, precision) if total_macs else 0,
+                ),
+                "{} = {:g}% FLOPs".format(
+                    flops_to_string(flops),
+                    round(100 * macs / total_flops, precision) if total_flops else 0,
+                ),
             ]
             original_extra_repr = module.original_extra_repr()
             if original_extra_repr:
@@ -370,7 +463,8 @@ class CalFlopsPipline(object):
 
         if print_detailed:
             print(
-                "\n-------------------------------- Detailed Calculated FLOPs Results --------------------------------")
+                "\n-------------------------------- Detailed Calculated FLOPs Results --------------------------------"
+            )
             print(
                 "Each module caculated is listed after its name in the following order: \nparams, percentage of total params, MACs, percentage of total MACs, FLOPS, percentage of total FLOPs"
             )
@@ -381,4 +475,6 @@ class CalFlopsPipline(object):
 
         self.model.apply(del_extra_repr)
 
-        print("---------------------------------------------------------------------------------------------------")
+        print(
+            "---------------------------------------------------------------------------------------------------"
+        )

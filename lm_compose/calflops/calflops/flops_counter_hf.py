@@ -1,8 +1,8 @@
 # !usr/bin/env python
 # -*- coding:utf-8 -*-
 
-'''
- Description  : 
+"""
+ Description  :
  Version      : 1.0
  Author       : MrYXJ
  Mail         : yxj2017@gmail.com
@@ -10,7 +10,7 @@
  Date         : 2023-09-03 11:03:58
  LastEditTime : 2023-09-09 15:17:53
  Copyright (C) 2023 mryxj. All rights reserved.
-'''
+"""
 
 
 import torch
@@ -25,22 +25,23 @@ from .estimate import create_empty_model
 from .calculate_pipline import CalFlopsPipline
 
 
-def calculate_flops_hf(model_name,
-                       empty_model=None,
-                       input_shape=None,
-                       trust_remote_code=True,
-                       access_token="",
-                       forward_mode="forward",
-                       include_backPropagation=False,
-                       compute_bp_factor=2.0,
-                       print_results=True,
-                       print_detailed=True,
-                       output_as_string=True,
-                       output_precision=2,
-                       output_unit=None,
-                       ignore_modules=None,
-                       return_results=False):
-    
+def calculate_flops_hf(
+    model_name,
+    empty_model=None,
+    input_shape=None,
+    trust_remote_code=True,
+    access_token="",
+    forward_mode="forward",
+    include_backPropagation=False,
+    compute_bp_factor=2.0,
+    print_results=True,
+    print_detailed=True,
+    output_as_string=True,
+    output_precision=2,
+    output_unit=None,
+    ignore_modules=None,
+    return_results=False,
+):
     """Returns the total floating-point operations, MACs, and parameters of a model.
 
     Args:
@@ -57,11 +58,11 @@ def calculate_flops_hf(model_name,
         output_precision (int, optional) : Output holds the number of decimal places if output_as_string is True. Default to 2.
         output_unit (str, optional): The unit used to output the result value, such as T, G, M, and K. Default is None, that is the unit of the output decide on value.
         ignore_modules ([type], optional): the list of modules to ignore during profiling. Defaults to None.
-        
+
     Example:
     .. code-block:: python
     from calflops import calculate_flops_hf
-    
+
     batch_size = 1
     max_seq_length = 128
     model_name = "baichuan-inc/Baichuan-13B-Chat"
@@ -72,52 +73,62 @@ def calculate_flops_hf(model_name,
     Returns:
         The number of floating-point operations, multiply-accumulate operations (MACs), and parameters in the model.
     """
-    
+
     if empty_model == None:
-        empty_model = create_empty_model(model_name=model_name,
-                                         library_name=None,
-                                         trust_remote_code=trust_remote_code,
-                                         access_token=access_token)
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_name,
-                                              trust_remote_code=trust_remote_code,
-                                              access_token=access_token)
-    
+        empty_model = create_empty_model(
+            model_name=model_name,
+            library_name=None,
+            trust_remote_code=trust_remote_code,
+            access_token=access_token,
+        )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name, trust_remote_code=trust_remote_code, access_token=access_token
+    )
+
     assert isinstance(empty_model, nn.Module), "model must be a PyTorch module"
     device = next(empty_model.parameters()).device
     empty_model = empty_model.to(device)
     empty_model.eval()
-    
-    calculate_flops_pipline = CalFlopsPipline(model=empty_model,
-                                              include_backPropagation=include_backPropagation,
-                                              compute_bp_factor=compute_bp_factor)
+
+    calculate_flops_pipline = CalFlopsPipline(
+        model=empty_model,
+        include_backPropagation=include_backPropagation,
+        compute_bp_factor=compute_bp_factor,
+    )
     calculate_flops_pipline.start_flops_calculate(ignore_list=ignore_modules)
 
     if input_shape is not None:
         assert type(input_shape) is tuple, "input_shape must be a tuple"
         assert len(input_shape) >= 1, "input_shape must have at least one element"
-        assert len(input_shape) == 2, "the format of input_shape must be (batch_size, seq_len) if model is transformers model and auto_generate_transformers_input if True"
-        kwargs = generate_transformer_input(input_shape=input_shape,
-                                            model_tokenizer=tokenizer,
-                                            device=device)
+        assert (
+            len(input_shape) == 2
+        ), "the format of input_shape must be (batch_size, seq_len) if model is transformers model and auto_generate_transformers_input if True"
+        kwargs = generate_transformer_input(
+            input_shape=input_shape, model_tokenizer=tokenizer, device=device
+        )
     else:
-        kwargs = generate_transformer_input(input_shape=None,
-                                            model_tokenizer=tokenizer,
-                                            device=device)
-    
+        kwargs = generate_transformer_input(
+            input_shape=None, model_tokenizer=tokenizer, device=device
+        )
+
     for key, value in kwargs.items():
         kwargs[key] = value.to(device)
-    
+
     try:
-        if forward_mode == 'forward':
+        if forward_mode == "forward":
             _ = empty_model(**kwargs)
-        if forward_mode == 'generate':
+        if forward_mode == "generate":
             _ = empty_model.generate(**kwargs)
     except Exception as e:
-        ErrorInformation = """The model:%s meet a problem in forwarding, perhaps because the model:%s cannot be deduced on meta device. 
+        ErrorInformation = """The model:%s meet a problem in forwarding, perhaps because the model:%s cannot be deduced on meta device.
         You can downloaded complete model parameters in locally from huggingface platform, and then using another function:calflops.calculate_flops(model, tokenizer) to calculate FLOPs on the gpu device.\n
         Error Information: %s\n.
-        """ % (model_name, model_name, e)
+        """ % (
+            model_name,
+            model_name,
+            e,
+        )
         print(ErrorInformation)
         return None, None, None
     else:
@@ -125,26 +136,29 @@ def calculate_flops_hf(model_name,
         macs = calculate_flops_pipline.get_total_macs()
         params = calculate_flops_pipline.get_total_params()
 
-  
-        print_return = calculate_flops_pipline.print_return_model_pipline(units=output_unit,
-                                                    precision=output_precision,
-                                                    print_detailed=print_detailed,
-                                                    print_results=print_results)
-        
+        print_return = calculate_flops_pipline.print_return_model_pipline(
+            units=output_unit,
+            precision=output_precision,
+            print_detailed=print_detailed,
+            print_results=print_results,
+        )
+
         calculate_flops_pipline.end_flops_calculate()
-        
+
         if include_backPropagation:
             flops = flops * (1 + compute_bp_factor)
             macs = macs * (1 + compute_bp_factor)
-        
+
         if output_as_string:
-            flops = flops_to_string(flops, units=output_unit, precision=output_precision)
+            flops = flops_to_string(
+                flops, units=output_unit, precision=output_precision
+            )
             macs = macs_to_string(macs, units=output_unit, precision=output_precision)
-            params = params_to_string(params, units=output_unit, precision=output_precision)
-        
+            params = params_to_string(
+                params, units=output_unit, precision=output_precision
+            )
+
         if return_results:
             return flops, macs, params, print_return
         else:
             return flops, macs, params
-
-

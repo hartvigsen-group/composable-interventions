@@ -10,21 +10,28 @@ from transformers import GPT2Tokenizer, GPT2TokenizerFast, LlamaTokenizer
 from ..util.globals import *
 from ..trainer.utils import dict_to
 
-class WikiRecentDataset(Dataset):
 
-    def __init__(self, data_dir: str, size: typing.Optional[int] = None, config=None, *args, **kwargs):
+class WikiRecentDataset(Dataset):
+    def __init__(
+        self,
+        data_dir: str,
+        size: typing.Optional[int] = None,
+        config=None,
+        *args,
+        **kwargs,
+    ):
         data_dir = Path(data_dir)
         wiki_recent = data_dir
 
-        if(config is not None):
+        if config is not None:
             self.config = config
-        if(config is not None and hasattr(config, 'max_length')):
+        if config is not None and hasattr(config, "max_length"):
             self.max_length = config.max_length
         else:
             self.max_length = 40
 
         # For Meta Training
-        if(config is not None and hasattr(config, 'tokenizer_name')):
+        if config is not None and hasattr(config, "tokenizer_name"):
             tok_name = (
                 config.tokenizer_name
                 if config.tokenizer_name is not None
@@ -33,14 +40,16 @@ class WikiRecentDataset(Dataset):
             tokenizer = getattr(transformers, config.tokenizer_class).from_pretrained(
                 tok_name
             )
-            if isinstance(tokenizer, GPT2Tokenizer) or isinstance(tokenizer, GPT2TokenizerFast):
+            if isinstance(tokenizer, GPT2Tokenizer) or isinstance(
+                tokenizer, GPT2TokenizerFast
+            ):
                 tokenizer.pad_token_id = tokenizer.eos_token_id
-                tokenizer.padding_side = 'left'
-                print('GPTTokenizer Detected, Set pad token id and left padding!!!')
+                tokenizer.padding_side = "left"
+                print("GPTTokenizer Detected, Set pad token id and left padding!!!")
             elif isinstance(tokenizer, LlamaTokenizer):
                 tokenizer.pad_token_id = tokenizer.eos_token_id
-                tokenizer.padding_side = 'left'
-                print('LlamaTokenizer Detected, Set pad token id and left padding!!!')
+                tokenizer.padding_side = "left"
+                print("LlamaTokenizer Detected, Set pad token id and left padding!!!")
             self.tok = tokenizer
 
         with open(wiki_recent, "r") as f:
@@ -62,7 +71,9 @@ class WikiRecentDataset(Dataset):
                     "prompt": record["prompt"],
                     "target_new": record["target_new"],
                     # "ground_truth": record["answers"][0],
-                    "rephrase_prompt": record["rephrase"] if "rephrase" in record.keys() else record["prompt"],
+                    "rephrase_prompt": record["rephrase"]
+                    if "rephrase" in record.keys()
+                    else record["prompt"],
                     # "neighborhood_prompts": [
                     #     {
                     #         "prompt": record["loc"] + "?" + tok.decode(ans_toks[:i]),
@@ -71,7 +82,9 @@ class WikiRecentDataset(Dataset):
                     #     for i in range(len(ans_toks))
                     # ],
                     "locality_prompt": loc["prompt"],
-                    "locality_ground_truth": random.choice(random.choice(loc["ground_truth"])),
+                    "locality_ground_truth": random.choice(
+                        random.choice(loc["ground_truth"])
+                    ),
                     "cond": "{} >> {} || {}".format(
                         "|ORIGIN_OUTPUT|",
                         record["target_new"],
@@ -127,9 +140,9 @@ class WikiRecentDataset(Dataset):
         #     src, rephrase, trg, loc, loc_ans = flatten(src), flatten(rephrase), flatten(trg), flatten(loc), flatten(loc_ans)
         #
         # else:
-        src = [src_ + ' ' + trg_ for src_, trg_ in zip(src, trg)]
-        rephrase = [rephrase_ + ' ' + trg_ for rephrase_, trg_ in zip(rephrase, trg)]
-        loc = [loc_ + ' ' + loc_ans_ for loc_, loc_ans_ in zip(loc, loc_ans)]
+        src = [src_ + " " + trg_ for src_, trg_ in zip(src, trg)]
+        rephrase = [rephrase_ + " " + trg_ for rephrase_, trg_ in zip(rephrase, trg)]
+        loc = [loc_ + " " + loc_ans_ for loc_, loc_ans_ in zip(loc, loc_ans)]
 
         batches = {
             f"{k1}_{k2}": v2

@@ -25,7 +25,13 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
     editable_model = ModelEditWrapper(model, config)
     if config.alg_name != "LoRA":
         editable_model.train()
-    editable_model.batch_edit(prompts=prompts, ground_truth=ground_truth, target_new=target_new, subject=subject, keep_original_weight=False)
+    editable_model.batch_edit(
+        prompts=prompts,
+        ground_truth=ground_truth,
+        target_new=target_new,
+        subject=subject,
+        keep_original_weight=False,
+    )
     if config.alg_name == "LoRA":
         editable_model = editable_model.merge_and_unload()
     for p in editable_model.model.parameters():
@@ -36,7 +42,7 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 def compress_model(model, config, pruning_and_validation):
     if config.method == "quant":
         model = model.to(dtype=get_dtype(config.compression))
-        
+
         # Clean up model?
         del model
         torch.cuda.empty_cache()
@@ -100,7 +106,14 @@ def format_config(config):
     command_line_overrides = OmegaConf.from_dotlist(command_line_args)
 
     # Define Hydra's special arguments to exclude
-    hydra_special_args = {"--multirun", "-m", "--run", "-r", "--config-path", "--config-name"}
+    hydra_special_args = {
+        "--multirun",
+        "-m",
+        "--run",
+        "-r",
+        "--config-path",
+        "--config-name",
+    }
 
     # Filter out Hydra's special arguments
     filtered_overrides = {k: v for k, v in command_line_overrides.items() if k not in hydra_special_args}
@@ -157,11 +170,11 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=get_dtype(config.dtype), device_map="balanced")
 
     # Make editable
-    editable_model = ModqwdwqdelEditWrapper(model, hparams)
+    editable_model = ModqwdwqdelEqwwqdditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
 
     # Strange bug where config.device becomes a list somewhere. Cast back to an int.
-    if not isinstance(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
+    if not isinstacsaddnce(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
         print("Resetting config.device")
         config.deviswsvece = int(config.device[-1])
 
@@ -170,8 +183,17 @@ def main(config):
         hparams.device = int(hparams.device[-1])
 
     # Get edits to be made
-    prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs = edit_generator.get_edits(
-        dataset=config.edit_dataset, number_of_edits=config.number_of_edits, edit_set=config.edit_set
+    (
+        prompts,
+        ground_truth,
+        target_new,
+        subject,
+        rephrase_prompt,
+        locality_inputs,
+    ) = edit_generator.get_edits(
+        dataset=config.edit_dataset,
+        number_of_edits=config.number_of_edits,
+        edit_set=config.edit_set,
     )
 
     # Use LLMPruningAndValidation for handling compression

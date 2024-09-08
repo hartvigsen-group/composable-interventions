@@ -25,6 +25,6 @@ params=(
 # Loop through each set of parameters and submit a job
 for p in "${params[@]}"; do
     sleep 5
-    echo "Beginning: $p" 
+    echo "Beginning: $p"
     sbatch run_exp.sh $p
 done

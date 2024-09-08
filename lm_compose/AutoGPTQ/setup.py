@@ -14,7 +14,9 @@ common_setup_kwargs = {
     "name": "auto_gptq",
     "author": "PanQiWei",
     "description": "An easy-to-use LLMs quantization package with user-friendly apis, based on GPTQ algorithm.",
-    "long_description": (Path(__file__).parent / "README.md").read_text(encoding="UTF-8"),
+    "long_description": (Path(__file__).parent / "README.md").read_text(
+        encoding="UTF-8"
+    ),
     "long_description_content_type": "text/markdown",
     "url": "https://github.com/PanQiWei/AutoGPTQ",
     "keywords": ["gptq", "quantization", "large-language-models", "transformers"],
@@ -31,23 +33,25 @@ common_setup_kwargs = {
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: C++",
-    ]
+    ],
 }
 
 
-PYPI_RELEASE = os.environ.get('PYPI_RELEASE', None)
-BUILD_CUDA_EXT = int(os.environ.get('BUILD_CUDA_EXT', '1')) == 1
-DISABLE_QIGEN = int(os.environ.get('DISABLE_QIGEN', '0')) == 1
+PYPI_RELEASE = os.environ.get("PYPI_RELEASE", None)
+BUILD_CUDA_EXT = int(os.environ.get("BUILD_CUDA_EXT", "1")) == 1
+DISABLE_QIGEN = int(os.environ.get("DISABLE_QIGEN", "0")) == 1
 
 if BUILD_CUDA_EXT:
     try:
         import torch
     except Exception as e:
-        print(f"Building cuda extension requires PyTorch (>=1.13.0) being installed, please install PyTorch first: {e}")
+        print(
+            f"Building cuda extension requires PyTorch (>=1.13.0) being installed, please install PyTorch first: {e}"
+        )
         sys.exit(1)
 
     CUDA_VERSION = None
-    ROCM_VERSION = os.environ.get('ROCM_VERSION', None)
+    ROCM_VERSION = os.environ.get("ROCM_VERSION", None)
     if ROCM_VERSION and not torch.version.hip:
         print(
             f"Trying to compile auto-gptq for RoCm, but PyTorch {torch.__version__} "
@@ -57,10 +61,12 @@ if BUILD_CUDA_EXT:
 
     if not ROCM_VERSION:
         default_cuda_version = torch.version.cuda
-        CUDA_VERSION = "".join(os.environ.get("CUDA_VERSION", default_cuda_version).split("."))
+        CUDA_VERSION = "".join(
+            os.environ.get("CUDA_VERSION", default_cuda_version).split(".")
+        )
 
     if ROCM_VERSION:
-        common_setup_kwargs['version'] += f"+rocm{ROCM_VERSION}"
+        common_setup_kwargs["version"] += f"+rocm{ROCM_VERSION}"
     else:
         if not CUDA_VERSION:
             print(
@@ -71,7 +77,7 @@ if BUILD_CUDA_EXT:
 
         # For the PyPI release, the version is simply x.x.x to comply with PEP 440.
         if not PYPI_RELEASE:
-            common_setup_kwargs['version'] += f"+cu{CUDA_VERSION}"
+            common_setup_kwargs["version"] += f"+cu{CUDA_VERSION}"
 
 requirements = [
     "accelerate>=0.22.0",
@@ -87,32 +93,55 @@ requirements = [
     "tqdm",
 ]
 
-extras_require = {
-    "triton": ["triton==2.0.0"],
-    "test": ["pytest", "parameterized"]
-}
+extras_require = {"triton": ["triton==2.0.0"], "test": ["pytest", "parameterized"]}
 
 include_dirs = ["autogptq_cuda"]
 
 additional_setup_kwargs = dict()
 if BUILD_CUDA_EXT:
     from torch.utils import cpp_extension
-       
-    if platform.system() != "Windows" and platform.machine() != "aarch64" and not DISABLE_QIGEN:
+
+    if (
+        platform.system() != "Windows"
+        and platform.machine() != "aarch64"
+        and not DISABLE_QIGEN
+    ):
         print("Generating qigen kernels...")
-        cores_info = subprocess.run("cat /proc/cpuinfo | grep cores | head -1", shell=True, check=True, text=True, stdout=subprocess.PIPE).stdout.split(" ")
-        if (len(cores_info) == 3 and cores_info[1].startswith("cores")) or (len(cores_info) == 2):
+        cores_info = subprocess.run(
+            "cat /proc/cpuinfo | grep cores | head -1",
+            shell=True,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.split(" ")
+        if (len(cores_info) == 3 and cores_info[1].startswith("cores")) or (
+            len(cores_info) == 2
+        ):
             p = int(cores_info[-1])
         else:
             p = os.cpu_count()
         try:
-            subprocess.check_output(["python", "./autogptq_extension/qigen/generate.py", "--module", "--search", "--p", str(p)])
+            subprocess.check_output(
+                [
+                    "python",
+                    "./autogptq_extension/qigen/generate.py",
+                    "--module",
+                    "--search",
+                    "--p",
+                    str(p),
+                ]
+            )
         except subprocess.CalledProcessError as e:
-            raise Exception(f"Generating QiGen kernels failed with the error shown above.")
+            raise Exception(
+                f"Generating QiGen kernels failed with the error shown above."
+            )
 
     if not ROCM_VERSION:
         from distutils.sysconfig import get_python_lib
-        conda_cuda_include_dir = os.path.join(get_python_lib(), "nvidia/cuda_runtime/include")
+
+        conda_cuda_include_dir = os.path.join(
+            get_python_lib(), "nvidia/cuda_runtime/include"
+        )
 
         print("conda_cuda_include_dir", conda_cuda_include_dir)
         if os.path.isdir(conda_cuda_include_dir):
@@ -123,34 +152,51 @@ if BUILD_CUDA_EXT:
             "autogptq_cuda_64",
             [
                 "autogptq_extension/cuda_64/autogptq_cuda_64.cpp",
-                "autogptq_extension/cuda_64/autogptq_cuda_kernel_64.cu"
-            ]
+                "autogptq_extension/cuda_64/autogptq_cuda_kernel_64.cu",
+            ],
         ),
         cpp_extension.CUDAExtension(
             "autogptq_cuda_256",
             [
                 "autogptq_extension/cuda_256/autogptq_cuda_256.cpp",
-                "autogptq_extension/cuda_256/autogptq_cuda_kernel_256.cu"
-            ]
-        )
+                "autogptq_extension/cuda_256/autogptq_cuda_kernel_256.cu",
+            ],
+        ),
     ]
-    
-    if platform.system() != "Windows" and platform.machine() != "aarch64" and not DISABLE_QIGEN:
+
+    if (
+        platform.system() != "Windows"
+        and platform.machine() != "aarch64"
+        and not DISABLE_QIGEN
+    ):
         extensions.append(
             cpp_extension.CppExtension(
                 "cQIGen",
-                [
-                    'autogptq_extension/qigen/backend.cpp'
+                ["autogptq_extension/qigen/backend.cpp"],
+                extra_compile_args=[
+                    "-O3",
+                    "-mavx",
+                    "-mavx2",
+                    "-mfma",
+                    "-march=native",
+                    "-ffast-math",
+                    "-ftree-vectorize",
+                    "-faligned-new",
+                    "-std=c++17",
+                    "-fopenmp",
+                    "-fno-signaling-nans",
+                    "-fno-trapping-math",
                 ],
-                extra_compile_args = ["-O3", "-mavx", "-mavx2", "-mfma", "-march=native", "-ffast-math", "-ftree-vectorize", "-faligned-new", "-std=c++17", "-fopenmp", "-fno-signaling-nans", "-fno-trapping-math"]
             )
         )
-        
+
     if os.name == "nt":
         # On Windows, fix an error LNK2001: unresolved external symbol cublasHgemm bug in the compilation
         cuda_path = os.environ.get("CUDA_PATH", None)
         if cuda_path is None:
-            raise ValueError("The environment variable CUDA_PATH must be set to the path to the CUDA install when installing from source on Windows systems.")
+            raise ValueError(
+                "The environment variable CUDA_PATH must be set to the path to the CUDA install when installing from source on Windows systems."
+            )
         extra_link_args = ["-L", f"{cuda_path}/lib/x64/cublas.lib"]
     else:
         extra_link_args = []
@@ -163,9 +209,9 @@ if BUILD_CUDA_EXT:
                 "autogptq_extension/exllama/cuda_buffers.cu",
                 "autogptq_extension/exllama/cuda_func/column_remap.cu",
                 "autogptq_extension/exllama/cuda_func/q4_matmul.cu",
-                "autogptq_extension/exllama/cuda_func/q4_matrix.cu"
+                "autogptq_extension/exllama/cuda_func/q4_matrix.cu",
             ],
-            extra_link_args=extra_link_args
+            extra_link_args=extra_link_args,
         )
     )
     extensions.append(
@@ -176,13 +222,13 @@ if BUILD_CUDA_EXT:
                 "autogptq_extension/exllamav2/cuda/q_matrix.cu",
                 "autogptq_extension/exllamav2/cuda/q_gemm.cu",
             ],
-            extra_link_args=extra_link_args
+            extra_link_args=extra_link_args,
         )
     )
 
     additional_setup_kwargs = {
         "ext_modules": extensions,
-        "cmdclass": {'build_ext': cpp_extension.BuildExtension}
+        "cmdclass": {"build_ext": cpp_extension.BuildExtension},
     }
 common_setup_kwargs.update(additional_setup_kwargs)
 setup(
@@ -191,5 +237,5 @@ setup(
     extras_require=extras_require,
     include_dirs=include_dirs,
     python_requires=">=3.8.0",
-    **common_setup_kwargs
+    **common_setup_kwargs,
 )

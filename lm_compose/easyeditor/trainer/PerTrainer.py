@@ -39,7 +39,7 @@ class PEREditTrainer(BaseTrainer):
 
         with torch.no_grad():
             base_logits = self.model(**batch["loc"])
-        
+
         # Do the edit
         start = time.time()
         edited_model, model_info = self.model.edit(batch["edit_inner"], batch["cond"])
@@ -49,22 +49,29 @@ class PEREditTrainer(BaseTrainer):
             # Editing loss
             pre_edit_logits = self.model(**batch["edit_outer"])
             post_edit_logits = edited_model(**batch["edit_outer"])
-            
-            
+
             l_edit = self.model.edit_loss_fn(
-                self.config, post_edit_logits, batch["edit_outer"]["labels"],
+                self.config,
+                post_edit_logits,
+                batch["edit_outer"]["labels"],
             )["nll"]
-            
+
             # Locality loss
-            post_base_logits = edited_model(**batch['loc'])
-            l_loc = kl_loc_loss(base_logits.detach(), post_base_logits, mask=batch["kl_mask"])
+            post_base_logits = edited_model(**batch["loc"])
+            l_loc = kl_loc_loss(
+                base_logits.detach(), post_base_logits, mask=batch["kl_mask"]
+            )
 
         l_total_edit = self.config.cedit * l_edit + self.config.cloc * l_loc
 
         if training:
             safe_backward(
-                l_total_edit, self.model.outer_parameters(), self.config.accumulate_bs, allow_unused=True if
-                self.config.alg=='MEND' and self.config.model_parallel else False
+                l_total_edit,
+                self.model.outer_parameters(),
+                self.config.accumulate_bs,
+                allow_unused=True
+                if self.config.alg == "MEND" and self.config.model_parallel
+                else False,
             )
 
         # Collect some useful metrics
@@ -78,9 +85,16 @@ class PEREditTrainer(BaseTrainer):
             # pre_loc_dict = self.model.loc_loss_fn(
             #     self.config, base_logits, batch["loc"]["labels"]
             # )
-            
-            es_result = es(pre_edit_logits, post_edit_logits, batch["edit_outer"]["labels"], same_per_mask=batch["same_mask"], q_mask=batch["edit_outer"]["q_mask"]),
 
+            es_result = (
+                es(
+                    pre_edit_logits,
+                    post_edit_logits,
+                    batch["edit_outer"]["labels"],
+                    same_per_mask=batch["same_mask"],
+                    q_mask=batch["edit_outer"]["q_mask"],
+                ),
+            )
 
         info_dict = {}
         info_dict["loss/edit"] = l_edit.item()
@@ -140,9 +154,7 @@ class PEREditTrainer(BaseTrainer):
         return l_total, l_edit, l_loc, l_base, info_dict
 
     def train_step(self, batch):
-        l_total, l_edit, l_loc, l_base, info_dict = self.edit_step(
-            batch, training=True
-        )
+        l_total, l_edit, l_loc, l_base, info_dict = self.edit_step(batch, training=True)
 
         if self.global_iter > 0 and self.global_iter % self.config.accumulate_bs == 0:
             grad = torch.nn.utils.clip_grad_norm_(
@@ -201,10 +213,7 @@ class PEREditTrainer(BaseTrainer):
             _, _, _, _, info_dict = self.edit_step(batch, training=False)
             averager.add(info_dict)
 
-            if (
-                log
-                and (val_step + 1) % self.config.log_interval == 0
-            ):
+            if log and (val_step + 1) % self.config.log_interval == 0:
                 self._inline_validation_log(
                     val_step, averager.average(), start_time, steps
                 )

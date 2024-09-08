@@ -18,7 +18,7 @@ python main.py --model [ARCH] \
     --resume [PATH to the pretrained weights] \
     --prune_metric wanda \
     --prune_granularity row \
-    --sparsity 0.5 
+    --sparsity 0.5
 ```
 where:
 - `--model`: network architecture, choices [`convnext_base`, `deit_base_patch16_224`, `vit_large_patch16_224`].

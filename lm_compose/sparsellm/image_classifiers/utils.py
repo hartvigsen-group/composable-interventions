@@ -19,6 +19,7 @@ import torch
 import torch.distributed as dist
 from torch._six import inf
 
+
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
     window or the global series average.
@@ -43,7 +44,7 @@ class SmoothedValue(object):
         """
         if not is_dist_avail_and_initialized():
             return
-        t = torch.tensor([self.count, self.total], dtype=torch.float64, device='cuda')
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
@@ -78,7 +79,8 @@ class SmoothedValue(object):
             avg=self.avg,
             global_avg=self.global_avg,
             max=self.max,
-            value=self.value)
+            value=self.value,
+        )
 
 
 class MetricLogger(object):
@@ -100,15 +102,14 @@ class MetricLogger(object):
             return self.meters[attr]
         if attr in self.__dict__:
             return self.__dict__[attr]
-        raise AttributeError("'{}' object has no attribute '{}'".format(
-            type(self).__name__, attr))
+        raise AttributeError(
+            "'{}' object has no attribute '{}'".format(type(self).__name__, attr)
+        )
 
     def __str__(self):
         loss_str = []
         for name, meter in self.meters.items():
-            loss_str.append(
-                "{}: {}".format(name, str(meter))
-            )
+            loss_str.append("{}: {}".format(name, str(meter)))
         return self.delimiter.join(loss_str)
 
     def synchronize_between_processes(self):
@@ -121,22 +122,22 @@ class MetricLogger(object):
     def log_every(self, iterable, print_freq, header=None):
         i = 0
         if not header:
-            header = ''
+            header = ""
         start_time = time.time()
         end = time.time()
-        iter_time = SmoothedValue(fmt='{avg:.4f}')
-        data_time = SmoothedValue(fmt='{avg:.4f}')
-        space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
+        iter_time = SmoothedValue(fmt="{avg:.4f}")
+        data_time = SmoothedValue(fmt="{avg:.4f}")
+        space_fmt = ":" + str(len(str(len(iterable)))) + "d"
         log_msg = [
             header,
-            '[{0' + space_fmt + '}/{1}]',
-            'eta: {eta}',
-            '{meters}',
-            'time: {time}',
-            'data: {data}'
+            "[{0" + space_fmt + "}/{1}]",
+            "eta: {eta}",
+            "{meters}",
+            "time: {time}",
+            "data: {data}",
         ]
         if torch.cuda.is_available():
-            log_msg.append('max mem: {memory:.0f}')
+            log_msg.append("max mem: {memory:.0f}")
         log_msg = self.delimiter.join(log_msg)
         MB = 1024.0 * 1024.0
         for obj in iterable:
@@ -147,22 +148,37 @@ class MetricLogger(object):
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
-                    print(log_msg.format(
-                        i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time),
-                        memory=torch.cuda.max_memory_allocated() / MB))
+                    print(
+                        log_msg.format(
+                            i,
+                            len(iterable),
+                            eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time),
+                            data=str(data_time),
+                            memory=torch.cuda.max_memory_allocated() / MB,
+                        )
+                    )
                 else:
-                    print(log_msg.format(
-                        i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time)))
+                    print(
+                        log_msg.format(
+                            i,
+                            len(iterable),
+                            eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time),
+                            data=str(data_time),
+                        )
+                    )
             i += 1
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print('{} Total time: {} ({:.4f} s / it)'.format(
-            header, total_time_str, total_time / len(iterable)))
+        print(
+            "{} Total time: {} ({:.4f} s / it)".format(
+                header, total_time_str, total_time / len(iterable)
+            )
+        )
 
 
 class TensorboardLogger(object):
@@ -176,14 +192,16 @@ class TensorboardLogger(object):
         else:
             self.step += 1
 
-    def update(self, head='scalar', step=None, **kwargs):
+    def update(self, head="scalar", step=None, **kwargs):
         for k, v in kwargs.items():
             if v is None:
                 continue
             if isinstance(v, torch.Tensor):
                 v = v.item()
             assert isinstance(v, (float, int))
-            self.writer.add_scalar(head + "/" + k, v, self.step if step is None else step)
+            self.writer.add_scalar(
+                head + "/" + k, v, self.step if step is None else step
+            )
 
     def flush(self):
         self.writer.flush()
@@ -195,6 +213,7 @@ class WandbLogger(object):
 
         try:
             import wandb
+
             self._wandb = wandb
         except ImportError:
             raise ImportError(
@@ -202,30 +221,27 @@ class WandbLogger(object):
                 "Run `pip install wandb` to install it."
             )
 
-        # Initialize a W&B run 
+        # Initialize a W&B run
         if self._wandb.run is None:
-            self._wandb.init(
-                project=args.project,
-                config=args
-            )
+            self._wandb.init(project=args.project, config=args)
 
     def log_epoch_metrics(self, metrics, commit=True):
         """
         Log train/test metrics onto W&B.
         """
         # Log number of model parameters as W&B summary
-        self._wandb.summary['n_parameters'] = metrics.get('n_parameters', None)
-        metrics.pop('n_parameters', None)
+        self._wandb.summary["n_parameters"] = metrics.get("n_parameters", None)
+        metrics.pop("n_parameters", None)
 
         # Log current epoch
-        self._wandb.log({'epoch': metrics.get('epoch')}, commit=False)
-        metrics.pop('epoch')
+        self._wandb.log({"epoch": metrics.get("epoch")}, commit=False)
+        metrics.pop("epoch")
 
         for k, v in metrics.items():
-            if 'train' in k:
-                self._wandb.log({f'Global Train/{k}': v}, commit=False)
-            elif 'test' in k:
-                self._wandb.log({f'Global Test/{k}': v}, commit=False)
+            if "train" in k:
+                self._wandb.log({f"Global Train/{k}": v}, commit=False)
+            elif "test" in k:
+                self._wandb.log({f"Global Test/{k}": v}, commit=False)
 
         self._wandb.log({})
 
@@ -240,10 +256,12 @@ class WandbLogger(object):
 
     def set_steps(self):
         # Set global training step
-        self._wandb.define_metric('Rank-0 Batch Wise/*', step_metric='Rank-0 Batch Wise/global_train_step')
+        self._wandb.define_metric(
+            "Rank-0 Batch Wise/*", step_metric="Rank-0 Batch Wise/global_train_step"
+        )
         # Set epoch-wise step
-        self._wandb.define_metric('Global Train/*', step_metric='epoch')
-        self._wandb.define_metric('Global Test/*', step_metric='epoch')
+        self._wandb.define_metric("Global Train/*", step_metric="epoch")
+        self._wandb.define_metric("Global Test/*", step_metric="epoch")
 
 
 def setup_for_distributed(is_master):
@@ -251,10 +269,11 @@ def setup_for_distributed(is_master):
     This function disables printing when not in master process
     """
     import builtins as __builtin__
+
     builtin_print = __builtin__.print
 
     def print(*args, **kwargs):
-        force = kwargs.pop('force', False)
+        force = kwargs.pop("force", False)
         if is_master or force:
             builtin_print(*args, **kwargs)
 
@@ -291,62 +310,80 @@ def save_on_master(*args, **kwargs):
 
 
 def init_distributed_mode(args):
-
     if args.dist_on_itp:
-        args.rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
-        args.world_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
-        args.gpu = int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
-        args.dist_url = "tcp://%s:%s" % (os.environ['MASTER_ADDR'], os.environ['MASTER_PORT'])
-        os.environ['LOCAL_RANK'] = str(args.gpu)
-        os.environ['RANK'] = str(args.rank)
-        os.environ['WORLD_SIZE'] = str(args.world_size)
+        args.rank = int(os.environ["OMPI_COMM_WORLD_RANK"])
+        args.world_size = int(os.environ["OMPI_COMM_WORLD_SIZE"])
+        args.gpu = int(os.environ["OMPI_COMM_WORLD_LOCAL_RANK"])
+        args.dist_url = "tcp://%s:%s" % (
+            os.environ["MASTER_ADDR"],
+            os.environ["MASTER_PORT"],
+        )
+        os.environ["LOCAL_RANK"] = str(args.gpu)
+        os.environ["RANK"] = str(args.rank)
+        os.environ["WORLD_SIZE"] = str(args.world_size)
         # ["RANK", "WORLD_SIZE", "MASTER_ADDR", "MASTER_PORT", "LOCAL_RANK"]
-    elif 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
+    elif "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         args.rank = int(os.environ["RANK"])
-        args.world_size = int(os.environ['WORLD_SIZE'])
-        args.gpu = int(os.environ['LOCAL_RANK'])
-    elif 'SLURM_PROCID' in os.environ:
-        args.rank = int(os.environ['SLURM_PROCID'])
+        args.world_size = int(os.environ["WORLD_SIZE"])
+        args.gpu = int(os.environ["LOCAL_RANK"])
+    elif "SLURM_PROCID" in os.environ:
+        args.rank = int(os.environ["SLURM_PROCID"])
         args.gpu = args.rank % torch.cuda.device_count()
 
-        os.environ['RANK'] = str(args.rank)
-        os.environ['LOCAL_RANK'] = str(args.gpu)
-        os.environ['WORLD_SIZE'] = str(args.world_size)
+        os.environ["RANK"] = str(args.rank)
+        os.environ["LOCAL_RANK"] = str(args.gpu)
+        os.environ["WORLD_SIZE"] = str(args.world_size)
     else:
-        print('Not using distributed mode')
+        print("Not using distributed mode")
         args.distributed = False
         return
 
     args.distributed = True
 
     torch.cuda.set_device(args.gpu)
-    args.dist_backend = 'nccl'
-    print('| distributed init (rank {}): {}, gpu {}'.format(
-        args.rank, args.dist_url, args.gpu), flush=True)
-    torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
-                                         world_size=args.world_size, rank=args.rank)
+    args.dist_backend = "nccl"
+    print(
+        "| distributed init (rank {}): {}, gpu {}".format(
+            args.rank, args.dist_url, args.gpu
+        ),
+        flush=True,
+    )
+    torch.distributed.init_process_group(
+        backend=args.dist_backend,
+        init_method=args.dist_url,
+        world_size=args.world_size,
+        rank=args.rank,
+    )
     torch.distributed.barrier()
     setup_for_distributed(args.rank == 0)
 
 
-def load_state_dict(model, state_dict, prefix='', ignore_missing="relative_position_index"):
+def load_state_dict(
+    model, state_dict, prefix="", ignore_missing="relative_position_index"
+):
     missing_keys = []
     unexpected_keys = []
     error_msgs = []
     # copy state_dict so _load_from_state_dict can modify it
-    metadata = getattr(state_dict, '_metadata', None)
+    metadata = getattr(state_dict, "_metadata", None)
     state_dict = state_dict.copy()
     if metadata is not None:
         state_dict._metadata = metadata
 
-    def load(module, prefix=''):
-        local_metadata = {} if metadata is None else metadata.get(
-            prefix[:-1], {})
+    def load(module, prefix=""):
+        local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
         module._load_from_state_dict(
-            state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
+            state_dict,
+            prefix,
+            local_metadata,
+            True,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
         for name, child in module._modules.items():
             if child is not None:
-                load(child, prefix + name + '.')
+                load(child, prefix + name + ".")
 
     load(model, prefix=prefix)
 
@@ -354,7 +391,7 @@ def load_state_dict(model, state_dict, prefix='', ignore_missing="relative_posit
     ignore_missing_keys = []
     for key in missing_keys:
         keep_flag = True
-        for ignore_key in ignore_missing.split('|'):
+        for ignore_key in ignore_missing.split("|"):
             if ignore_key in key:
                 keep_flag = False
                 break
@@ -366,16 +403,25 @@ def load_state_dict(model, state_dict, prefix='', ignore_missing="relative_posit
     missing_keys = warn_missing_keys
 
     if len(missing_keys) > 0:
-        print("Weights of {} not initialized from pretrained model: {}".format(
-            model.__class__.__name__, missing_keys))
+        print(
+            "Weights of {} not initialized from pretrained model: {}".format(
+                model.__class__.__name__, missing_keys
+            )
+        )
     if len(unexpected_keys) > 0:
-        print("Weights from pretrained model not used in {}: {}".format(
-            model.__class__.__name__, unexpected_keys))
+        print(
+            "Weights from pretrained model not used in {}: {}".format(
+                model.__class__.__name__, unexpected_keys
+            )
+        )
     if len(ignore_missing_keys) > 0:
-        print("Ignored weights of {} not initialized from pretrained model: {}".format(
-            model.__class__.__name__, ignore_missing_keys))
+        print(
+            "Ignored weights of {} not initialized from pretrained model: {}".format(
+                model.__class__.__name__, ignore_missing_keys
+            )
+        )
     if len(error_msgs) > 0:
-        print('\n'.join(error_msgs))
+        print("\n".join(error_msgs))
 
 
 class NativeScalerWithGradNormCount:
@@ -384,24 +430,34 @@ class NativeScalerWithGradNormCount:
     def __init__(self):
         self._scaler = torch.cuda.amp.GradScaler()
 
-    def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True):
+    def __call__(
+        self,
+        loss,
+        optimizer,
+        clip_grad=None,
+        parameters=None,
+        create_graph=False,
+        update_grad=True,
+    ):
         self._scaler.scale(loss).backward(create_graph=create_graph)
 
         ########################################################
-        ## Code I added 
+        ## Code I added
         for param in parameters:
             weight_copy = param.data.abs().clone()
             mask = weight_copy.gt(0).float().cuda()
             sparsity = mask.sum() / mask.numel()
             if sparsity > 0.3:
-                # non-trivial sparsity 
+                # non-trivial sparsity
                 param.grad.data.mul_(mask)
         ########################################################
 
         if update_grad:
             if clip_grad is not None:
                 assert parameters is not None
-                self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
+                self._scaler.unscale_(
+                    optimizer
+                )  # unscale the gradients of optimizer's assigned params in-place
                 norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
             else:
                 self._scaler.unscale_(optimizer)
@@ -425,17 +481,29 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
     parameters = [p for p in parameters if p.grad is not None]
     norm_type = float(norm_type)
     if len(parameters) == 0:
-        return torch.tensor(0.)
+        return torch.tensor(0.0)
     device = parameters[0].grad.device
     if norm_type == inf:
         total_norm = max(p.grad.detach().abs().max().to(device) for p in parameters)
     else:
-        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
+        total_norm = torch.norm(
+            torch.stack(
+                [torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]
+            ),
+            norm_type,
+        )
     return total_norm
 
 
-def cosine_scheduler(base_value, final_value, epochs, niter_per_ep, warmup_epochs=0,
-                     start_warmup_value=0, warmup_steps=-1):
+def cosine_scheduler(
+    base_value,
+    final_value,
+    epochs,
+    niter_per_ep,
+    warmup_epochs=0,
+    start_warmup_value=0,
+    warmup_steps=-1,
+):
     warmup_schedule = np.array([])
     warmup_iters = warmup_epochs * niter_per_ep
     if warmup_steps > 0:
@@ -446,90 +514,122 @@ def cosine_scheduler(base_value, final_value, epochs, niter_per_ep, warmup_epoch
 
     iters = np.arange(epochs * niter_per_ep - warmup_iters)
     schedule = np.array(
-        [final_value + 0.5 * (base_value - final_value) * (1 + math.cos(math.pi * i / (len(iters)))) for i in iters])
+        [
+            final_value
+            + 0.5
+            * (base_value - final_value)
+            * (1 + math.cos(math.pi * i / (len(iters))))
+            for i in iters
+        ]
+    )
 
     schedule = np.concatenate((warmup_schedule, schedule))
 
     assert len(schedule) == epochs * niter_per_ep
     return schedule
 
-def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler, model_ema=None):
+
+def save_model(
+    args, epoch, model, model_without_ddp, optimizer, loss_scaler, model_ema=None
+):
     output_dir = Path(args.output_dir)
     epoch_name = str(epoch)
-    checkpoint_paths = [output_dir / ('checkpoint-%s.pth' % epoch_name)]
+    checkpoint_paths = [output_dir / ("checkpoint-%s.pth" % epoch_name)]
     for checkpoint_path in checkpoint_paths:
         to_save = {
-            'model': model_without_ddp.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'epoch': epoch,
-            'scaler': loss_scaler.state_dict(),
-            'args': args,
+            "model": model_without_ddp.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "epoch": epoch,
+            "scaler": loss_scaler.state_dict(),
+            "args": args,
         }
 
         if model_ema is not None:
-            to_save['model_ema'] = get_state_dict(model_ema)
+            to_save["model_ema"] = get_state_dict(model_ema)
 
         save_on_master(to_save, checkpoint_path)
 
     if is_main_process() and isinstance(epoch, int):
         to_del = epoch - args.save_ckpt_num * args.save_ckpt_freq
-        old_ckpt = output_dir / ('checkpoint-%s.pth' % to_del)
+        old_ckpt = output_dir / ("checkpoint-%s.pth" % to_del)
         if os.path.exists(old_ckpt):
             os.remove(old_ckpt)
 
 
-def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, model_ema=None):
+def auto_load_model(
+    args, model, model_without_ddp, optimizer, loss_scaler, model_ema=None
+):
     output_dir = Path(args.output_dir)
     if args.auto_resume and len(args.resume) == 0:
         import glob
-        all_checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint-*.pth'))
+
+        all_checkpoints = glob.glob(os.path.join(output_dir, "checkpoint-*.pth"))
         latest_ckpt = -1
         for ckpt in all_checkpoints:
-            t = ckpt.split('-')[-1].split('.')[0]
+            t = ckpt.split("-")[-1].split(".")[0]
             if t.isdigit():
                 latest_ckpt = max(int(t), latest_ckpt)
         if latest_ckpt >= 0:
-            args.resume = os.path.join(output_dir, 'checkpoint-%d.pth' % latest_ckpt)
+            args.resume = os.path.join(output_dir, "checkpoint-%d.pth" % latest_ckpt)
         print("Auto resume checkpoint: %s" % args.resume)
 
     if args.resume:
-        if args.resume.startswith('https'):
+        if args.resume.startswith("https"):
             checkpoint = torch.hub.load_state_dict_from_url(
-                args.resume, map_location='cpu', check_hash=True)
+                args.resume, map_location="cpu", check_hash=True
+            )
         else:
-            checkpoint = torch.load(args.resume, map_location='cpu')
-        model_without_ddp.load_state_dict(checkpoint['model'])
+            checkpoint = torch.load(args.resume, map_location="cpu")
+        model_without_ddp.load_state_dict(checkpoint["model"])
         print("Resume checkpoint %s" % args.resume)
-        if 'optimizer' in checkpoint and 'epoch' in checkpoint:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            if not isinstance(checkpoint['epoch'], str): # does not support resuming with 'best', 'best-ema'
-                args.start_epoch = checkpoint['epoch'] + 1
+        if "optimizer" in checkpoint and "epoch" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            if not isinstance(
+                checkpoint["epoch"], str
+            ):  # does not support resuming with 'best', 'best-ema'
+                args.start_epoch = checkpoint["epoch"] + 1
             else:
-                assert args.eval, 'Does not support resuming with checkpoint-best'
-            if hasattr(args, 'model_ema') and args.model_ema:
-                if 'model_ema' in checkpoint.keys():
-                    model_ema.ema.load_state_dict(checkpoint['model_ema'])
+                assert args.eval, "Does not support resuming with checkpoint-best"
+            if hasattr(args, "model_ema") and args.model_ema:
+                if "model_ema" in checkpoint.keys():
+                    model_ema.ema.load_state_dict(checkpoint["model_ema"])
                 else:
-                    model_ema.ema.load_state_dict(checkpoint['model'])
-            if 'scaler' in checkpoint:
-                loss_scaler.load_state_dict(checkpoint['scaler'])
+                    model_ema.ema.load_state_dict(checkpoint["model"])
+            if "scaler" in checkpoint:
+                loss_scaler.load_state_dict(checkpoint["scaler"])
             print("With optim & sched!")
 
-def reg_scheduler(base_value, final_value, epochs, niter_per_ep, early_epochs=0, early_value=None, 
-           mode='linear', early_mode='regular'):
+
+def reg_scheduler(
+    base_value,
+    final_value,
+    epochs,
+    niter_per_ep,
+    early_epochs=0,
+    early_value=None,
+    mode="linear",
+    early_mode="regular",
+):
     early_schedule = np.array([])
     early_iters = early_epochs * niter_per_ep
     if early_value is None:
         early_value = final_value
     if early_epochs > 0:
         print(f"Set early value to {early_mode} {early_value}")
-        if early_mode == 'regular':
+        if early_mode == "regular":
             early_schedule = np.array([early_value] * early_iters)
-        elif early_mode == 'linear':
+        elif early_mode == "linear":
             early_schedule = np.linspace(early_value, base_value, early_iters)
-        elif early_mode == 'cosine':
+        elif early_mode == "cosine":
             early_schedule = np.array(
-            [base_value + 0.5 * (early_value - base_value) * (1 + math.cos(math.pi * i / early_iters)) for i in np.arange(early_iters)])
+                [
+                    base_value
+                    + 0.5
+                    * (early_value - base_value)
+                    * (1 + math.cos(math.pi * i / early_iters))
+                    for i in np.arange(early_iters)
+                ]
+            )
     regular_epochs = epochs - early_epochs
     iters = np.arange(regular_epochs * niter_per_ep)
     schedule = np.linspace(base_value, final_value, len(iters))
@@ -537,6 +637,7 @@ def reg_scheduler(base_value, final_value, epochs, niter_per_ep, early_epochs=0,
 
     assert len(schedule) == epochs * niter_per_ep
     return schedule
+
 
 def build_model(args, pretrained=False):
     if args.model.startswith("convnext"):
@@ -548,13 +649,13 @@ def build_model(args, pretrained=False):
             head_init_scale=args.head_init_scale,
             drop_path_rate=args.drop_path,
             drop_rate=args.dropout,
-            )
+        )
     else:
         model = create_model(
-            args.model, 
-            pretrained=pretrained, 
-            num_classes=args.nb_classes, 
+            args.model,
+            pretrained=pretrained,
+            num_classes=args.nb_classes,
             drop_path_rate=args.drop_path,
-            drop_rate =args.dropout
-            )
+            drop_rate=args.dropout,
+        )
     return model

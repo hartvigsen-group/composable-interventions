@@ -74,7 +74,7 @@ By default, the saved file type is `.bin`, you can also set `use_safetensors=Tru
 
 Pretrained model's config and the quantize config will also be saved with file names `config.json` and `quantize_config.json`, respectively.
 
-### Load quantized model and do inference 
+### Load quantized model and do inference
 Instead of `.from_pretrained`, you should use `.from_quantized` to load a quantized model.
 ```python
 device = "cuda:0"

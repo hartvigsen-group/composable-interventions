@@ -1,4 +1,4 @@
-# Installation  
+# Installation
 Step 1: Create a new conda environment:
 ```
 conda create -n prune_llm python=3.9

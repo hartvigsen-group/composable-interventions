@@ -28,15 +28,19 @@ def move_to_device(obj: Optional[Union[torch.Tensor, nn.Module]], device: torch.
         return obj
 
 
-def find_layers(module, layers=None, name=''):
+def find_layers(module, layers=None, name=""):
     if not layers:
         layers = [transformers.pytorch_utils.Conv1D, nn.Conv2d, nn.Linear]
     for layer in layers:
-        if isinstance(module,layer):
+        if isinstance(module, layer):
             return {name: module}
     res = {}
     for name1, child in module.named_children():
-        res.update(find_layers(child, layers=layers, name=name + '.' + name1 if name != '' else name1))
+        res.update(
+            find_layers(
+                child, layers=layers, name=name + "." + name1 if name != "" else name1
+            )
+        )
     return res
 
 
@@ -57,14 +61,14 @@ def make_quant(
     names,
     bits,
     group_size,
-    name='',
+    name="",
     use_triton: bool = False,
     disable_exllama: Optional[bool] = None,
-    disable_exllamav2: bool = False, 
+    disable_exllamav2: bool = False,
     use_qigen: bool = False,
     use_cuda_fp16: bool = True,
     desc_act: bool = False,
-    trainable: bool = False
+    trainable: bool = False,
 ):
     # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
     if disable_exllama is None:
@@ -73,53 +77,81 @@ def make_quant(
         else:
             disable_exllama = True
 
-    QuantLinear = dynamically_import_QuantLinear(use_triton=use_triton, desc_act=desc_act, group_size=group_size, bits=bits, disable_exllama=disable_exllama, disable_exllamav2=disable_exllamav2, use_qigen=use_qigen)
+    QuantLinear = dynamically_import_QuantLinear(
+        use_triton=use_triton,
+        desc_act=desc_act,
+        group_size=group_size,
+        bits=bits,
+        disable_exllama=disable_exllama,
+        disable_exllamav2=disable_exllamav2,
+        use_qigen=use_qigen,
+    )
 
     if isinstance(module, QuantLinear):
         return
     for attr in dir(module):
         tmp = getattr(module, attr)
-        name1 = name + '.' + attr if name != '' else attr
+        name1 = name + "." + attr if name != "" else attr
         if name1 in names:
             ori_layer_device = get_device(getattr(module, attr))
             delattr(module, attr)
-            if isinstance(tmp,nn.Linear):
+            if isinstance(tmp, nn.Linear):
                 in_features = tmp.in_features
                 out_features = tmp.out_features
-            elif isinstance(tmp,nn.Conv2d):
+            elif isinstance(tmp, nn.Conv2d):
                 in_features = tmp.in_channels
                 out_features = tmp.out_channels
-            elif isinstance(tmp,transformers.pytorch_utils.Conv1D):            
+            elif isinstance(tmp, transformers.pytorch_utils.Conv1D):
                 in_features = tmp.weight.shape[0]
                 out_features = tmp.weight.shape[1]
-            if (not(desc_act) or group_size == -1) and not use_triton and not use_qigen:
+            if (
+                (not (desc_act) or group_size == -1)
+                and not use_triton
+                and not use_qigen
+            ):
                 new_layer = QuantLinear(
-                    bits, group_size, in_features, out_features, True, use_cuda_fp16=use_cuda_fp16, trainable=trainable, weight_dtype=tmp.weight.dtype
+                    bits,
+                    group_size,
+                    in_features,
+                    out_features,
+                    True,
+                    use_cuda_fp16=use_cuda_fp16,
+                    trainable=trainable,
+                    weight_dtype=tmp.weight.dtype,
                 )
             else:
-                new_layer = QuantLinear(bits, group_size, in_features, out_features, True, trainable=trainable, weight_dtype=tmp.weight.dtype)
+                new_layer = QuantLinear(
+                    bits,
+                    group_size,
+                    in_features,
+                    out_features,
+                    True,
+                    trainable=trainable,
+                    weight_dtype=tmp.weight.dtype,
+                )
             new_layer.device = ori_layer_device
-            new_layer=new_layer.to(ori_layer_device)
+            new_layer = new_layer.to(ori_layer_device)
             ##print(ori_layer_device)
-            #if hasattr(new_layer,'post_init'):
+            # if hasattr(new_layer,'post_init'):
             #    new_layer.post_init()
             setattr(module, attr, new_layer.to(ori_layer_device))
-            
+
     for name1, child in module.named_children():
         make_quant(
             child,
             names,
             bits,
             group_size,
-            name + '.' + name1 if name != '' else name1,
+            name + "." + name1 if name != "" else name1,
             use_triton=use_triton,
             use_cuda_fp16=use_cuda_fp16,
             desc_act=desc_act,
             trainable=trainable,
             disable_exllama=disable_exllama,
             disable_exllamav2=disable_exllamav2,
-            use_qigen=use_qigen
+            use_qigen=use_qigen,
         )
+
 
 def preprocess_checkpoint_qigen(
     module,
@@ -127,59 +159,105 @@ def preprocess_checkpoint_qigen(
     bits,
     group_size,
     checkpoint,
-    name='',
+    name="",
 ):
     try:
         import cQIGen as qinfer
     except ImportError:
-        logger.error('cQIGen not installed.')
+        logger.error("cQIGen not installed.")
         raise
 
-    QuantLinear = dynamically_import_QuantLinear(use_triton=False, desc_act=False, group_size=group_size, bits=bits, disable_exllama=False, use_qigen=True)
+    QuantLinear = dynamically_import_QuantLinear(
+        use_triton=False,
+        desc_act=False,
+        group_size=group_size,
+        bits=bits,
+        disable_exllama=False,
+        use_qigen=True,
+    )
     if isinstance(module, QuantLinear):
         in_features = module.infeatures
         out_features = module.outfeatures
-        
-        zeros = checkpoint[name + '.qzeros']
-        scales = checkpoint[name + '.scales'].float()
-        
+
+        zeros = checkpoint[name + ".qzeros"]
+        scales = checkpoint[name + ".scales"].float()
+
         if zeros.dtype != torch.float32:
             new_zeros = torch.zeros_like(scales).float().contiguous()
             if bits == 4:
-                qinfer.unpack_zeros4(zeros, new_zeros, new_zeros.shape[0], new_zeros.shape[1])
+                qinfer.unpack_zeros4(
+                    zeros, new_zeros, new_zeros.shape[0], new_zeros.shape[1]
+                )
             elif bits == 2:
-                qinfer.unpack_zeros2(zeros, new_zeros, new_zeros.shape[0], new_zeros.shape[1])
+                qinfer.unpack_zeros2(
+                    zeros, new_zeros, new_zeros.shape[0], new_zeros.shape[1]
+                )
             elif bits == 3:
                 logger.info("Unpacking zeros for 3 bits")
             new_scales = scales.contiguous()
         else:
             if scales.shape[1] != out_features:
-                new_scales = scales.transpose(0,1).contiguous()
+                new_scales = scales.transpose(0, 1).contiguous()
             else:
                 new_scales = scales.contiguous()
             if zeros.shape[1] != out_features:
-                new_zeros = zeros.transpose(0,1).contiguous()
+                new_zeros = zeros.transpose(0, 1).contiguous()
             else:
                 new_zeros = zeros.contiguous()
 
-        checkpoint[name + '.zeros'],checkpoint[name + '.scales'] = new_zeros, new_scales
-        del checkpoint[name + '.qzeros']
-        del checkpoint[name + '.g_idx']
-        if name + '.bias' in checkpoint:
-            checkpoint[name + '.bias'] = checkpoint[name + '.bias'].float()
+        checkpoint[name + ".zeros"], checkpoint[name + ".scales"] = (
+            new_zeros,
+            new_scales,
+        )
+        del checkpoint[name + ".qzeros"]
+        del checkpoint[name + ".g_idx"]
+        if name + ".bias" in checkpoint:
+            checkpoint[name + ".bias"] = checkpoint[name + ".bias"].float()
         else:
-            checkpoint[name + '.bias'] = torch.zeros(out_features)
-        checkpoint_qweight = checkpoint[name + '.qweight'].int().contiguous()
+            checkpoint[name + ".bias"] = torch.zeros(out_features)
+        checkpoint_qweight = checkpoint[name + ".qweight"].int().contiguous()
         if bits == 4:
-            qweight = torch.zeros(int(in_features // 8 * out_features)).int().contiguous()
-            qinfer.pack4(checkpoint_qweight, qweight, in_features // 8, out_features, module.mb, module.tb, module.cutoff)# * (module.tt//tb))
+            qweight = (
+                torch.zeros(int(in_features // 8 * out_features)).int().contiguous()
+            )
+            qinfer.pack4(
+                checkpoint_qweight,
+                qweight,
+                in_features // 8,
+                out_features,
+                module.mb,
+                module.tb,
+                module.cutoff,
+            )  # * (module.tt//tb))
         elif bits == 3:
-            qweight = torch.zeros(int(in_features // 32 * 3 * out_features)).int().contiguous()
-            qinfer.pack3(checkpoint_qweight, qweight, in_features // 32 * 3, out_features, module.mb // 32 * 3, module.tb, module.cutoff)
+            qweight = (
+                torch.zeros(int(in_features // 32 * 3 * out_features))
+                .int()
+                .contiguous()
+            )
+            qinfer.pack3(
+                checkpoint_qweight,
+                qweight,
+                in_features // 32 * 3,
+                out_features,
+                module.mb // 32 * 3,
+                module.tb,
+                module.cutoff,
+            )
         elif bits == 2:
-            qweight = torch.zeros(int(in_features // 16 * out_features)).int().contiguous()
-            qinfer.pack2(checkpoint_qweight, qweight, in_features // 16, out_features, module.mb, module.tb, module.cutoff)# * (module.tt//tb))
-        checkpoint[name + '.qweight'] = qweight
+            qweight = (
+                torch.zeros(int(in_features // 16 * out_features)).int().contiguous()
+            )
+            qinfer.pack2(
+                checkpoint_qweight,
+                qweight,
+                in_features // 16,
+                out_features,
+                module.mb,
+                module.tb,
+                module.cutoff,
+            )  # * (module.tt//tb))
+        checkpoint[name + ".qweight"] = qweight
         return
 
     for name1, child in module.named_children():
@@ -189,8 +267,9 @@ def preprocess_checkpoint_qigen(
             bits,
             group_size,
             checkpoint,
-            name + '.' + name1 if name != '' else name1,
+            name + "." + name1 if name != "" else name1,
         )
+
 
 def pack_model(
     model,
@@ -201,17 +280,34 @@ def pack_model(
     use_cuda_fp16=True,
     desc_act=False,
     warmup_triton: bool = False,
-    force_layer_back_to_cpu: bool = False
+    force_layer_back_to_cpu: bool = False,
 ):
-    QuantLinear = dynamically_import_QuantLinear(use_triton=use_triton, desc_act=desc_act, group_size=group_size, bits=bits, disable_exllama=False, disable_exllamav2=True)
+    QuantLinear = dynamically_import_QuantLinear(
+        use_triton=use_triton,
+        desc_act=desc_act,
+        group_size=group_size,
+        bits=bits,
+        disable_exllama=False,
+        disable_exllamav2=True,
+    )
 
     if force_layer_back_to_cpu:
         model.to(CPU)
 
-    logger.info('Packing model...')
+    logger.info("Packing model...")
     layers = find_layers(model)
     layers = {n: layers[n] for n in quantizers}
-    make_quant(model, quantizers, bits, group_size, use_triton=use_triton, use_cuda_fp16=use_cuda_fp16, desc_act=desc_act, disable_exllama=False, disable_exllamav2=True)
+    make_quant(
+        model,
+        quantizers,
+        bits,
+        group_size,
+        use_triton=use_triton,
+        use_cuda_fp16=use_cuda_fp16,
+        desc_act=desc_act,
+        disable_exllama=False,
+        disable_exllamav2=True,
+    )
     qlayers = find_layers(model, [QuantLinear])
     for name in qlayers:
         logger.info(name)
@@ -219,10 +315,15 @@ def pack_model(
         # so far can only pack layer on CPU
         layer_device = qlayers[name].device
         qlayers[name].to(CPU)
-        layers[name], scale, zero, g_idx = layers[name].to(CPU), scale.to(CPU), zero.to(CPU), g_idx.to(CPU)
+        layers[name], scale, zero, g_idx = (
+            layers[name].to(CPU),
+            scale.to(CPU),
+            zero.to(CPU),
+            g_idx.to(CPU),
+        )
         qlayers[name].pack(layers[name], scale, zero, g_idx)
         qlayers[name].to(layer_device)
-    logger.info('Model packed.')
+    logger.info("Model packed.")
 
     if use_triton and warmup_triton:
         logger.warning(
@@ -249,7 +350,10 @@ def simple_dispatch_model(model, device_map):
         return model
 
     tied_params = accelerate.utils.modeling.find_tied_parameters(model)
-    if set(device_map.values()) == {"cpu"} or set(device_map.values()) == {"cpu", "disk"}:
+    if set(device_map.values()) == {"cpu"} or set(device_map.values()) == {
+        "cpu",
+        "disk",
+    }:
         main_device = "cpu"
     else:
         main_device = [d for d in device_map.values() if d not in ["cpu", "disk"]][0]
@@ -258,10 +362,14 @@ def simple_dispatch_model(model, device_map):
     prev_hook = None
     for idx, (n, d) in enumerate(cpu_offload_group):
         m = get_module_by_name_suffix(model, n)
-        _, prev_hook = accelerate.cpu_offload_with_hook(m, execution_device=main_device, prev_module_hook=prev_hook)
+        _, prev_hook = accelerate.cpu_offload_with_hook(
+            m, execution_device=main_device, prev_module_hook=prev_hook
+        )
     # set first cpu offload module's prev_module_hook to the last cpu offload module's hook
     if len(cpu_offload_group) > 1:
-        get_module_by_name_suffix(model, cpu_offload_group[0][0])._hf_hook.prev_module_hook = prev_hook
+        get_module_by_name_suffix(
+            model, cpu_offload_group[0][0]
+        )._hf_hook.prev_module_hook = prev_hook
 
     for n, d in device_map.items():
         m = get_module_by_name_suffix(model, n)
@@ -275,7 +383,9 @@ def simple_dispatch_model(model, device_map):
     return model
 
 
-def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[int] = None):
+def autogptq_post_init(
+    model, use_act_order: bool, max_input_length: Optional[int] = None
+):
     """
     The max_input_length argument is specific to the exllama backend, that requires to initialize a buffer temp_state.
     """
@@ -289,9 +399,9 @@ def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[in
             if device not in device_to_buffers_size:
                 device_to_buffers_size[device] = {
                     "max_dq_buffer_size": 1,
-                    "max_inner_outer_dim": 1
+                    "max_inner_outer_dim": 1,
                 }
-            
+
             if not use_act_order:
                 submodule._use_act_order = False
             else:
@@ -308,18 +418,27 @@ def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[in
                 submodule.act_order = True
             """
 
-            device_to_buffers_size[device]["max_dq_buffer_size"] = max(device_to_buffers_size[device]["max_dq_buffer_size"], submodule.qweight.numel() * 8)
+            device_to_buffers_size[device]["max_dq_buffer_size"] = max(
+                device_to_buffers_size[device]["max_dq_buffer_size"],
+                submodule.qweight.numel() * 8,
+            )
 
             if use_act_order:
-                device_to_buffers_size[device]["max_inner_outer_dim"] = max(device_to_buffers_size[device]["max_inner_outer_dim"], submodule.infeatures, submodule.outfeatures)
-    print("model uses",model_uses_exllama)
+                device_to_buffers_size[device]["max_inner_outer_dim"] = max(
+                    device_to_buffers_size[device]["max_inner_outer_dim"],
+                    submodule.infeatures,
+                    submodule.outfeatures,
+                )
+    print("model uses", model_uses_exllama)
     if model_uses_exllama:
         # To be honest this is quite ugly, not proud of this.
         try:
             from exllama_kernels import prepare_buffers, set_tuning_params
         except ImportError as e:
-            raise ImportError(f"Could not import exllama backend dependencies prepare_buffers, set_tuning_params with the following error: {e}")
-        
+            raise ImportError(
+                f"Could not import exllama backend dependencies prepare_buffers, set_tuning_params with the following error: {e}"
+            )
+
         device_to_buffers = {}
 
         if use_act_order:
@@ -329,22 +448,32 @@ def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[in
                 max_input_len = max_input_length
         else:
             if max_input_length is not None:
-                logger.info("Using exllama backend without act-order, the parameter max_input_length was set although not needed, it will be ignored.")
+                logger.info(
+                    "Using exllama backend without act-order, the parameter max_input_length was set although not needed, it will be ignored."
+                )
             max_input_len = 1
 
         for device, buffers_size in device_to_buffers_size.items():
             # The temp_state buffer is required to reorder X in the act-order case.
             # The temp_dq buffer is required to dequantize weights when using cuBLAS, typically for the prefill.
             device_to_buffers[device] = {
-                "temp_state": torch.zeros((max_input_len, buffers_size["max_inner_outer_dim"]), dtype=torch.float16, device=device),
-                "temp_dq": torch.zeros((1, buffers_size["max_dq_buffer_size"]), dtype=torch.float16, device=device),
+                "temp_state": torch.zeros(
+                    (max_input_len, buffers_size["max_inner_outer_dim"]),
+                    dtype=torch.float16,
+                    device=device,
+                ),
+                "temp_dq": torch.zeros(
+                    (1, buffers_size["max_dq_buffer_size"]),
+                    dtype=torch.float16,
+                    device=device,
+                ),
                 "max_dq_buffer_size": buffers_size["max_dq_buffer_size"],
                 "max_inner_outer_dim": buffers_size["max_inner_outer_dim"],
             }
-        
+
         # Buffers need to be persistent to avoid any bug.
         model.device_to_buffers = device_to_buffers
-    
+
         for device, buffers in model.device_to_buffers.items():
             prepare_buffers(device, buffers["temp_state"], buffers["temp_dq"])
 
@@ -362,37 +491,44 @@ def autogptq_post_init(model, use_act_order: bool, max_input_length: Optional[in
     ## exllamav2
     fixed_bytes = {}
     model_uses_exllamav2 = False
-    
+
     for _, submodule in model.named_modules():
         if hasattr(submodule, "QUANT_TYPE") and submodule.QUANT_TYPE == "exllamav2":
             model_uses_exllamav2 = True
             device = submodule.qweight.device
             scratch_fixed = submodule.scratch_space_fixed()
-            fixed_bytes[device] = max(scratch_fixed, fixed_bytes.get(device,0))
+            fixed_bytes[device] = max(scratch_fixed, fixed_bytes.get(device, 0))
 
     if model_uses_exllamav2:
         from ..nn_modules.qlinear.qlinear_exllamav2 import ExLlamaV2DeviceTensors
-        device_tensors = {} 
+
+        device_tensors = {}
         for device, scratch_bytes in fixed_bytes.items():
             device_tensors[device] = ExLlamaV2DeviceTensors(device.index, scratch_bytes)
-        
+
         # have persistent buffers, otherwise we will get OOM
         model.device_tensors = device_tensors
 
         for _, submodule in model.named_modules():
             if hasattr(submodule, "QUANT_TYPE") and submodule.QUANT_TYPE == "exllamav2":
                 device = submodule.qweight.device
-                submodule.post_init(temp_dq = model.device_tensors[device])
+                submodule.post_init(temp_dq=model.device_tensors[device])
     torch.cuda.empty_cache()
 
     return model
 
 
-def make_sure_no_tensor_in_meta_device(model, use_triton, desc_act, group_size, bits: int):
-    QuantLinear = dynamically_import_QuantLinear(use_triton, desc_act, group_size, bits=bits)
+def make_sure_no_tensor_in_meta_device(
+    model, use_triton, desc_act, group_size, bits: int
+):
+    QuantLinear = dynamically_import_QuantLinear(
+        use_triton, desc_act, group_size, bits=bits
+    )
     for n, m in model.named_modules():
         if isinstance(m, QuantLinear) and m.bias.device == torch.device("meta"):
-            m.register_buffer('bias', torch.zeros((m.outfeatures), dtype=torch.float16, device="cpu"))
+            m.register_buffer(
+                "bias", torch.zeros((m.outfeatures), dtype=torch.float16, device="cpu")
+            )
 
 
 __all__ = [
@@ -407,5 +543,5 @@ __all__ = [
     "autogptq_post_init",
     "check_and_get_model_type",
     "simple_dispatch_model",
-    "make_sure_no_tensor_in_meta_device"
+    "make_sure_no_tensor_in_meta_device",
 ]

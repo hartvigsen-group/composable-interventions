@@ -85,4 +85,3 @@ void rotary_embedding_neox(
         head_size);
     });
 }
-

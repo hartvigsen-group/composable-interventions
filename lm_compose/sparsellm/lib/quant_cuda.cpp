@@ -10,7 +10,7 @@ void vecquant3matmul_cuda(
 void vecquant3matmul_faster_cuda(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,
   torch::Tensor scales, torch::Tensor zeros
-); 
+);
 
 void vecquant3matmul(
   torch::Tensor vec, torch::Tensor mat, torch::Tensor mul,

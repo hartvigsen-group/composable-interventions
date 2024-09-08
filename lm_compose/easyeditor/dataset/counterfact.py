@@ -13,20 +13,25 @@ from ..trainer.utils import dict_to
 
 class CounterFactDataset(Dataset):
     def __init__(
-        self, data_dir: str, size: typing.Optional[int] = None, config=None, *args, **kwargs
+        self,
+        data_dir: str,
+        size: typing.Optional[int] = None,
+        config=None,
+        *args,
+        **kwargs,
     ):
         data_dir = Path(data_dir)
         cf_loc = data_dir
 
         if config is not None:
             self.config = config
-        if config is not None and hasattr(config, 'max_length'):
+        if config is not None and hasattr(config, "max_length"):
             self.max_length = config.max_length
         else:
             self.max_length = 40
 
         # For Meta Training
-        if config is not None and hasattr(config, 'tokenizer_name'):
+        if config is not None and hasattr(config, "tokenizer_name"):
             tok_name = (
                 config.tokenizer_name
                 if config.tokenizer_name is not None
@@ -35,14 +40,16 @@ class CounterFactDataset(Dataset):
             tokenizer = getattr(transformers, config.tokenizer_class).from_pretrained(
                 tok_name
             )
-            if isinstance(tokenizer, GPT2Tokenizer) or isinstance(tokenizer, GPT2TokenizerFast):
+            if isinstance(tokenizer, GPT2Tokenizer) or isinstance(
+                tokenizer, GPT2TokenizerFast
+            ):
                 tokenizer.pad_token_id = tokenizer.eos_token_id
-                tokenizer.padding_side = 'left'
-                print('GPTTokenizer Detected, Set pad token id and left padding!!!')
+                tokenizer.padding_side = "left"
+                print("GPTTokenizer Detected, Set pad token id and left padding!!!")
             elif isinstance(tokenizer, LlamaTokenizer):
                 tokenizer.pad_token_id = tokenizer.eos_token_id
-                tokenizer.padding_side = 'left'
-                print('LlamaTokenizer Detected, Set pad token id and left padding!!!')
+                tokenizer.padding_side = "left"
+                print("LlamaTokenizer Detected, Set pad token id and left padding!!!")
             self.tok = tokenizer
 
         with open(cf_loc, "r") as f:
@@ -64,9 +71,10 @@ class CounterFactDataset(Dataset):
     def collate_fn(self, batch):
         src = [b["prompt"] for b in batch]
         trg = [b["target_new"] for b in batch]
-        cond = ["{} >> {} || {}".format(b['ground_truth'],
-                                        b["target_new"],
-                                        b['prompt']) for b in batch]
+        cond = [
+            "{} >> {} || {}".format(b["ground_truth"], b["target_new"], b["prompt"])
+            for b in batch
+        ]
         rephrase = [b["rephrase_prompt"] for b in batch]
         loc = [b["locality_prompt"] for b in batch]
         loc_ans = [b["locality_ground_truth"] for b in batch]
@@ -138,13 +146,13 @@ class CounterFactDataset(Dataset):
         }
         return dict_to(batch, self.config.device)
 
-
     def collate_gpt_fn(self, batch):
         src = [b["prompt"] for b in batch]
         trg = [b["target_new"] for b in batch]
-        cond = ["{} >> {} || {}".format(b['ground_truth'],
-                                        b["target_new"],
-                                        b['prompt']) for b in batch]
+        cond = [
+            "{} >> {} || {}".format(b["ground_truth"], b["target_new"], b["prompt"])
+            for b in batch
+        ]
         rephrase = [b["rephrase_prompt"] for b in batch]
         loc = [b["locality_prompt"] for b in batch]
         loc_ans = [b["locality_ground_truth"] for b in batch]
@@ -175,9 +183,9 @@ class CounterFactDataset(Dataset):
         #     src, rephrase, trg, loc, loc_ans = flatten(src), flatten(rephrase), flatten(trg), flatten(loc), flatten(loc_ans)
         #
         # else:
-        src = [src_ + ' ' + trg_ for src_, trg_ in zip(src, trg)]
-        rephrase = [rephrase_ + ' ' + trg_ for rephrase_, trg_ in zip(rephrase, trg)]
-        loc = [loc_ + ' ' + loc_ans_ for loc_, loc_ans_ in zip(loc, loc_ans)]
+        src = [src_ + " " + trg_ for src_, trg_ in zip(src, trg)]
+        rephrase = [rephrase_ + " " + trg_ for rephrase_, trg_ in zip(rephrase, trg)]
+        loc = [loc_ + " " + loc_ans_ for loc_, loc_ans_ in zip(loc, loc_ans)]
 
         batches = {
             f"{k1}_{k2}": v2

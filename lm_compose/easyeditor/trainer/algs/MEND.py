@@ -174,8 +174,8 @@ class MEND(EditableModel):
     def __init__(self, model, config, model_constructor, mend=None, edit_lrs=None):
         super().__init__(model, config, model_constructor)
 
-        if not str(self.config.device).startswith('cuda'):
-            self.config.device = f'cuda:{self.config.device}'
+        if not str(self.config.device).startswith("cuda"):
+            self.config.device = f"cuda:{self.config.device}"
 
         if edit_lrs is None:
             edit_lrs = nn.Parameter(
@@ -210,9 +210,7 @@ class MEND(EditableModel):
             else:
                 self.mend = nn.ModuleDict(
                     {
-                        str(tuple(s)): GradientTransform(
-                            *s, config, len(shape_dict[s])
-                        )
+                        str(tuple(s)): GradientTransform(*s, config, len(shape_dict[s]))
                         for s in shape_dict.keys()
                     }
                 )
@@ -254,73 +252,149 @@ class MEND(EditableModel):
         return res
 
     def forward(self, *inputs, **kwargs):
-        if 'minigpt4' in self.config.model_name.lower() or 'blip' in self.config.model_name.lower():
+        if (
+            "minigpt4" in self.config.model_name.lower()
+            or "blip" in self.config.model_name.lower()
+        ):
             outputs = self.model(*inputs, **kwargs)
-        elif 'gpt' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=kwargs['input_ids'], attention_mask=kwargs['attention_mask']))
+        elif "gpt" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=kwargs["input_ids"],
+                    attention_mask=kwargs["attention_mask"],
+                )
+            )
             # outputs = outputs[:, -kwargs['labels'].shape[-1]:, :]
-        elif 'llama' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=kwargs['input_ids'], attention_mask=kwargs['attention_mask']))
+        elif "llama" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=kwargs["input_ids"],
+                    attention_mask=kwargs["attention_mask"],
+                )
+            )
             # outputs = outputs[:, -kwargs['labels'].shape[-1]:, :]
-        elif 'chatglm2' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=kwargs['input_ids'], attention_mask=kwargs['attention_mask']))
+        elif "chatglm2" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=kwargs["input_ids"],
+                    attention_mask=kwargs["attention_mask"],
+                )
+            )
             # outputs = outputs[:, -kwargs['labels'].shape[-1]:, :]
-        elif 'internlm' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=kwargs['input_ids'], attention_mask=kwargs['attention_mask']))
+        elif "internlm" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=kwargs["input_ids"],
+                    attention_mask=kwargs["attention_mask"],
+                )
+            )
             # outputs = outputs[:, -kwargs['labels'].shape[-1]:, :]
-        elif 'qwen' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=kwargs['input_ids'], attention_mask=kwargs['attention_mask']))
+        elif "qwen" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=kwargs["input_ids"],
+                    attention_mask=kwargs["attention_mask"],
+                )
+            )
             # outputs = outputs[:, -kwargs['labels'].shape[-1]:, :]
-        elif 'mistral' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=kwargs['input_ids'], attention_mask=kwargs['attention_mask']))
+        elif "mistral" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=kwargs["input_ids"],
+                    attention_mask=kwargs["attention_mask"],
+                )
+            )
             # outputs = outputs[:, -kwargs['labels'].shape[-1]:, :]
         else:
             outputs = _logits(self.model(**kwargs))
         return outputs
+
     def outer_parameters(self):
         return list(self.mend.parameters()) + [self.edit_lrs]
 
-    def edit(self, batch, condition=None, detach_history=False, return_factors=False, **kwargs):
-        if 'minigpt4' in self.config.model_name.lower() or 'blip' in self.config.model_name.lower():
-            outputs = self.model(batch)        
+    def edit(
+        self,
+        batch,
+        condition=None,
+        detach_history=False,
+        return_factors=False,
+        **kwargs,
+    ):
+        if (
+            "minigpt4" in self.config.model_name.lower()
+            or "blip" in self.config.model_name.lower()
+        ):
+            outputs = self.model(batch)
             if not isinstance(outputs, torch.Tensor):
                 # batch_labels = outputs.labels
                 outputs = outputs.logits
-            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]          
-        elif 'gpt' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
+        elif "gpt" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
             if not kwargs:
                 loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
             else:
-                loss = self.edit_loss_fn(self.config, outputs, batch["labels"], **kwargs)["nll"]
-        elif 'llama' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+                loss = self.edit_loss_fn(
+                    self.config, outputs, batch["labels"], **kwargs
+                )["nll"]
+        elif "llama" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
             if not kwargs:
                 loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
             else:
-                loss = self.edit_loss_fn(self.config, outputs, batch["labels"], **kwargs)["nll"]
-        elif 'baichuan' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+                loss = self.edit_loss_fn(
+                    self.config, outputs, batch["labels"], **kwargs
+                )["nll"]
+        elif "baichuan" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
-            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"] 
-        elif 'chatglm2' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
+        elif "chatglm2" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
-            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]            
-        elif 'internlm' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
+        elif "internlm" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
-            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]  
-        elif 'qwen' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
+        elif "qwen" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
-            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]         
-        elif 'mistral' in self.config.model_name.lower():
-            outputs = _logits(self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask']))
+            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
+        elif "mistral" in self.config.model_name.lower():
+            outputs = _logits(
+                self.model(
+                    input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+                )
+            )
             # outputs = outputs[:, -batch['labels'].shape[-1]:, :]
-            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]  
+            loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
         else:
             outputs = _logits(self.model(**batch))
             loss = self.edit_loss_fn(self.config, outputs, batch["labels"])["nll"]
@@ -388,7 +462,10 @@ class MEND(EditableModel):
 
         edited_model = self.model
         if not isinstance(edited_model, higher.patch._MonkeyPatchBase):
-            if 'minigpt4' in self.config.model_name.lower() or 'blip' in self.config.model_name.lower():
+            if (
+                "minigpt4" in self.config.model_name.lower()
+                or "blip" in self.config.model_name.lower()
+            ):
                 edited_model = _make_functional(edited_model, in_place=True)
             else:
                 edited_model = monkeypatch(edited_model, in_place=True)
@@ -452,14 +529,10 @@ if __name__ == "__main__":
     assert torch.allclose(orig_logits, post_logits)
 
     orig_param = [
-        p
-        for (n, p) in mend.model.named_parameters()
-        if n == config.inner_params[-1]
+        p for (n, p) in mend.model.named_parameters() if n == config.inner_params[-1]
     ][0]
     edited_param = [
-        p
-        for (n, p) in edited.model.named_parameters()
-        if n == config.inner_params[-1]
+        p for (n, p) in edited.model.named_parameters() if n == config.inner_params[-1]
     ][0]
 
     LOG.info((orig_param - edited_param).abs().max())

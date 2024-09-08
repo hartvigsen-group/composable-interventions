@@ -3,12 +3,12 @@
  #include <omp.h>
  #include <cmath>
  #include <immintrin.h>
- 
+
  #define mymin(a,b) ((a)<(b)?(a):(b))
  #define mymax(a,b) ((a)>(b)?(a):(b))
-  void quantize_scalar(float* A, int* BQ, float* scales, float* zeros, int n, int m, int bits){ 
- 	//find scales and zeros arrays 
- 	//quantize 
+  void quantize_scalar(float* A, int* BQ, float* scales, float* zeros, int n, int m, int bits){
+ 	//find scales and zeros arrays
+ 	//quantize
  	int pack = 32/bits;
  	for (int j = 0; j < m; j++){
  		for (int i = 0; i < n; i+=pack){
@@ -23,22 +23,22 @@
  		}
  	}
  }
- 
+
  void quant_scalar_cpu(
- 	torch::Tensor in, torch::Tensor out, 
+ 	torch::Tensor in, torch::Tensor out,
  	torch::Tensor scales, torch::Tensor zeros, int bits
  ) {
- 
+
  	int N  = in.size(0);
  	int M  = in.size(1);
- 
- 	float* input = in.data_ptr<float>(); 
+
+ 	float* input = in.data_ptr<float>();
  	float* s   = scales.data_ptr<float>();
  	float* z   = zeros.data_ptr<float>();
  	int* O   = out.data_ptr<int>();
- 		
+
  	quantize_scalar(input, O, s, z, N, M, bits);
- 
+
  }
 void compute_reduction_cpu(const float* in, float* out, int n, int m, int gs){
 #pragma omp parallel num_threads(20)
@@ -94,12 +94,12 @@ float* Z = z.data_ptr<float>();
 unquantize_sim_cpu(I, O, S, Z, N, M, bits, gs);
 }
 inline
-void q2gemm(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q2gemm(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -124,10 +124,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16:
  tid*tt*m/16;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -479,12 +479,12 @@ float* O   = out.data_ptr<float>();
 q2gemm(input, W, s, z, b, r, O, N, M, T, nb, mb, tb, tt, cutoff);
 }
 inline
-void q2gemm_gs(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q2gemm_gs(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -510,10 +510,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16:
  tid*tt*m/16;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -932,12 +932,12 @@ float* O = out.data_ptr<float>();
 unpack_zeros2_cpu(Z, O, N, M);
 }
 inline
-void q3gemm(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q3gemm(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -964,10 +964,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/32*3: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/32*3:
  tid*tt*m/32*3;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -1334,12 +1334,12 @@ float* O   = out.data_ptr<float>();
 q3gemm(input, W, s, z, b, r, O, N, M, T, nb, mb, tb, tt, cutoff);
 }
 inline
-void q3gemm_gs(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q3gemm_gs(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -1367,10 +1367,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/32*3: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/32*3:
  tid*tt*m/32*3;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -2086,12 +2086,12 @@ float* O = out.data_ptr<float>();
 unpack_zeros3_cpu(Z, O, N, M);
 }
 inline
-void q4gemm(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q4gemm(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -2116,10 +2116,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/8: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/8:
  tid*tt*m/8;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -2335,12 +2335,12 @@ float* O   = out.data_ptr<float>();
 q4gemm(input, W, s, z, b, r, O, N, M, T, nb, mb, tb, tt, cutoff);
 }
 inline
-void q4gemm_gs(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q4gemm_gs(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -2366,10 +2366,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/8: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/8:
  tid*tt*m/8;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {

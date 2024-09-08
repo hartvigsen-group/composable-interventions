@@ -31,9 +31,15 @@ from .higher_utils.utils import _find_param_in_list, _get_param_mapping, get_fun
 # ==============================================================================
 
 _internal_attrs = {
-    '_backend', '_parameters', '_buffers', '_backward_hooks', '_forward_hooks',
-    '_forward_pre_hooks', '_state_dict_hooks', '_load_state_dict_pre_hooks',
-    '_modules'
+    "_backend",
+    "_parameters",
+    "_buffers",
+    "_backward_hooks",
+    "_forward_hooks",
+    "_forward_pre_hooks",
+    "_state_dict_hooks",
+    "_load_state_dict_pre_hooks",
+    "_modules",
 }
 
 _BufferType = _typing.Dict[str, _typing.Optional[_torch.Tensor]]
@@ -115,8 +121,7 @@ class _MonkeyPatchBase(_abc.ABC, _torch.nn.Module):
     def init_fast_params(self):
         if not self.track_higher_grads:
             raise Exception(
-                "Cannot get initial parameters when not tracking higher "
-                "gradients."
+                "Cannot get initial parameters when not tracking higher " "gradients."
             )
         return self._fast_params[0]
 
@@ -141,19 +146,16 @@ class _MonkeyPatchBase(_abc.ABC, _torch.nn.Module):
     @track_higher_grads.setter
     def track_higher_grads(self, value):
         if not isinstance(value, bool):
-            raise ValueError(
-                "Expected boolean argument. Got: {}.".format(type(value))
-            )
+            raise ValueError("Expected boolean argument. Got: {}.".format(type(value)))
         self._track_higher_grads = value
 
 
 def buffer_sync(
     module: _torch.nn.Module,
     fmodule: _MonkeyPatchBase,
-    device: _typing.Optional[_torch.device] = None
+    device: _typing.Optional[_torch.device] = None,
 ) -> None:
-    r"""One off sync (copy) of buffers in ``fmodule`` with those from ``module``.
-    """
+    r"""One off sync (copy) of buffers in ``fmodule`` with those from ``module``."""
     for key, value in module._buffers.items():
         if not _torch.is_tensor(value):
             fmodule._buffers[key] = value
@@ -163,7 +165,8 @@ def buffer_sync(
             fmodule._buffers[key] = value.clone().detach().to(device)
 
     for name, child in module._modules.items():
-        if child == None: continue
+        if child == None:
+            continue
         if name in fmodule._modules:
             buffer_sync(child, fmodule._modules[name], device)
         else:
@@ -178,7 +181,7 @@ def buffer_sync(
 # ==============================================================================
 
 
-class _ParameterPlaceholder():
+class _ParameterPlaceholder:
     def __init__(self, name: str) -> None:
         self._param_name = name
 
@@ -200,7 +203,6 @@ def _make_functional(
     params_offset: int,
     root_patched: _typing.Optional[_MonkeyPatchBase] = None,
 ) -> _typing.Tuple[int, _MonkeyPatchBase, _typing.Type[_MonkeyPatchBase]]:
-
     if isinstance(module, _MonkeyPatchBase):
         raise ValueError(
             "Monkey-patching monkey-patched modules is untested uncharted "
@@ -210,7 +212,8 @@ def _make_functional(
         )
 
     param_names = list(
-        name for name in module._parameters.keys()
+        name
+        for name in module._parameters.keys()
         if module._parameters[name] is not None
     )
 
@@ -232,8 +235,7 @@ def _make_functional(
 
             # for pretty printing
             self._parameters = _OrderedDict(
-                (name, _ParameterPlaceholder(name))
-                for name in self._param_names
+                (name, _ParameterPlaceholder(name)) for name in self._param_names
             )
             self._modules: _typing.Dict[str, _MonkeyPatchBase] = _OrderedDict()
 
@@ -258,11 +260,13 @@ def _make_functional(
                     if name in d:
                         del d[name]
 
-            params = self.__dict__.get('_parameters')
+            params = self.__dict__.get("_parameters")
             if params is not None and name in params:
                 if not isinstance(value, _torch.Tensor):
-                    raise TypeError("Require Tensor as fast weights. "
-                                    "Got {}".format(_torch.typename(value)))
+                    raise TypeError(
+                        "Require Tensor as fast weights. "
+                        "Got {}".format(_torch.typename(value))
+                    )
 
                 if not self._being_modified_internally:
                     # Additional behaviour for when fast weights are being
@@ -274,22 +278,18 @@ def _make_functional(
                             "Cannot assign parameters to patched module which "
                             "does not have implicit fast parameters."
                         )
-                    replacement_index = _find_param_in_list(
-                        old_value, fast_params
-                    )
+                    replacement_index = _find_param_in_list(old_value, fast_params)
                     fast_params[replacement_index] = value
                     self.update_params(fast_params)
-
 
                 # Change parameters in place, usually during boxed_forward pass
                 self._parameters[name] = value
             else:
-                modules = self.__dict__.get('_modules')
+                modules = self.__dict__.get("_modules")
                 if isinstance(value, _torch.nn.Module):
                     if modules is None:
                         raise AttributeError(
-                            "cannot assign module before Module.__init__() "
-                            "call"
+                            "cannot assign module before Module.__init__() " "call"
                         )
                     remove_from(self.__dict__, self._parameters, self._buffers)
                     modules[name] = value
@@ -304,11 +304,9 @@ def _make_functional(
                         )
                     modules[name] = value
                 else:
-                    buffers = self.__dict__.get('_buffers')
+                    buffers = self.__dict__.get("_buffers")
                     if buffers is not None and name in buffers:
-                        if value is not None and not isinstance(
-                            value, _torch.Tensor
-                        ):
+                        if value is not None and not isinstance(value, _torch.Tensor):
                             raise TypeError(
                                 "cannot assign '{}' as buffer '{}' "
                                 "(torch.Tensor or None expected)".format(
@@ -339,7 +337,7 @@ def _make_functional(
 
     # Deal with "None"-style params
     with _modify_internally(fmodule):
-        for name, attr in module.__dict__['_parameters'].items():
+        for name, attr in module.__dict__["_parameters"].items():
             if isinstance(attr, _torch.nn.Parameter):
                 continue
             else:
@@ -347,7 +345,8 @@ def _make_functional(
 
     child_params_offset = params_offset + num_params
     for name, child in module._modules.items():
-        if child == None: continue
+        if child == None:
+            continue
         child_params_offset, fchild, _ = _make_functional(
             child, params_box, child_params_offset, root_patched
         )
@@ -359,16 +358,16 @@ def _make_functional(
     def patched_forward(self, *args, params=None, **kwargs):
         if self.direct_submodule_call:
             # If submodule was called directly, run intialisation that happens
-            # at top level call. If *full set of params* is provided here, it 
+            # at top level call. If *full set of params* is provided here, it
             # will use those. If not, it will fall back on fast weights.
-            # In the future, we should be able to support passing only the 
+            # In the future, we should be able to support passing only the
             # submodule (+ children) weights here, but that's not simple.
             self.root._refill_params_box(params)
 
         with _modify_internally(self):
             for name, param in zip(
                 self._param_names,
-                params_box[0][params_offset:params_offset + num_params]
+                params_box[0][params_offset : params_offset + num_params],
             ):
                 setattr(self, name, param)
 
@@ -380,13 +379,12 @@ def _make_functional(
 
         # Call true_forward after some checks
         with _warnings.catch_warnings():
-
             # If running RNNs on GPU, surpress the warnings due to flattening
             # not happening here. Maybe we should raise a warning of our own?
             is_RNN = isinstance(module, _torch.nn.RNNBase)
             if is_RNN and _torch.cuda.is_available():
                 _warnings.simplefilter("ignore", category=UserWarning)
-            
+
             return true_forward(self, *args, **kwargs)
 
     setattr(MonkeyPatched, "forward", patched_forward)
@@ -404,7 +402,7 @@ def _make_functional(
 def _update_patched_params(
     fmodule: _MonkeyPatchBase,
     params_box: _typing.Sequence[_typing.List[_torch.Tensor]],
-    params_offset: int
+    params_offset: int,
 ) -> int:
     num_params = len([1 for p in fmodule._parameters.values() if p is not None])
     child_params_offset = params_offset + num_params
@@ -416,7 +414,7 @@ def _update_patched_params(
     with _modify_internally(fmodule):
         for name, param in zip(
             fmodule._param_names,
-            params_box[0][params_offset:params_offset + num_params]
+            params_box[0][params_offset : params_offset + num_params],
         ):
             setattr(fmodule, name, param)
     return child_params_offset
@@ -426,12 +424,12 @@ def _update_patched_params(
 # The main function which does the monkey patching.
 # ==============================================================================
 _EncapsulatorType = _typing.Optional[
-    _typing.Callable[[_MonkeyPatchBase, _torch.nn.Module], None]]
+    _typing.Callable[[_MonkeyPatchBase, _torch.nn.Module], None]
+]
 
 
 def make_functional(
-    module: _torch.nn.Module,
-    encapsulator: _EncapsulatorType = None
+    module: _torch.nn.Module, encapsulator: _EncapsulatorType = None
 ) -> _MonkeyPatchBase:
     r"""Returns a stateless version of an ``nn.Module`` instance."""
     params_box = [None]
@@ -456,15 +454,14 @@ def make_functional(
         # Copy fast parameters into params_box for use in boxed_forward
         params_box[0] = self._expand_params(self.fast_params)
 
-
     def _patched_forward(self, *args, params=None, **kwargs):
         self._refill_params_box(params)
 
         output = self.boxed_forward(*args, **kwargs)
-        
+
         # Clean up
         params_box[0] = None
-        
+
         return output
 
     def _update_params(self, params):
@@ -495,7 +492,7 @@ def monkeypatch(
     device: _typing.Optional[_torch.device] = None,
     copy_initial_weights: bool = True,
     track_higher_grads: bool = True,
-    in_place: bool = False
+    in_place: bool = False,
 ) -> _MonkeyPatchBase:
     r"""Create a monkey-patched stateless version of a module.
 
@@ -530,16 +527,13 @@ def monkeypatch(
         of the optimizers in ``higher.optim``.
     """
 
-    def encapsulator(
-        fmodule: _MonkeyPatchBase, module: _torch.nn.Module
-    ) -> None:
+    def encapsulator(fmodule: _MonkeyPatchBase, module: _torch.nn.Module) -> None:
         if copy_initial_weights and not in_place:
             params = get_func_params(module, device=device)
         else:
             if in_place:
                 params = [
-                    p if device is None else p.to(device)
-                    for p in module.parameters()
+                    p if device is None else p.to(device) for p in module.parameters()
                 ]
             else:  # Standard behavior
                 params = [

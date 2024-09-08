@@ -23,6 +23,7 @@ class BlipImageBaseProcessor(BaseProcessor):
 
         self.normalize = transforms.Normalize(mean, std)
 
+
 class BlipImageTrainProcessor(BlipImageBaseProcessor):
     def __init__(
         self, image_size=384, mean=None, std=None, min_scale=0.5, max_scale=1.0
@@ -83,6 +84,7 @@ class BlipImageTrainProcessor(BlipImageBaseProcessor):
             max_scale=max_scale,
         )
 
+
 # @registry.register_processor("blip2_image_train")
 class Blip2ImageTrainProcessor(BlipImageBaseProcessor):
     def __init__(
@@ -127,6 +129,7 @@ class Blip2ImageTrainProcessor(BlipImageBaseProcessor):
             max_scale=max_scale,
         )
 
+
 class BlipImageEvalProcessor(BlipImageBaseProcessor):
     def __init__(self, image_size=384, mean=None, std=None):
         super().__init__(mean=mean, std=std)
@@ -155,6 +158,7 @@ class BlipImageEvalProcessor(BlipImageBaseProcessor):
         std = cfg.get("std", None)
 
         return cls(image_size=image_size, mean=mean, std=std)
+
 
 class BlipCaptionProcessor(BaseProcessor):
     def __init__(self, prompt="", max_words=50):

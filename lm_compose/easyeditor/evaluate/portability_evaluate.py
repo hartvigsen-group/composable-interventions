@@ -4,7 +4,11 @@ from typing import List
 import typing
 import torch
 import numpy as np
-from .evaluate_utils import  test_batch_prediction_acc, test_seq2seq_batch_prediction_acc, test_prediction_acc
+from .evaluate_utils import (
+    test_batch_prediction_acc,
+    test_seq2seq_batch_prediction_acc,
+    test_prediction_acc,
+)
 
 
 def compute_portability_quality(
@@ -17,13 +21,20 @@ def compute_portability_quality(
     ground_truth: typing.Union[str, List[str]],
     device,
 ) -> typing.Dict:
-
-    if 't5' in model_name.lower():
-        portability_correct = test_seq2seq_batch_prediction_acc(model, tok, hparams, prompt, ground_truth, device)
+    if "t5" in model_name.lower():
+        portability_correct = test_seq2seq_batch_prediction_acc(
+            model, tok, hparams, prompt, ground_truth, device
+        )
     else:
-        portability_correct = test_prediction_acc(model, tok, hparams, prompt, ground_truth, device, vanilla_generation=hparams.alg_name=='GRACE')
+        portability_correct = test_prediction_acc(
+            model,
+            tok,
+            hparams,
+            prompt,
+            ground_truth,
+            device,
+            vanilla_generation=hparams.alg_name == "GRACE",
+        )
 
-    ret = {
-        f"{portability_key}_acc": portability_correct
-    }
+    ret = {f"{portability_key}_acc": portability_correct}
     return ret

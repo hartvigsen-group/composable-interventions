@@ -22,9 +22,17 @@ from ..nn_modules.qlinear.qlinear_exllama import QuantLinear as QuantLinearExlla
 from ..nn_modules.qlinear.qlinear_qigen import QuantLinear as QuantLinearQigen
 from ..nn_modules.qlinear.qlinear_triton import QuantLinear as QuantLinearTriton
 
-LinearLayer = Union[torch.nn.Linear, GeneralQuantLinear, QuantLinearCuda,
-                    QuantLinearCudaOld, QuantLinearExllama, QuantLinearExllamaV2, QuantLinearQigen,
-                    QuantLinearTriton]
+LinearLayer = Union[
+    torch.nn.Linear,
+    GeneralQuantLinear,
+    QuantLinearCuda,
+    QuantLinearCudaOld,
+    QuantLinearExllama,
+    QuantLinearExllamaV2,
+    QuantLinearQigen,
+    QuantLinearTriton,
+]
+
 
 class GPTQLoraConfig(LoraConfig):
     injected_fused_attention: bool = False
@@ -32,16 +40,17 @@ class GPTQLoraConfig(LoraConfig):
 
 
 def _get_linear_feature_count(linear_layer: LinearLayer) -> Tuple[int, int]:
-    in_features = getattr(linear_layer, "in_features",
-                          getattr(linear_layer, "infeatures"))
-    out_features = getattr(linear_layer, "out_features",
-                           getattr(linear_layer, "outfeatures"))
+    in_features = getattr(
+        linear_layer, "in_features", getattr(linear_layer, "infeatures")
+    )
+    out_features = getattr(
+        linear_layer, "out_features", getattr(linear_layer, "outfeatures")
+    )
     return in_features, out_features
 
 
 def _get_weight(linear_layer: LinearLayer) -> torch.Tensor:
-    return getattr(linear_layer, "weight",
-                   getattr(linear_layer, "qweight"))
+    return getattr(linear_layer, "weight", getattr(linear_layer, "qweight"))
 
 
 class GPTQLoraLinear(torch.nn.Linear, LoraLayer):
@@ -129,25 +138,29 @@ class GPTQLoraModel(LoraModel):
         # dispatch to correct device
         for name, module in new_module.named_modules():
             if "lora_" in name:
-                device = (
-                    list(old_module.parameters()) + \
-                    list(old_module.buffers())
-                )[0].device
+                device = (list(old_module.parameters()) + list(old_module.buffers()))[
+                    0
+                ].device
                 module.to(device)
 
     @staticmethod
-    def _create_new_module(lora_config: GPTQLoraConfig, adapter_name: str, target: torch.nn.Linear,
-                           **kwargs):
+    def _create_new_module(
+        lora_config: GPTQLoraConfig,
+        adapter_name: str,
+        target: torch.nn.Linear,
+        **kwargs,
+    ):
         gptq_quantlinears = {
-            GeneralQuantLinear, QuantLinearCuda,
-            QuantLinearCudaOld, QuantLinearExllama, QuantLinearExllamaV2,
-            QuantLinearQigen, QuantLinearTriton
+            GeneralQuantLinear,
+            QuantLinearCuda,
+            QuantLinearCudaOld,
+            QuantLinearExllama,
+            QuantLinearExllamaV2,
+            QuantLinearQigen,
+            QuantLinearTriton,
         }
 
-        is_gptq_layer = any([
-            isinstance(target, cls)
-            for cls in gptq_quantlinears
-        ])
+        is_gptq_layer = any([isinstance(target, cls) for cls in gptq_quantlinears])
         if is_gptq_layer:
             return GPTQLoraLinear(
                 adapter_name,
@@ -159,10 +172,7 @@ class GPTQLoraModel(LoraModel):
             )
         else:
             return LoraModel._create_new_module(
-                lora_config,
-                adapter_name,
-                target,
-                **kwargs
+                lora_config, adapter_name, target, **kwargs
             )
 
     def merge_adapter(self):
@@ -228,7 +238,10 @@ class GPTQSVDLinear(torch.nn.Linear, AdaLoraLayer):
             result += (
                 (
                     self.lora_dropout[self.active_adapter](x)
-                    @ (self.lora_A[self.active_adapter] * self.lora_E[self.active_adapter]).T
+                    @ (
+                        self.lora_A[self.active_adapter]
+                        * self.lora_E[self.active_adapter]
+                    ).T
                     @ self.lora_B[self.active_adapter].T
                 )
                 * self.scaling[self.active_adapter]
@@ -257,25 +270,29 @@ class GPTQAdaLoraModel(AdaLoraModel):
         # dispatch to correct device
         for name, module in new_module.named_modules():
             if "lora_" in name:
-                device = (
-                    list(old_module.parameters()) + \
-                    list(old_module.buffers())
-                )[0].device
+                device = (list(old_module.parameters()) + list(old_module.buffers()))[
+                    0
+                ].device
                 module.to(device)
-    
+
     @staticmethod
-    def _create_new_module(lora_config: GPTQLoraConfig, adapter_name: str, target: torch.nn.Linear,
-                           **kwargs):
+    def _create_new_module(
+        lora_config: GPTQLoraConfig,
+        adapter_name: str,
+        target: torch.nn.Linear,
+        **kwargs,
+    ):
         gptq_quantlinears = {
-            GeneralQuantLinear, QuantLinearCuda,
-            QuantLinearCudaOld, QuantLinearExllama, QuantLinearExllamaV2,
-            QuantLinearQigen, QuantLinearTriton
+            GeneralQuantLinear,
+            QuantLinearCuda,
+            QuantLinearCudaOld,
+            QuantLinearExllama,
+            QuantLinearExllamaV2,
+            QuantLinearQigen,
+            QuantLinearTriton,
         }
-        
-        is_gptq_layer = any([
-            isinstance(target, cls)
-            for cls in gptq_quantlinears
-        ])
+
+        is_gptq_layer = any([isinstance(target, cls) for cls in gptq_quantlinears])
         if is_gptq_layer:
             return GPTQSVDLinear(
                 adapter_name,
@@ -287,12 +304,9 @@ class GPTQAdaLoraModel(AdaLoraModel):
             )
         else:
             return LoraModel._create_new_module(
-                lora_config,
-                adapter_name,
-                target,
-                **kwargs
+                lora_config, adapter_name, target, **kwargs
             )
-    
+
     def merge_adapter(self):
         raise NotImplementedError("gptq model not support merge ada lora adapter")
 
@@ -303,7 +317,11 @@ class GPTQAdaLoraModel(AdaLoraModel):
         raise NotImplementedError("gptq model not support merge and unload")
 
 
-def find_all_linear_names(model: BaseGPTQForCausalLM, ignore: Optional[List[str]] = None, ignore_lm_head: bool = True):
+def find_all_linear_names(
+    model: BaseGPTQForCausalLM,
+    ignore: Optional[List[str]] = None,
+    ignore_lm_head: bool = True,
+):
     if not ignore:
         ignore = []
     lm_head_name = model.lm_head_name
@@ -312,7 +330,7 @@ def find_all_linear_names(model: BaseGPTQForCausalLM, ignore: Optional[List[str]
     results = set()
     for n, m in model.named_modules():
         if isinstance(m, torch.nn.Linear):
-            res = n.split('.')[-1]
+            res = n.split(".")[-1]
             if res not in ignore:
                 results.add(res)
     return list(results)
@@ -346,14 +364,16 @@ def get_gptq_peft_model(
     model_id: str = None,
     adapter_name: str = "default",
     auto_find_all_linears: bool = True,
-    train_mode: bool = False
+    train_mode: bool = False,
 ):
     if train_mode and not model.trainable:
         model.enable_trainable_mode()
     if train_mode and not peft_config:
         raise ValueError("peft_config not specified when in train mode.")
     if not train_mode and not model_id:
-        raise ValueError("model_id(where to load adapters) not specified when in inference mode.")
+        raise ValueError(
+            "model_id(where to load adapters) not specified when in inference mode."
+        )
 
     if model.fused_attn_module_type is not None and not model.injected_fused_attention:
         peft_types = [PeftType.LORA.value, PeftType.ADALORA.value]
@@ -366,7 +386,9 @@ def get_gptq_peft_model(
             "whether the adapters are trained using base model that not enable fused attention injection."
         )
     if model.injected_fused_mlp:
-        raise NotImplementedError("GPTQ model that enables fused mlp injection is not supported to integrate with peft.")
+        raise NotImplementedError(
+            "GPTQ model that enables fused mlp injection is not supported to integrate with peft."
+        )
 
     if train_mode:
         peft_type = peft_config.peft_type
@@ -374,10 +396,16 @@ def get_gptq_peft_model(
             peft_type = peft_type.value
         if peft_type in [PeftType.LORA.value, PeftType.ADALORA.value]:
             if auto_find_all_linears:
-                peft_config.target_modules = find_all_linear_names(model, ignore_lm_head=True)
-            if peft_type == PeftType.LORA.value and not isinstance(peft_config, GPTQLoraConfig):
+                peft_config.target_modules = find_all_linear_names(
+                    model, ignore_lm_head=True
+                )
+            if peft_type == PeftType.LORA.value and not isinstance(
+                peft_config, GPTQLoraConfig
+            ):
                 peft_config = GPTQLoraConfig(**peft_config.to_dict())
-            if peft_type == PeftType.ADALORA.value and not isinstance(peft_config, GPTQAdaLoraConfig):
+            if peft_type == PeftType.ADALORA.value and not isinstance(
+                peft_config, GPTQAdaLoraConfig
+            ):
                 peft_config = GPTQAdaLoraConfig(**peft_config.to_dict())
             peft_config.injected_fused_attention = model.injected_fused_attention
             peft_config.injected_fused_mlp = model.injected_fused_mlp
@@ -397,9 +425,13 @@ def get_gptq_peft_model(
     with hijack_peft_mappings():
         try:
             if train_mode:
-                peft_model = get_peft_model(model.model, peft_config, adapter_name=adapter_name)
+                peft_model = get_peft_model(
+                    model.model, peft_config, adapter_name=adapter_name
+                )
             else:
-                peft_model = PeftModel.from_pretrained(model.model, model_id, adapter_name)
+                peft_model = PeftModel.from_pretrained(
+                    model.model, model_id, adapter_name
+                )
         except:
             raise
             raise NotImplementedError(
@@ -415,5 +447,5 @@ __all__ = [
     "GPTQAdaLoraConfig",
     "GPTQAdaLoraModel",
     "find_all_linear_names",
-    "get_gptq_peft_model"
+    "get_gptq_peft_model",
 ]

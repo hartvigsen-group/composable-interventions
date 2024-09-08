@@ -26,7 +26,7 @@ class FusedBaseAttentionModule(FusedBaseModule):
         use_cuda_fp16=True,
         desc_act=False,
         trainable=False,
-        **kwargs
+        **kwargs,
     ):
         raise NotImplementedError()
 

@@ -1,8 +1,8 @@
 # !usr/bin/env python
 # -*- coding:utf-8 -*-
 
-'''
- Description  : 
+"""
+ Description  :
  Version      : 1.0
  Author       : MrYXJ
  Mail         : yxj2017@gmail.com
@@ -10,7 +10,7 @@
  Date         : 2023-08-19 10:28:55
  LastEditTime : 2023-09-07 23:39:17
  Copyright (C) 2023 mryxj. All rights reserved.
-'''
+"""
 
 import torch
 import torch.nn as nn
@@ -22,21 +22,23 @@ from .utils import macs_to_string
 from .utils import params_to_string
 
 
-def calculate_flops(model,
-                    input_shape=None,
-                    transformer_tokenizer=None,
-                    args=[],
-                    kwargs={},
-                    forward_mode="forward",
-                    include_backPropagation=False,
-                    compute_bp_factor=2.0,
-                    print_results=True,
-                    print_detailed=True,
-                    output_as_string=True,
-                    output_precision=2,
-                    output_unit=None,
-                    ignore_modules=None,
-                    is_sparse=False):
+def calculate_flops(
+    model,
+    input_shape=None,
+    transformer_tokenizer=None,
+    args=[],
+    kwargs={},
+    forward_mode="forward",
+    include_backPropagation=False,
+    compute_bp_factor=2.0,
+    print_results=True,
+    print_detailed=True,
+    output_as_string=True,
+    output_precision=2,
+    output_unit=None,
+    ignore_modules=None,
+    is_sparse=False,
+):
     """Returns the total floating-point operations, MACs, and parameters of a model.
 
     Args:
@@ -65,12 +67,12 @@ def calculate_flops(model,
 
     model = models.alexnet()
     batch_size = 1
-    flops, macs, params = calculate_flops(model=model, 
+    flops, macs, params = calculate_flops(model=model,
                                           input_shape=(batch_size, 3, 224, 224),
                                           output_as_string=True,
                                           output_precision=4)
     print("Alexnet FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-    #Alexnet FLOPs:1.4297 GFLOPS   MACs:714.188 MMACs   Params:61.1008 M 
+    #Alexnet FLOPs:1.4297 GFLOPS   MACs:714.188 MMACs   Params:61.1008 M
 
     # Transformers Model, such as bert.
     from transformers import AutoModel
@@ -81,11 +83,11 @@ def calculate_flops(model,
     model_save = "../pretrain_models/" + model_name
     model = AutoModel.from_pretrained(model_save)
     tokenizer = AutoTokenizer.from_pretrained(model_save)
-    flops, macs, params = calculate_flops(model=model, 
+    flops, macs, params = calculate_flops(model=model,
                                           input_shape=(batch_size, max_seq_length),
                                           transformer_tokenizer=tokenizer)
     print("Bert(hfl/chinese-roberta-wwm-ext) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-    #Bert(hfl/chinese-roberta-wwm-ext) FLOPs:22.36 GFLOPS   MACs:11.17 GMACs   Params:102.27 M 
+    #Bert(hfl/chinese-roberta-wwm-ext) FLOPs:22.36 GFLOPS   MACs:11.17 GMACs   Params:102.27 M
 
     # Large Languase Model, such as llama2-7b.
     from transformers import LlamaTokenizer
@@ -100,7 +102,7 @@ def calculate_flops(model,
                                           input_shape=(batch_size, max_seq_length),
                                           transformer_tokenizer=tokenizer)
     print("Llama2(7B) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-    #Llama2(7B) FLOPs:1.7 TFLOPS   MACs:850.00 GMACs   Params:6.74 B 
+    #Llama2(7B) FLOPs:1.7 TFLOPS   MACs:850.00 GMACs   Params:6.74 B
 
     Returns:
         The number of floating-point operations, multiply-accumulate operations (MACs), and parameters in the model.
@@ -112,23 +114,28 @@ def calculate_flops(model,
 
     is_transformer = True if "transformers" in str(type(model)) else False
 
-    calculate_flops_pipline = CalFlopsPipline(model=model,
-                                              include_backPropagation=include_backPropagation,
-                                              compute_bp_factor=compute_bp_factor,
-                                              is_sparse=is_sparse)
+    calculate_flops_pipline = CalFlopsPipline(
+        model=model,
+        include_backPropagation=include_backPropagation,
+        compute_bp_factor=compute_bp_factor,
+        is_sparse=is_sparse,
+    )
     calculate_flops_pipline.start_flops_calculate(ignore_list=ignore_modules)
 
     device = next(model.parameters()).device
     model = model.to(device)
 
     if input_shape is not None:
-        assert len(args) == 0 and len(
-            kwargs) == 0, "args and kwargs must be empty value if input_shape is not None, then will be generate random input by inpust_shape"
+        assert (
+            len(args) == 0 and len(kwargs) == 0
+        ), "args and kwargs must be empty value if input_shape is not None, then will be generate random input by inpust_shape"
         assert type(input_shape) is tuple, "input_shape must be a tuple"
         assert len(input_shape) >= 1, "input_shape must have at least one element"
 
         if transformer_tokenizer is None:  # model is not transformers model
-            assert is_transformer is False, "the model is must not transformer model if input_shape is not None and transformer_tokenizer is None"
+            assert (
+                is_transformer is False
+            ), "the model is must not transformer model if input_shape is not None and transformer_tokenizer is None"
             try:
                 input = torch.ones(()).new_empty(
                     (*input_shape,),
@@ -139,34 +146,38 @@ def calculate_flops(model,
                 input = torch.ones(()).new_empty((*input_shape,))
             args = [input]
         else:
-            assert len(
-                input_shape) == 2, "the format of input_shape must be (batch_size, seq_len) if model is transformers model and auto_generate_transformers_input if True"
-            kwargs = generate_transformer_input(input_shape=input_shape,
-                                                model_tokenizer=transformer_tokenizer,
-                                                device=device)
+            assert (
+                len(input_shape) == 2
+            ), "the format of input_shape must be (batch_size, seq_len) if model is transformers model and auto_generate_transformers_input if True"
+            kwargs = generate_transformer_input(
+                input_shape=input_shape,
+                model_tokenizer=transformer_tokenizer,
+                device=device,
+            )
     else:
-        assert transformer_tokenizer or (len(args) > 0 or len(
-            kwargs) > 0), "input_shape or args or kwargs one of there parameters must specified if auto_generate_input is False"
+        assert transformer_tokenizer or (
+            len(args) > 0 or len(kwargs) > 0
+        ), "input_shape or args or kwargs one of there parameters must specified if auto_generate_input is False"
         if transformer_tokenizer:
-            kwargs = generate_transformer_input(input_shape=None,
-                                                model_tokenizer=transformer_tokenizer,
-                                                device=device)
+            kwargs = generate_transformer_input(
+                input_shape=None, model_tokenizer=transformer_tokenizer, device=device
+            )
 
     if kwargs:
         for key, value in kwargs.items():
             kwargs[key] = value.to(device)
 
-        if forward_mode == 'forward':
+        if forward_mode == "forward":
             _ = model(*args, **kwargs)
-        if forward_mode == 'generate':
+        if forward_mode == "generate":
             _ = model.generate(*args, **kwargs)
     else:
         for index in range(len(args)):
             args[index] = args[index].to(device)
 
-        if forward_mode == 'forward':
+        if forward_mode == "forward":
             _ = model(*args)
-        if forward_mode == 'generate':
+        if forward_mode == "generate":
             _ = model.generate(*args)
 
     flops = calculate_flops_pipline.get_total_flops()
@@ -174,9 +185,9 @@ def calculate_flops(model,
     params = calculate_flops_pipline.get_total_params()
 
     if print_results:
-        return_print = calculate_flops_pipline.print_model_pipline(units=output_unit,
-                                                                   precision=output_precision,
-                                                                   print_detailed=print_detailed)
+        return_print = calculate_flops_pipline.print_model_pipline(
+            units=output_unit, precision=output_precision, print_detailed=print_detailed
+        )
 
     calculate_flops_pipline.end_flops_calculate()
 
@@ -185,8 +196,10 @@ def calculate_flops(model,
         macs = macs * (1 + compute_bp_factor)
 
     if output_as_string:
-        return flops_to_string(flops, units=output_unit, precision=output_precision), \
-            macs_to_string(macs, units=output_unit, precision=output_precision), \
-            params_to_string(params, units=output_unit, precision=output_precision)
+        return (
+            flops_to_string(flops, units=output_unit, precision=output_precision),
+            macs_to_string(macs, units=output_unit, precision=output_precision),
+            params_to_string(params, units=output_unit, precision=output_precision),
+        )
 
     return flops, macs, params

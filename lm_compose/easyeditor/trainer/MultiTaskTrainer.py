@@ -25,9 +25,13 @@ LOG = logging.getLogger(__name__)
 class MultiTaskTrainer(BaseTrainer):
     def __init__(self, config, train_set: Dataset, val_set: Dataset):
         super().__init__(config, train_set, val_set)
-        if isinstance(train_set.tok, GPT2Tokenizer) or isinstance(train_set.tok, GPT2TokenizerFast):
+        if isinstance(train_set.tok, GPT2Tokenizer) or isinstance(
+            train_set.tok, GPT2TokenizerFast
+        ):
             self.model.model.resize_token_embeddings(len(train_set.tok))
-            self.model.model.lm_head.weight.data[-1, :] = self.model.model.lm_head.weight.data.mean(0)
+            self.model.model.lm_head.weight.data[
+                -1, :
+            ] = self.model.model.lm_head.weight.data.mean(0)
         if hasattr(self.model, "edit_lrs") and not self.config.eval_only:
             self.lr_opt = self.OptimizerClass([self.model.edit_lrs], config.lr_lr)
             if self.archive is not None:
@@ -45,14 +49,18 @@ class MultiTaskTrainer(BaseTrainer):
             else:
                 base_logits = self.model(
                     input_ids=batch["loc"]["input_ids"].to(self.config.device),
-                    attention_mask=batch["loc"]["attention_mask"].to(self.config.device),
-                    )
+                    attention_mask=batch["loc"]["attention_mask"].to(
+                        self.config.device
+                    ),
+                )
 
         # Do the edit
         start = time.time()
         if batch["metric_kwargs"] is None:
             if "cond" in batch:
-                edited_model, model_info = self.model.edit(batch["edit_inner"], batch["cond"])
+                edited_model, model_info = self.model.edit(
+                    batch["edit_inner"], batch["cond"]
+                )
             else:
                 edited_model, model_info = self.model.edit(batch["edit_inner"])
         else:
@@ -62,10 +70,14 @@ class MultiTaskTrainer(BaseTrainer):
                 unlikelihood=True,
             )
             if "cond" in batch:
-                edited_model, model_info = self.model.edit(batch["edit_inner"], batch["cond"], **kwargs)
+                edited_model, model_info = self.model.edit(
+                    batch["edit_inner"], batch["cond"], **kwargs
+                )
             else:
-                edited_model, model_info = self.model.edit(batch["edit_inner"], **kwargs)
-            
+                edited_model, model_info = self.model.edit(
+                    batch["edit_inner"], **kwargs
+                )
+
         edit_time = time.time() - start
 
         with torch.set_grad_enabled(training):
@@ -73,36 +85,47 @@ class MultiTaskTrainer(BaseTrainer):
             post_edit_logits = edited_model(**batch["edit_inner"])
             if batch["metric_kwargs"] is None:
                 l_edit = self.model.edit_loss_fn(
-                    self.config, post_edit_logits, batch["edit_inner"]["labels"],
+                    self.config,
+                    post_edit_logits,
+                    batch["edit_inner"]["labels"],
                 )["nll"]
             else:
                 l_edit = self.model.edit_loss_fn(
-                    self.config, post_edit_logits, batch["edit_inner"]["labels"], **kwargs
+                    self.config,
+                    post_edit_logits,
+                    batch["edit_inner"]["labels"],
+                    **kwargs,
                 )["nll"]
 
             # Locality loss
             if batch["metric_kwargs"] is None:
-                post_base_logits = edited_model(**batch['loc'])
+                post_base_logits = edited_model(**batch["loc"])
             else:
                 post_base_logits = edited_model(
                     input_ids=batch["loc"]["input_ids"].to(self.config.device),
-                    attention_mask=batch["loc"]["attention_mask"].to(self.config.device),
+                    attention_mask=batch["loc"]["attention_mask"].to(
+                        self.config.device
+                    ),
                     labels=batch["loc"]["labels"].to(self.config.device),
-                    )
+                )
             kl_mask = batch["loc"].get(
                 "decoder_attention_mask", batch["loc"]["attention_mask"]
             )
             if kl_mask.size(1) != base_logits.size(1):
-                base_logits = base_logits[:, -kl_mask.size(1):]
-                post_base_logits = post_base_logits[:, -kl_mask.size(1):]
+                base_logits = base_logits[:, -kl_mask.size(1) :]
+                post_base_logits = post_base_logits[:, -kl_mask.size(1) :]
             l_loc = kl_loc_loss(base_logits.detach(), post_base_logits, mask=kl_mask)
 
         l_total_edit = self.config.cedit * l_edit + self.config.cloc * l_loc
 
         if training:
             safe_backward(
-                l_total_edit, self.model.outer_parameters(), self.config.accumulate_bs, allow_unused=True if
-                self.config.alg=='MEND' and self.config.model_parallel else False
+                l_total_edit,
+                self.model.outer_parameters(),
+                self.config.accumulate_bs,
+                allow_unused=True
+                if self.config.alg == "MEND" and self.config.model_parallel
+                else False,
             )
 
         # Collect some useful metrics
@@ -113,7 +136,10 @@ class MultiTaskTrainer(BaseTrainer):
                 )
             else:
                 post_edit_dict = self.model.edit_loss_fn(
-                    self.config, post_edit_logits, batch["edit_inner"]["labels"], **kwargs
+                    self.config,
+                    post_edit_logits,
+                    batch["edit_inner"]["labels"],
+                    **kwargs,
                 )
             post_loc_dict = self.model.loc_loss_fn(
                 self.config, post_base_logits, batch["loc"]["labels"]
@@ -123,14 +149,24 @@ class MultiTaskTrainer(BaseTrainer):
             )
 
         # text loc
-        post_base_logits_softmax_top_k = torch.topk(torch.nn.functional.softmax(post_base_logits, dim=-1), k=1, dim=-1).indices
-        base_logits_softmax_top_k = torch.topk(torch.nn.functional.softmax(base_logits, dim=-1), k=1, dim=-1).indices
+        post_base_logits_softmax_top_k = torch.topk(
+            torch.nn.functional.softmax(post_base_logits, dim=-1), k=1, dim=-1
+        ).indices
+        base_logits_softmax_top_k = torch.topk(
+            torch.nn.functional.softmax(base_logits, dim=-1), k=1, dim=-1
+        ).indices
 
         info_dict = {}
         info_dict["loss/edit"] = l_edit.item()
         info_dict["loss/loc"] = l_loc.item()
         info_dict["edit/acc"] = post_edit_dict["acc"].item()
-        info_dict["loc/acc"] = sum(post_base_logits_softmax_top_k.view(-1) == base_logits_softmax_top_k.view(-1))/post_base_logits_softmax_top_k.view(-1).shape[0]
+        info_dict["loc/acc"] = (
+            sum(
+                post_base_logits_softmax_top_k.view(-1)
+                == base_logits_softmax_top_k.view(-1)
+            )
+            / post_base_logits_softmax_top_k.view(-1).shape[0]
+        )
         info_dict["edit/log_prob"] = post_edit_dict["log_prob"].item()
         info_dict["edit/prob"] = post_edit_dict["prob"].item()
         info_dict["time/edit"] = edit_time
@@ -174,9 +210,7 @@ class MultiTaskTrainer(BaseTrainer):
         return l_total, l_edit, l_loc, l_base, info_dict
 
     def train_step(self, batch):
-        l_total, l_edit, l_loc, l_base, info_dict = self.edit_step(
-            batch, training=True
-        )
+        l_total, l_edit, l_loc, l_base, info_dict = self.edit_step(batch, training=True)
 
         if self.global_iter > 0 and self.global_iter % self.config.accumulate_bs == 0:
             grad = torch.nn.utils.clip_grad_norm_(
@@ -223,10 +257,7 @@ class MultiTaskTrainer(BaseTrainer):
             _, _, _, _, info_dict = self.edit_step(batch, training=False)
             averager.add(info_dict)
 
-            if (
-                log
-                and (val_step + 1) % self.config.log_interval == 0
-            ):
+            if log and (val_step + 1) % self.config.log_interval == 0:
                 self._inline_validation_log(
                     val_step, averager.average(), start_time, steps
                 )

@@ -1,16 +1,20 @@
-import torch 
-import torch.nn as nn 
-from layerwrapper import WrappedLayer 
+import torch
+import torch.nn as nn
+from layerwrapper import WrappedLayer
 
-def find_layers(module, layers=[nn.Linear], name=''):
+
+def find_layers(module, layers=[nn.Linear], name=""):
     if type(module) in layers:
         return {name: module}
     res = {}
     for name1, child in module.named_children():
-        res.update(find_layers(
-            child, layers=layers, name=name + '.' + name1 if name != '' else name1
-        ))
+        res.update(
+            find_layers(
+                child, layers=layers, name=name + "." + name1 if name != "" else name1
+            )
+        )
     return res
+
 
 def check_sparsity(model):
     subset = find_layers(model, layers=[nn.Linear])
@@ -19,28 +23,32 @@ def check_sparsity(model):
     for name in subset:
         W = subset[name].weight.data
         if W.shape[0] == 1000:
-            continue 
-        zero_cnt += (W==0).sum().item()
+            continue
+        zero_cnt += (W == 0).sum().item()
         fc_params += W.numel()
     return float(zero_cnt) / fc_params
 
+
 def compute_mask(W_metric, prune_granularity, sparsity):
     if prune_granularity == "layer":
-        thres = torch.sort(W_metric.flatten().cuda())[0][int(W_metric.numel() * sparsity)].cpu()
-        W_mask = (W_metric <= thres)
-        return W_mask 
+        thres = torch.sort(W_metric.flatten().cuda())[0][
+            int(W_metric.numel() * sparsity)
+        ].cpu()
+        W_mask = W_metric <= thres
+        return W_mask
     elif prune_granularity == "row":
-        W_mask = (torch.zeros_like(W_metric)==1)
+        W_mask = torch.zeros_like(W_metric) == 1
         sort_res = torch.sort(W_metric, dim=-1, stable=True)
 
-        indices = sort_res[1][:,:int(W_metric.shape[1]*sparsity)]
+        indices = sort_res[1][:, : int(W_metric.shape[1] * sparsity)]
         W_mask.scatter_(1, indices, True)
-        return W_mask 
+        return W_mask
+
 
 def prune_deit(args, model, calib_data, device):
-    inps = calib_data 
+    inps = calib_data
     bs = inps.shape[0]
-    require_forward = (args.prune_metric in ["wanda"])
+    require_forward = args.prune_metric in ["wanda"]
 
     metric_stats = []
     for blk in model.blocks:
@@ -50,11 +58,13 @@ def prune_deit(args, model, calib_data, device):
             res_per_layer[name] = torch.abs(subset[name].weight.data)
         metric_stats.append(res_per_layer)
 
-    thresh = None 
+    thresh = None
     #####################################
     inps = model.patch_embed(inps)
 
-    cls_tokens = model.cls_token.expand(bs, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
+    cls_tokens = model.cls_token.expand(
+        bs, -1, -1
+    )  # stole cls_tokens impl from Phil Wang, thanks
     dist_token = model.dist_token.expand(bs, -1, -1)
     inps = torch.cat((cls_tokens, dist_token, inps), dim=1)
 
@@ -72,6 +82,7 @@ def prune_deit(args, model, calib_data, device):
             def add_batch(name):
                 def tmp(_, inp, out):
                     wrapped_layers[name].add_batch(inp[0].data, out.data)
+
                 return tmp
 
             handles = []
@@ -81,7 +92,7 @@ def prune_deit(args, model, calib_data, device):
             if bs > 256:
                 tmp_res = []
                 for i1 in range(0, bs, 256):
-                    j1 = min(i1+256, bs)
+                    j1 = min(i1 + 256, bs)
                     tmp_res.append(blk(inps[i1:j1]))
                 inps = torch.cat(tmp_res, dim=0)
             else:
@@ -93,16 +104,21 @@ def prune_deit(args, model, calib_data, device):
         ################# pruning ###################
         for name in subset:
             if args.prune_metric == "wanda":
-                metric_stats[block_id][name] *= torch.sqrt(wrapped_layers[name].scaler_row.reshape((1,-1)))
+                metric_stats[block_id][name] *= torch.sqrt(
+                    wrapped_layers[name].scaler_row.reshape((1, -1))
+                )
 
-            W_mask = compute_mask(metric_stats[block_id][name], args.prune_granularity, args.sparsity)
+            W_mask = compute_mask(
+                metric_stats[block_id][name], args.prune_granularity, args.sparsity
+            )
 
             subset[name].weight.data[W_mask] = 0
 
+
 def prune_vit(args, model, calib_data, device):
-    inps = calib_data 
+    inps = calib_data
     bs = inps.shape[0]
-    require_forward = (args.prune_metric in ["wanda"])
+    require_forward = args.prune_metric in ["wanda"]
 
     metric_stats = []
     for blk in model.blocks:
@@ -112,11 +128,13 @@ def prune_vit(args, model, calib_data, device):
             res_per_layer[name] = torch.abs(subset[name].weight.data)
         metric_stats.append(res_per_layer)
 
-    thresh = None 
+    thresh = None
     #####################################
     inps = model.patch_embed(inps)
 
-    cls_tokens = model.cls_token.expand(bs, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
+    cls_tokens = model.cls_token.expand(
+        bs, -1, -1
+    )  # stole cls_tokens impl from Phil Wang, thanks
     inps = torch.cat((cls_tokens, inps), dim=1)
     inps = inps + model.pos_embed
     inps = model.pos_drop(inps)
@@ -133,6 +151,7 @@ def prune_vit(args, model, calib_data, device):
             def add_batch(name):
                 def tmp(_, inp, out):
                     wrapped_layers[name].add_batch(inp[0].data, out.data)
+
                 return tmp
 
             handles = []
@@ -142,7 +161,7 @@ def prune_vit(args, model, calib_data, device):
             if bs > 256:
                 tmp_res = []
                 for i1 in range(0, bs, 256):
-                    j1 = min(i1+256, bs)
+                    j1 = min(i1 + 256, bs)
                     tmp_res.append(blk(inps[i1:j1]))
                 inps = torch.cat(tmp_res, dim=0)
             else:
@@ -154,17 +173,22 @@ def prune_vit(args, model, calib_data, device):
         ################# pruning ###################
         for name in subset:
             if args.prune_metric == "wanda":
-                metric_stats[block_id][name] *= torch.sqrt(wrapped_layers[name].scaler_row.reshape((1,-1)))
+                metric_stats[block_id][name] *= torch.sqrt(
+                    wrapped_layers[name].scaler_row.reshape((1, -1))
+                )
 
-            W_mask = compute_mask(metric_stats[block_id][name], args.prune_granularity, args.sparsity)
+            W_mask = compute_mask(
+                metric_stats[block_id][name], args.prune_granularity, args.sparsity
+            )
 
             subset[name].weight.data[W_mask] = 0
         ##############################################
 
+
 def prune_convnext(args, model, calib_data, device):
-    inps = calib_data 
+    inps = calib_data
     bs = inps.shape[0]
-    require_forward = (args.prune_metric in ["wanda"])
+    require_forward = args.prune_metric in ["wanda"]
 
     ##############################################################
     metric_stats = []
@@ -176,7 +200,7 @@ def prune_convnext(args, model, calib_data, device):
         metric_stats.append(res_per_layer)
     ##############################################################
 
-    thresh = None 
+    thresh = None
     for block_id in range(4):
         print(f"block {block_id}")
         subset = find_layers(model.stages[block_id])
@@ -186,7 +210,7 @@ def prune_convnext(args, model, calib_data, device):
             if bs > 1024:
                 tmp_res = []
                 for i1 in range(0, bs, 512):
-                    j1 = min(i1+512, bs)
+                    j1 = min(i1 + 512, bs)
                     tmp_res.append(layer(inps[i1:j1]))
                 inps = torch.cat(tmp_res, dim=0)
             else:
@@ -199,16 +223,17 @@ def prune_convnext(args, model, calib_data, device):
             def add_batch(name):
                 def tmp(_, inp, out):
                     wrapped_layers[name].add_batch(inp[0].data, out.data)
+
                 return tmp
 
             handles = []
             for name in wrapped_layers:
-               handles.append(subset[name].register_forward_hook(add_batch(name)))
+                handles.append(subset[name].register_forward_hook(add_batch(name)))
             layer = model.stages[block_id]
             if bs > 1024:
                 tmp_res = []
                 for i1 in range(0, bs, 512):
-                    j1 = min(i1+512, bs)
+                    j1 = min(i1 + 512, bs)
                     tmp_res.append(layer(inps[i1:j1]))
                 inps = torch.cat(tmp_res, dim=0)
             else:
@@ -219,9 +244,13 @@ def prune_convnext(args, model, calib_data, device):
         ################# pruning ###################
         for name in subset:
             if args.prune_metric == "wanda":
-                metric_stats[block_id][name] *= torch.sqrt(wrapped_layers[name].scaler_row.reshape((1,-1)))
+                metric_stats[block_id][name] *= torch.sqrt(
+                    wrapped_layers[name].scaler_row.reshape((1, -1))
+                )
 
-            W_mask = compute_mask(metric_stats[block_id][name], args.prune_granularity, args.sparsity)
+            W_mask = compute_mask(
+                metric_stats[block_id][name], args.prune_granularity, args.sparsity
+            )
 
             subset[name].weight.data[W_mask] = 0
         ##############################################

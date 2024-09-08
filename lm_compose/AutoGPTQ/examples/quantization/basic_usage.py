@@ -55,7 +55,13 @@ def main():
     # model = AutoGPTQForCausalLM.from_quantized(repo_id, device="cuda:0", use_safetensors=True, use_triton=False)
 
     # inference with model.generate
-    print(tokenizer.decode(model.generate(**tokenizer("auto_gptq is", return_tensors="pt").to(model.device))[0]))
+    print(
+        tokenizer.decode(
+            model.generate(
+                **tokenizer("auto_gptq is", return_tensors="pt").to(model.device)
+            )[0]
+        )
+    )
 
     # or you can also use pipeline
     pipeline = TextGenerationPipeline(model=model, tokenizer=tokenizer)
@@ -66,7 +72,9 @@ if __name__ == "__main__":
     import logging
 
     logging.basicConfig(
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s", level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S"
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     main()

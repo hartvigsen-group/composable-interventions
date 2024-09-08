@@ -5,4 +5,4 @@ python main.py \
     --save_model out/ \
     --method quant \
     --groupsize 128 \
-    --quant_method awq 
+    --quant_method awq

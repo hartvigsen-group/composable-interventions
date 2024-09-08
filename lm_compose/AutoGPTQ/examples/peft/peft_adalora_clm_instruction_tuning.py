@@ -18,8 +18,15 @@ parser = ArgumentParser()
 parser.add_argument("--model_name_or_path", type=str)
 parser.add_argument("--lr", type=float, default=3e-3)
 parser.add_argument("--num_epochs", type=int, default=1)
-parser.add_argument("--sample_max_length", type=int, default=1024, help="max length of sample")
-parser.add_argument("--block_max_length", type=int, default=1024, help="max length of data block(bunch of samples)")
+parser.add_argument(
+    "--sample_max_length", type=int, default=1024, help="max length of sample"
+)
+parser.add_argument(
+    "--block_max_length",
+    type=int,
+    default=1024,
+    help="max length of data block(bunch of samples)",
+)
 parser.add_argument("--tokenizer_name_or_path", type=str, default=None)
 parser.add_argument("--use_fast_tokenizer", action="store_true")
 args = parser.parse_args()
@@ -47,7 +54,9 @@ peft_config = GPTQAdaLoraConfig(
     inference_mode=False,
 )
 
-tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=args.use_fast_tokenizer)
+tokenizer = AutoTokenizer.from_pretrained(
+    model_name_or_path, use_fast=args.use_fast_tokenizer
+)
 if not tokenizer.pad_token_id:
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
@@ -57,15 +66,19 @@ model = AutoGPTQForCausalLM.from_quantized(
     warmup_triton=False,
     trainable=True,
     inject_fused_attention=True,
-    inject_fused_mlp=False
+    inject_fused_mlp=False,
 )
 model.warmup_triton()
 device = model.device
-model = get_gptq_peft_model(model, peft_config=peft_config, auto_find_all_linears=True, train_mode=True)
+model = get_gptq_peft_model(
+    model, peft_config=peft_config, auto_find_all_linears=True, train_mode=True
+)
 model.print_trainable_parameters()
 
 # loading dataset
-WITH_INPUT_TEMPLATE = "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Output:\n"
+WITH_INPUT_TEMPLATE = (
+    "### Instruction:\n{instruction}\n\n### Input:\n{input}\n\n### Output:\n"
+)
 WITHOUT_INPUT_TEMPLATE = "### Instruction:\n{instruction}\n\n### Output:\n"
 
 
@@ -75,9 +88,13 @@ def ds_refactor_fn(samples):
     output_data = samples["output"]
 
     new_samples = {"prompt": [], "output": []}
-    for instruction_txt, input_txt, output_txt in zip(instruction_data, input_data, output_data):
+    for instruction_txt, input_txt, output_txt in zip(
+        instruction_data, input_data, output_data
+    ):
         if input_txt:
-            prompt = WITH_INPUT_TEMPLATE.format(instruction=instruction_txt, input=input_txt)
+            prompt = WITH_INPUT_TEMPLATE.format(
+                instruction=instruction_txt, input=input_txt
+            )
         else:
             prompt = WITHOUT_INPUT_TEMPLATE.format(instruction=instruction_txt)
         new_samples["prompt"].append(prompt)
@@ -87,7 +104,9 @@ def ds_refactor_fn(samples):
 
 
 ds = Dataset.from_generator(
-    lambda: json.load(open("../quantization/dataset/alpaca_data_cleaned.json", "r", encoding="utf-8"))
+    lambda: json.load(
+        open("../quantization/dataset/alpaca_data_cleaned.json", "r", encoding="utf-8")
+    )
 )
 ds = ds.map(
     make_data_block,
@@ -106,14 +125,18 @@ ds = ds.map(
         "block_max_len": args.block_max_length,
         "add_eos_token": True,
         "truncate_prompt": False,
-        "merge_prompt_label": True
-    }
+        "merge_prompt_label": True,
+    },
 )
 ds = ds.train_test_split(test_size=len(ds) // 10)
 train_ds, eval_ds = ds["train"], ds["test"]
 collate_fn = partial(collate_data, pad_token_id=tokenizer.pad_token_id)
-train_dataloader = DataLoader(train_ds, batch_size=1, shuffle=True, collate_fn=partial(collate_fn))
-eval_dataloader = DataLoader(eval_ds, batch_size=1, shuffle=False, collate_fn=collate_fn)
+train_dataloader = DataLoader(
+    train_ds, batch_size=1, shuffle=True, collate_fn=partial(collate_fn)
+)
+eval_dataloader = DataLoader(
+    eval_ds, batch_size=1, shuffle=False, collate_fn=collate_fn
+)
 
 # optimizer and lr scheduler
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -157,13 +180,20 @@ with torch.cuda.amp.autocast():
             loss = outputs.loss
             eval_loss += loss.detach().float()
             eval_preds.extend(
-                tokenizer.batch_decode(torch.argmax(outputs.logits, -1).detach().cpu().numpy(), skip_special_tokens=True)
+                tokenizer.batch_decode(
+                    torch.argmax(outputs.logits, -1).detach().cpu().numpy(),
+                    skip_special_tokens=True,
+                )
             )
 
         eval_epoch_loss = eval_loss / len(eval_dataloader)
         eval_ppl = torch.exp(eval_epoch_loss)
         train_epoch_loss = total_loss / len(train_dataloader)
         train_ppl = torch.exp(train_epoch_loss)
-        print(f"{epoch=}: {train_ppl=} {train_epoch_loss=} {eval_ppl=} {eval_epoch_loss=}")
+        print(
+            f"{epoch=}: {train_ppl=} {train_epoch_loss=} {eval_ppl=} {eval_epoch_loss=}"
+        )
 
-model.save_pretrained(os.path.join(model_name_or_path, f"gptq_{peft_config.peft_type.value}_adapter"))
+model.save_pretrained(
+    os.path.join(model_name_or_path, f"gptq_{peft_config.peft_type.value}_adapter")
+)

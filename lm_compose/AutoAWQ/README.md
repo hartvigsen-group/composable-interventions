@@ -93,7 +93,7 @@ There are two versions of AWQ: GEMM and GEMV. Both names relate to how matrix mu
 
 #### Compute-bound vs Memory-bound
 
-At small batch sizes with small 7B models, we are memory-bound. This means we are bound by the bandwidth our GPU has to push around the weights in memory, and this is essentially what limits how many tokens per second we can generate. Being memory-bound is what makes quantized models faster because your weights are 3x smaller and can therefore be pushed around in memory much faster. This is different from being compute-bound where the main time spent during generation is doing matrix multiplication. 
+At small batch sizes with small 7B models, we are memory-bound. This means we are bound by the bandwidth our GPU has to push around the weights in memory, and this is essentially what limits how many tokens per second we can generate. Being memory-bound is what makes quantized models faster because your weights are 3x smaller and can therefore be pushed around in memory much faster. This is different from being compute-bound where the main time spent during generation is doing matrix multiplication.
 
 In the scenario of being compute-bound, which happens at higher batch sizes, you will not gain a speed-up using a W4A16 quantized model because the overhead of dequantization will slow down the overall generation. This happens because AWQ quantized models only store the weights in INT4 but perform FP16 operations during inference, so we are essentially converting INT4 -> FP16 during inference.
 
@@ -168,13 +168,13 @@ prompt = "You're standing on the surface of the Earth. "\
         "You end up exactly where you started. Where are you?"
 
 tokens = tokenizer(
-    prompt_template.format(prompt=prompt), 
+    prompt_template.format(prompt=prompt),
     return_tensors='pt'
 ).input_ids.cuda()
 
 # Generate output
 generation_output = model.generate(
-    tokens, 
+    tokens,
     streamer=streamer,
     max_new_tokens=512
 )

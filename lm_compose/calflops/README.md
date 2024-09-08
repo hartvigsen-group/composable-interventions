@@ -55,7 +55,7 @@ In addition, the implementation process of this package inspired by [ptflops](ht
 pip install calflops
 ```
 
-And you also can download latest `calflops-*-py3-none-any.whl` files from https://pypi.org/project/calflops/ 
+And you also can download latest `calflops-*-py3-none-any.whl` files from https://pypi.org/project/calflops/
 
 ```python
 pip install calflops-*-py3-none-any.whl
@@ -74,12 +74,12 @@ from torchvision import models
 model = models.alexnet()
 batch_size = 1
 input_shape = (batch_size, 3, 224, 224)
-flops, macs, params = calculate_flops(model=model, 
+flops, macs, params = calculate_flops(model=model,
                                       input_shape=input_shape,
                                       output_as_string=True,
                                       output_precision=4)
 print("Alexnet FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Alexnet FLOPs:4.2892 GFLOPS   MACs:2.1426 GMACs   Params:61.1008 M 
+#Alexnet FLOPs:4.2892 GFLOPS   MACs:2.1426 GMACs   Params:61.1008 M
 ```
 
 If the model has multiple inputs, use the parameters ```args``` or ```kargs```, as shown in the Transfomer Model below.
@@ -150,11 +150,11 @@ model_save = "../pretrain_models/" + model_name
 model = AutoModel.from_pretrained(model_save)
 tokenizer = AutoTokenizer.from_pretrained(model_save)
 
-flops, macs, params = calculate_flops(model=model, 
+flops, macs, params = calculate_flops(model=model,
                                       input_shape=(batch_size,max_seq_length),
                                       transformer_tokenizer=tokenizer)
 print("Bert(hfl/chinese-roberta-wwm-ext) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:67.1 GFLOPS   MACs:33.52 GMACs   Params:102.27 M 
+#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:67.1 GFLOPS   MACs:33.52 GMACs   Params:102.27 M
 ```
 
 If you want to use your own generated specific data to calculate FLOPs, you can use
@@ -176,7 +176,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_save)
 
 text = ""
 inputs = tokenizer(text,
-                   add_special_tokens=True, 
+                   add_special_tokens=True,
                    return_attention_mask=True,
                    padding=True,
                    truncation="longest_first",
@@ -187,7 +187,7 @@ if len(inputs["input_ids"]) < max_seq_length:
     inputs["input_ids"].extend([0]*apply_num)
     inputs["token_type_ids"].extend([0]*apply_num)
     inputs["attention_mask"].extend([0]*apply_num)
-    
+
 inputs["input_ids"] = torch.tensor([inputs["input_ids"]])
 inputs["token_type_ids"] = torch.tensor([inputs["token_type_ids"]])
 inputs["attention_mask"] = torch.tensor([inputs["attention_mask"]])
@@ -196,7 +196,7 @@ flops, macs, params = calculate_flops(model=model,
                                       kwargs = inputs,
                                       print_results=False)
 print("Bert(hfl/chinese-roberta-wwm-ext) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:22.36 GFLOPS   MACs:11.17 GMACs   Params:102.27 M 
+#Bert(hfl/chinese-roberta-wwm-ext) FLOPs:22.36 GFLOPS   MACs:11.17 GMACs   Params:102.27 M
 ```
 
 
@@ -209,7 +209,7 @@ from calflops import calculate_flops_hf
 
 batch_size, max_seq_length = 1, 128
 model_name = "meta-llama/Llama-2-7b"
-access_token = "" # your application for using llama 
+access_token = "" # your application for using llama
 
 flops, macs, params = calculate_flops_hf(model_name=model_name,
                                          access_token=access_token,
@@ -235,7 +235,7 @@ flops, macs, params = calculate_flops(model=model,
                                       input_shape=(batch_size, max_seq_length),
                                       transformer_tokenizer=tokenizer)
 print("Llama2(7B) FLOPs:%s   MACs:%s   Params:%s \n" %(flops, macs, params))
-#Llama2(7B) FLOPs:1.7 TFLOPS   MACs:850.00 GMACs   Params:6.74 B 
+#Llama2(7B) FLOPs:1.7 TFLOPS   MACs:850.00 GMACs   Params:6.74 B
 ```
 
 ### Show each submodule result of FLOPs、MACs、Params
@@ -263,7 +263,7 @@ The calflops support  multiple inputs of model, just use parameter args or kwarg
 
 <details>
 <summary> How to calculate the results of FLOPS include forward and backward pass of the model </summary>
-You can use the parameter include_backPropagation to select whether the calculation of FLOPs results includes the process of model backpropagation. The default is False, that is result of FLOPs only include forward pass. 
+You can use the parameter include_backPropagation to select whether the calculation of FLOPs results includes the process of model backpropagation. The default is False, that is result of FLOPs only include forward pass.
 
 In addition, the parameter compute_bp_factor to determine how many times backward as much computation as forward pass.The defaults that is 2.0, according to https://epochai.org/blog/backward-forward-FLOP-ratio
 </details>
@@ -289,18 +289,18 @@ from calflops import calculate_flops
 def calculate_flops(model,
                     input_shape=None,
                     transformer_tokenizer=None,
-                    args=[],   
+                    args=[],
                     kwargs={},
                     forward_mode="forward",
                     include_backPropagation=False,
-                    compute_bp_factor=2.0,         
+                    compute_bp_factor=2.0,
                     print_results=True,
                     print_detailed=True,
                     output_as_string=True,
                     output_precision=2,
                     output_unit=None,
                     ignore_modules=None):
-    
+
     """Returns the total floating-point operations, MACs, and parameters of a model.
 
     Args:
@@ -340,7 +340,7 @@ def calculate_flops_hf(model_name,
                        output_precision=2,
                        output_unit=None,
                        ignore_modules=None):
-    
+
     """Returns the total floating-point operations, MACs, and parameters of a model.
 
     Args:
@@ -361,7 +361,7 @@ def calculate_flops_hf(model_name,
     Example:
     .. code-block:: python
     from calflops import calculate_flops_hf
-    
+
     batch_size = 1
     max_seq_length = 128
     model_name = "baichuan-inc/Baichuan-13B-Chat"
@@ -371,7 +371,7 @@ def calculate_flops_hf(model_name,
 
     Returns:
         The number of floating-point operations, multiply-accumulate operations (MACs), and parameters in the model.
-    """    
+    """
 ```
 </details>
 
@@ -382,7 +382,7 @@ def calculate_flops_hf(model_name,
 ``` python
 def generate_transformer_input(model_tokenizer, input_shape, device):
     """Automatically generates data in the form of transformes model input format.
-    
+
     Args:
         input_shape (tuple):transformers model input shape: (batch_size, seq_len).
         tokenizer (transformer.model.tokenization): transformers model tokenization.tokenizer.
@@ -419,17 +419,17 @@ Input data format: batch_size=1, seq_len=128
 In addition, note that fwd + bwd does not include calculation losses for model parameter  activation recomputation, if the results wants to include activation recomputation that is only necessary to multiply the result of fwd FLOPs by 4(According to the paper: https://arxiv.org/pdf/2205.05198.pdf), and in calflops you can easily set parameter ```computer_bp_factor=3 ```to make the result of including the activate the recalculation.
 
 
-Model         | Input Shape | Params(B)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs(G) | fwd + bwd MACs(G)  | 
----           |---          |---       |---          |---         |---       |---        |--- 
+Model         | Input Shape | Params(B)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs(G) | fwd + bwd MACs(G)  |
+---           |---          |---       |---          |---         |---       |---        |---
 bloom-1b7     |(1,128)      | 1.72B    | 1722408960  | 310.92     | 155.42   | 932.76    | 466.27
 bloom-7b1     |(1,128)      | 7.07B    | 7069016064  | 1550.39    | 775.11   | 4651.18   | 2325.32
 bloomz-1b7    |(1,128)      | 1.72B    | 1722408960  | 310.92     | 155.42   | 932.76    | 466.27
 baichuan-7B   |(1,128)      | 7B       | 7000559616  | 1733.62    | 866.78   | 5200.85   | 2600.33
 chatglm-6b    |(1,128)      | 6.17B    | 6173286400  | 1587.66    | 793.75   | 4762.97   | 2381.24
-chatglm2-6b   |(1,128)      | 6.24B    | 6243584000  | 1537.68    | 768.8    | 4613.03   | 2306.4 
+chatglm2-6b   |(1,128)      | 6.24B    | 6243584000  | 1537.68    | 768.8    | 4613.03   | 2306.4
 Qwen-7B       |(1,128)      | 7.72B    | 7721324544  | 1825.83    | 912.88   | 5477.48   | 2738.65
 llama-7b      |(1,128)      | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550
-llama2-7b     |(1,128)      | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550   
+llama2-7b     |(1,128)      | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550
 llama2-7b-chat |(1,128)     | 6.74B    | 6738415616  | 1700.06    | 850      | 5100.19   | 2550
 chinese-llama-7b | (1,128)  | 6.89B    | 6885486592  | 1718.89    | 859.41   |5156.67   | 2578.24
 chinese-llama-plus-7b| (1,128) | 6.89B | 6885486592  | 1718.89    | 859.41   |5156.67   | 2578.24
@@ -451,9 +451,9 @@ More model FLOPs would be updated successively, see github [calculate-flops.pyto
 
 Input data format: batch_size=1, seq_len=128
 
-Model         | Input Shape | Params(M)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs(G) | fwd + bwd MACs(G)  | 
+Model         | Input Shape | Params(M)|Params(Total)| fwd FLOPs(G) | fwd MACs(G) | fwd + bwd FLOPs(G) | fwd + bwd MACs(G)  |
 ---           |---          |---       |---          |---        |---       |---     |---
-hfl/chinese-roberta-wwm-ext | (1,128)| 102.27M | 102267648 | 22.363 | 11.174 | 67.089 | 33.523   | 
+hfl/chinese-roberta-wwm-ext | (1,128)| 102.27M | 102267648 | 22.363 | 11.174 | 67.089 | 33.523   |
 ......
 
 You can use calflops to calculate the more different transformer models based bert, look forward to updating in this form.
@@ -466,7 +466,7 @@ Input data format: batch_size = 1, actually input_shape = (1, 3, 224, 224)
 
 Note: The FLOPs in the table only takes into account the computation of forward propagation of the model, **Total** refers to the total numerical representation without unit abbreviations.
 
-Model         | Input Resolution | Params(M)|Params(Total) | FLOPs(G) | FLOPs(Total) | Macs(G) | Macs(Total) 
+Model         | Input Resolution | Params(M)|Params(Total) | FLOPs(G) | FLOPs(Total) | Macs(G) | Macs(Total)
 ---           |---               |---        |---          |---     |---          |---     |---
 alexnet       |224x224           | 61.10     | 61100840    | 1.43   | 1429740000  | 741.19 | 7418800000
 vgg11         |224x224           | 132.86    | 132863000   | 15.24  | 15239200000 | 7.61   | 7609090000
@@ -490,7 +490,7 @@ densenet201   |224x224           | 20.01     | 20013900    | 8.66   | 8658520000
 densenet161   |224x224           | 28.68     | 28681000    | 15.55  | 1554650000  | 7.73   | 7727900000
 inception_v3  |224x224           | 27.16     | 27161300    | 5.29   | 5692390000  | 2.84   | 2837920000
 
-Thanks to @[zigangzhao-ai](https://github.com/zigangzhao-ai) use ```calflops``` to static torchvision form. 
+Thanks to @[zigangzhao-ai](https://github.com/zigangzhao-ai) use ```calflops``` to static torchvision form.
 
 You also can compare torchvision results of calculate FLOPs with anthoer good tool: [ptflops readme.md](https://github.com/sovrasov/flops-counter.pytorch/).
 

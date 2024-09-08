@@ -1,8 +1,8 @@
 # !usr/bin/env python
 # -*- coding:utf-8 -*-
 
-'''
- Description  : 
+"""
+ Description  :
  Version      : 1.0
  Author       : MrYXJ
  Mail         : yxj2017@gmail.com
@@ -10,11 +10,11 @@
  Date         : 2023-08-19 22:34:47
  LastEditTime : 2023-08-23 11:17:33
  Copyright (C) 2023 mryxj. All rights reserved.
-'''
+"""
 
-'''
+"""
 The part of code is inspired by ptflops and deepspeed profiling.
-'''
+"""
 
 import numpy as np
 import torch
@@ -34,10 +34,12 @@ def _prod(dims):
         p *= v
     return p
 
+
 def _linear_flops_compute(input, weight, bias=None):
     out_features = weight.shape[0]
     macs = input.numel() * out_features
     return 2 * macs, macs
+
 
 # Activation just calculate FLOPs， MACs is 0
 def _relu_flops_compute(input, inplace=False):
@@ -52,7 +54,9 @@ def _elu_flops_compute(input: Tensor, alpha: float = 1.0, inplace: bool = False)
     return input.numel(), 0
 
 
-def _leaky_relu_flops_compute(input: Tensor, negative_slope: float = 0.01, inplace: bool = False):
+def _leaky_relu_flops_compute(
+    input: Tensor, negative_slope: float = 0.01, inplace: bool = False
+):
     return input.numel(), 0
 
 
@@ -68,19 +72,23 @@ def _gelu_flops_compute(input, **kwargs):
     return input.numel(), 0
 
 
-def _pool_flops_compute(input,
-                        kernel_size,
-                        stride=None,
-                        padding=0,
-                        dilation=None,
-                        ceil_mode=False,
-                        count_include_pad=True,
-                        divisor_override=None,
-                        return_indices=None):
+def _pool_flops_compute(
+    input,
+    kernel_size,
+    stride=None,
+    padding=0,
+    dilation=None,
+    ceil_mode=False,
+    count_include_pad=True,
+    divisor_override=None,
+    return_indices=None,
+):
     return input.numel(), 0
 
 
-def _conv_flops_compute(input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1):
+def _conv_flops_compute(
+    input, weight, bias=None, stride=1, padding=0, dilation=1, groups=1
+):
     assert weight.shape[1] * groups == input.shape[1]
 
     batch_size = input.shape[0]
@@ -91,25 +99,28 @@ def _conv_flops_compute(input, weight, bias=None, stride=1, padding=0, dilation=
 
     length = len(input_dims)
 
-    strides = stride if type(stride) is tuple else (stride, ) * length
-    dilations = dilation if type(dilation) is tuple else (dilation, ) * length
+    strides = stride if type(stride) is tuple else (stride,) * length
+    dilations = dilation if type(dilation) is tuple else (dilation,) * length
     if isinstance(padding, str):
-        if padding == 'valid':
-            paddings = (0, ) * length
-        elif padding == 'same':
+        if padding == "valid":
+            paddings = (0,) * length
+        elif padding == "same":
             paddings = ()
             for d, k in zip(dilations, kernel_dims):
                 total_padding = d * (k - 1)
-                paddings += (total_padding // 2, )
+                paddings += (total_padding // 2,)
     elif isinstance(padding, tuple):
         paddings = padding
     else:
-        paddings = (padding, ) * length
+        paddings = (padding,) * length
 
     output_dims = []
     for idx, input_dim in enumerate(input_dims):
-        output_dim = (input_dim + 2 * paddings[idx] - (dilations[idx] *
-                                                       (kernel_dims[idx] - 1) + 1)) // strides[idx] + 1
+        output_dim = (
+            input_dim
+            + 2 * paddings[idx]
+            - (dilations[idx] * (kernel_dims[idx] - 1) + 1)
+        ) // strides[idx] + 1
         output_dims.append(output_dim)
 
     filters_per_channel = out_channels // groups
@@ -142,16 +153,18 @@ def _conv_trans_flops_compute(
     input_dims = list(input.shape[2:])
 
     length = len(input_dims)
-     
-    paddings = padding if type(padding) is tuple else (padding, ) * length
-    strides = stride if type(stride) is tuple else (stride, ) * length
-    dilations = dilation if type(dilation) is tuple else (dilation, ) * length
+
+    paddings = padding if type(padding) is tuple else (padding,) * length
+    strides = stride if type(stride) is tuple else (stride,) * length
+    dilations = dilation if type(dilation) is tuple else (dilation,) * length
 
     output_dims = []
     for idx, input_dim in enumerate(input_dims):
-
-        output_dim = (input_dim + 2 * paddings[idx] - (dilations[idx] *
-                                                       (kernel_dims[idx] - 1) + 1)) // strides[idx] + 1
+        output_dim = (
+            input_dim
+            + 2 * paddings[idx]
+            - (dilations[idx] * (kernel_dims[idx] - 1) + 1)
+        ) // strides[idx] + 1
         output_dims.append(output_dim)
 
     paddings = padding if type(padding) is tuple else (padding, padding)
@@ -201,11 +214,13 @@ def _layer_norm_flops_compute(
     return input.numel() * (5 if has_affine else 4), 0
 
 
-def _group_norm_flops_compute(input: Tensor,
-                              num_groups: int,
-                              weight: Optional[Tensor] = None,
-                              bias: Optional[Tensor] = None,
-                              eps: float = 1e-5):
+def _group_norm_flops_compute(
+    input: Tensor,
+    num_groups: int,
+    weight: Optional[Tensor] = None,
+    bias: Optional[Tensor] = None,
+    eps: float = 1e-5,
+):
     has_affine = weight is not None
     # estimation
     return input.numel() * (5 if has_affine else 4), 0
@@ -228,7 +243,7 @@ def _instance_norm_flops_compute(
 
 def _upsample_flops_compute(*args, **kwargs):
     input = args[0]
-    size = kwargs.get('size', None)
+    size = kwargs.get("size", None)
     if size is None and len(args) > 1:
         size = args[1]
 
@@ -238,7 +253,7 @@ def _upsample_flops_compute(*args, **kwargs):
         else:
             return int(size), 0
 
-    scale_factor = kwargs.get('scale_factor', None)
+    scale_factor = kwargs.get("scale_factor", None)
     if scale_factor is None and len(args) > 2:
         scale_factor = args[2]
     assert scale_factor is not None, "either size or scale_factor should be defined"
@@ -247,7 +262,7 @@ def _upsample_flops_compute(*args, **kwargs):
     if isinstance(scale_factor, tuple) and len(scale_factor) == len(input):
         flops * int(_prod(scale_factor))
     else:
-        flops * scale_factor**len(input)
+        flops * scale_factor ** len(input)
     return flops, 0
 
 
@@ -388,9 +403,13 @@ def _rnn_flops(flops, rnn_module, w_ih, w_hh, input_size):
         # adding operations from both states
         flops += rnn_module.hidden_size * 4
         # two hadamard _product and add for C state
-        flops += rnn_module.hidden_size + rnn_module.hidden_size + rnn_module.hidden_size
+        flops += (
+            rnn_module.hidden_size + rnn_module.hidden_size + rnn_module.hidden_size
+        )
         # final hadamard
-        flops += rnn_module.hidden_size + rnn_module.hidden_size + rnn_module.hidden_size
+        flops += (
+            rnn_module.hidden_size + rnn_module.hidden_size + rnn_module.hidden_size
+        )
     return flops
 
 
@@ -449,80 +468,333 @@ MODULE_HOOK_MAPPING = {
     nn.GRUCell: _rnn_cell_forward_hook,
 }
 
+
 def _patch_functionals(old_functions, module_flop_count, module_mac_count):
     # FC
-    F.linear = wrapFunc(F.linear, _linear_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.linear = wrapFunc(
+        F.linear,
+        _linear_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
     # convolutions
-    F.conv1d = wrapFunc(F.conv1d, _conv_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.conv2d = wrapFunc(F.conv2d, _conv_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.conv3d = wrapFunc(F.conv3d, _conv_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.conv1d = wrapFunc(
+        F.conv1d,
+        _conv_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.conv2d = wrapFunc(
+        F.conv2d,
+        _conv_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.conv3d = wrapFunc(
+        F.conv3d,
+        _conv_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
     # conv transposed
-    F.conv_transpose1d = wrapFunc(F.conv_transpose1d, _conv_trans_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.conv_transpose2d = wrapFunc(F.conv_transpose2d, _conv_trans_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.conv_transpose3d = wrapFunc(F.conv_transpose3d, _conv_trans_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.conv_transpose1d = wrapFunc(
+        F.conv_transpose1d,
+        _conv_trans_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.conv_transpose2d = wrapFunc(
+        F.conv_transpose2d,
+        _conv_trans_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.conv_transpose3d = wrapFunc(
+        F.conv_transpose3d,
+        _conv_trans_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
     # activations
-    F.relu = wrapFunc(F.relu, _relu_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.prelu = wrapFunc(F.prelu, _prelu_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.elu = wrapFunc(F.elu, _elu_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.leaky_relu = wrapFunc(F.leaky_relu, _leaky_relu_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.relu6 = wrapFunc(F.relu6, _relu6_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.relu = wrapFunc(
+        F.relu, _relu_flops_compute, old_functions, module_flop_count, module_mac_count
+    )
+    F.prelu = wrapFunc(
+        F.prelu,
+        _prelu_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.elu = wrapFunc(
+        F.elu, _elu_flops_compute, old_functions, module_flop_count, module_mac_count
+    )
+    F.leaky_relu = wrapFunc(
+        F.leaky_relu,
+        _leaky_relu_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.relu6 = wrapFunc(
+        F.relu6,
+        _relu6_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
     if hasattr(F, "silu"):
-        F.silu = wrapFunc(F.silu, _silu_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.gelu = wrapFunc(F.gelu, _gelu_flops_compute, old_functions, module_flop_count, module_mac_count)
+        F.silu = wrapFunc(
+            F.silu,
+            _silu_flops_compute,
+            old_functions,
+            module_flop_count,
+            module_mac_count,
+        )
+    F.gelu = wrapFunc(
+        F.gelu, _gelu_flops_compute, old_functions, module_flop_count, module_mac_count
+    )
 
     # Normalizations
-    F.batch_norm = wrapFunc(F.batch_norm, _batch_norm_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.layer_norm = wrapFunc(F.layer_norm, _layer_norm_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.instance_norm = wrapFunc(F.instance_norm, _instance_norm_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.group_norm = wrapFunc(F.group_norm, _group_norm_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.batch_norm = wrapFunc(
+        F.batch_norm,
+        _batch_norm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.layer_norm = wrapFunc(
+        F.layer_norm,
+        _layer_norm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.instance_norm = wrapFunc(
+        F.instance_norm,
+        _instance_norm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.group_norm = wrapFunc(
+        F.group_norm,
+        _group_norm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
     # poolings
-    F.avg_pool1d = wrapFunc(F.avg_pool1d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.avg_pool2d = wrapFunc(F.avg_pool2d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.avg_pool3d = wrapFunc(F.avg_pool3d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.max_pool1d = wrapFunc(F.max_pool1d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.max_pool2d = wrapFunc(F.max_pool2d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.max_pool3d = wrapFunc(F.max_pool3d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.adaptive_avg_pool1d = wrapFunc(F.adaptive_avg_pool1d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.adaptive_avg_pool2d = wrapFunc(F.adaptive_avg_pool2d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.adaptive_avg_pool3d = wrapFunc(F.adaptive_avg_pool3d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.adaptive_max_pool1d = wrapFunc(F.adaptive_max_pool1d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.adaptive_max_pool2d = wrapFunc(F.adaptive_max_pool2d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.adaptive_max_pool3d = wrapFunc(F.adaptive_max_pool3d, _pool_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.avg_pool1d = wrapFunc(
+        F.avg_pool1d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.avg_pool2d = wrapFunc(
+        F.avg_pool2d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.avg_pool3d = wrapFunc(
+        F.avg_pool3d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.max_pool1d = wrapFunc(
+        F.max_pool1d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.max_pool2d = wrapFunc(
+        F.max_pool2d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.max_pool3d = wrapFunc(
+        F.max_pool3d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.adaptive_avg_pool1d = wrapFunc(
+        F.adaptive_avg_pool1d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.adaptive_avg_pool2d = wrapFunc(
+        F.adaptive_avg_pool2d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.adaptive_avg_pool3d = wrapFunc(
+        F.adaptive_avg_pool3d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.adaptive_max_pool1d = wrapFunc(
+        F.adaptive_max_pool1d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.adaptive_max_pool2d = wrapFunc(
+        F.adaptive_max_pool2d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.adaptive_max_pool3d = wrapFunc(
+        F.adaptive_max_pool3d,
+        _pool_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
     # upsample
-    F.upsample = wrapFunc(F.upsample, _upsample_flops_compute, old_functions, module_flop_count, module_mac_count)
-    F.interpolate = wrapFunc(F.interpolate, _upsample_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.upsample = wrapFunc(
+        F.upsample,
+        _upsample_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    F.interpolate = wrapFunc(
+        F.interpolate,
+        _upsample_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
     # softmax
-    F.softmax = wrapFunc(F.softmax, _softmax_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.softmax = wrapFunc(
+        F.softmax,
+        _softmax_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
     # embedding
-    F.embedding = wrapFunc(F.embedding, _embedding_flops_compute, old_functions, module_flop_count, module_mac_count)
+    F.embedding = wrapFunc(
+        F.embedding,
+        _embedding_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
 
 def _patch_tensor_methods(old_functions, module_flop_count, module_mac_count):
-    torch.matmul = wrapFunc(torch.matmul, _matmul_flops_compute, old_functions, module_flop_count, module_mac_count)
-    torch.Tensor.matmul = wrapFunc(torch.Tensor.matmul, _matmul_flops_compute, old_functions, module_flop_count, module_mac_count)
+    torch.matmul = wrapFunc(
+        torch.matmul,
+        _matmul_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    torch.Tensor.matmul = wrapFunc(
+        torch.Tensor.matmul,
+        _matmul_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
     # torch.mm = wrapFunc(torch.mm, _matmul_flops_compute, old_functions, module_flop_count, module_mac_count)
     # torch.Tensor.mm = wrapFunc(torch.Tensor.mm, _matmul_flops_compute, old_functions, module_flop_count, module_mac_count)
     # torch.bmm = wrapFunc(torch.bmm, _matmul_flops_compute, old_functions, module_flop_count, module_mac_count)
     # torch.Tensor.bmm = wrapFunc(torch.Tensor.bmm, _matmul_flops_compute, old_functions, module_flop_count, module_mac_count)
 
-    torch.addmm = wrapFunc(torch.addmm, _addmm_flops_compute, old_functions, module_flop_count, module_mac_count)
-    torch.Tensor.addmm = wrapFunc(torch.Tensor.addmm, _tensor_addmm_flops_compute, old_functions, module_flop_count, module_mac_count)
+    torch.addmm = wrapFunc(
+        torch.addmm,
+        _addmm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    torch.Tensor.addmm = wrapFunc(
+        torch.Tensor.addmm,
+        _tensor_addmm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
-    torch.mul = wrapFunc(torch.mul, _mul_flops_compute, old_functions, module_flop_count, module_mac_count)
-    torch.Tensor.mul = wrapFunc(torch.Tensor.mul, _mul_flops_compute, old_functions, module_flop_count, module_mac_count)
+    torch.mul = wrapFunc(
+        torch.mul,
+        _mul_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    torch.Tensor.mul = wrapFunc(
+        torch.Tensor.mul,
+        _mul_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
-    torch.add = wrapFunc(torch.add, _add_flops_compute, old_functions, module_flop_count, module_mac_count)
-    torch.Tensor.add = wrapFunc(torch.Tensor.add, _add_flops_compute, old_functions, module_flop_count, module_mac_count)
+    torch.add = wrapFunc(
+        torch.add,
+        _add_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
+    torch.Tensor.add = wrapFunc(
+        torch.Tensor.add,
+        _add_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
-    torch.einsum = wrapFunc(torch.einsum, _einsum_flops_compute, old_functions, module_flop_count, module_mac_count)
+    torch.einsum = wrapFunc(
+        torch.einsum,
+        _einsum_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
-    torch.baddbmm = wrapFunc(torch.baddbmm, _tensor_addmm_flops_compute, old_functions, module_flop_count, module_mac_count)
+    torch.baddbmm = wrapFunc(
+        torch.baddbmm,
+        _tensor_addmm_flops_compute,
+        old_functions,
+        module_flop_count,
+        module_mac_count,
+    )
 
 
 def _reload_functionals(old_functions):

@@ -8,7 +8,14 @@ from transformers.models.llama.modeling_llama import LlamaRMSNorm
 from transformers.activations import NewGELUActivation, PytorchGELUTanh, GELUActivation
 
 allowed_norms = [nn.LayerNorm, LlamaRMSNorm]
-allowed_act_fns = [nn.GELU, BloomGelu, NewGELUActivation, PytorchGELUTanh, GELUActivation]
+allowed_act_fns = [
+    nn.GELU,
+    BloomGelu,
+    NewGELUActivation,
+    PytorchGELUTanh,
+    GELUActivation,
+]
+
 
 @torch.no_grad()
 def apply_clip(module, clip_list: Tuple[str, torch.Tensor]):
@@ -32,26 +39,27 @@ def apply_scale(module, scales_list, input_feat_dict=None):
         for layer in layers:
             layer.cuda()
         scales.cuda()
-        
+
         if isinstance(prev_op, nn.Linear):
             assert len(layers) == 1
             scale_fc_fc(prev_op, layers[0], scales)
 
-        elif any(isinstance(prev_op,t) for t in allowed_norms) \
-             or 'rmsnorm' in str(prev_op.__class__).lower():
+        elif (
+            any(isinstance(prev_op, t) for t in allowed_norms)
+            or "rmsnorm" in str(prev_op.__class__).lower()
+        ):
             scale_ln_fcs(prev_op, layers, scales)
 
-        elif any(isinstance(prev_op,t) for t in allowed_act_fns):
+        elif any(isinstance(prev_op, t) for t in allowed_act_fns):
             new_module = ScaledActivation(prev_op, scales)
             set_op_by_name(module, prev_op_name, new_module)
             scale_gelu_fc(prev_op, layers[0], scales)
-            
+
         else:
-            raise NotImplementedError(
-                f"prev_op {type(prev_op)} not supported yet!")
-            
+            raise NotImplementedError(f"prev_op {type(prev_op)} not supported yet!")
+
         # apply the scaling to input feat if given; prepare it for clipping
-        if input_feat_dict is not None:  
+        if input_feat_dict is not None:
             for layer_name in layer_names:
                 # Skip the modules that are not quantized
                 if layer_name in input_feat_dict:
@@ -63,15 +71,16 @@ def apply_scale(module, scales_list, input_feat_dict=None):
             layer.cpu()
         scales.cpu()
 
+
 @torch.no_grad()
 def scale_ln_fcs(ln: nn.Linear, fcs: List[nn.Linear], scales: torch.Tensor):
     if not isinstance(fcs, list):
         fcs = [fcs]
-    
+
     scales = scales.to(ln.weight.device)
 
     ln.weight.div_(scales)
-    if hasattr(ln, 'bias') and ln.bias is not None:
+    if hasattr(ln, "bias") and ln.bias is not None:
         ln.bias.div_(scales)
 
     for fc in fcs:
@@ -83,14 +92,15 @@ def scale_ln_fcs(ln: nn.Linear, fcs: List[nn.Linear], scales: torch.Tensor):
         for p in fc.parameters():
             assert torch.isnan(p).sum() == 0
 
+
 @torch.no_grad()
 def scale_fc_fc(fc1: nn.Linear, fc2: nn.Linear, scales: torch.Tensor):
     assert isinstance(fc1, nn.Linear)
     assert isinstance(fc2, nn.Linear)
-    
+
     scales = scales.to(fc1.weight.device)
 
-    fc1.weight[-scales.size(0):].div_(scales.view(-1, 1))
+    fc1.weight[-scales.size(0) :].div_(scales.view(-1, 1))
     if fc1.bias is not None:
         fc1.bias.div_(scales.view(-1))
 
@@ -104,7 +114,7 @@ def scale_fc_fc(fc1: nn.Linear, fc2: nn.Linear, scales: torch.Tensor):
 
 @torch.no_grad()
 def scale_gelu_fc(gelu: allowed_act_fns, fc: nn.Linear, scales: torch.Tensor):
-    assert any(isinstance(gelu,t) for t in allowed_act_fns)
+    assert any(isinstance(gelu, t) for t in allowed_act_fns)
     assert isinstance(fc, nn.Linear)
 
     fc.weight.mul_(scales.view(1, -1).to(fc.weight.device))

@@ -69,7 +69,7 @@ def get_model(config):
         model = BertClassifier(config.model_name)
     elif config.model_name == "blip2":
         from .blip2_models.blip2_opt import Blip2OPT
-        
+
         model = Blip2OPT(
             vit_model="eva_clip_g",
             img_size=364,
@@ -80,7 +80,7 @@ def get_model(config):
             opt_model=config.name,
             state_dict_file=config.state_dict_file,
             qformer_name_or_path=config.qformer_name_or_path,
-            qformer_checkpoint=config.qformer_checkpoint
+            qformer_checkpoint=config.qformer_checkpoint,
         )
     elif config.model_name == "minigpt4":
         from .blip2_models.mini_gpt4 import MiniGPT4
@@ -100,10 +100,12 @@ def get_model(config):
         )
     else:
         ModelClass = getattr(transformers, config.model_class)
-        LOG.info(
-            f"Loading model class {ModelClass} with name {config.model_name}"
+        LOG.info(f"Loading model class {ModelClass} with name {config.model_name}")
+        model = ModelClass.from_pretrained(
+            config.model_name,
+            trust_remote_code=True,
+            device_map="auto" if config.model_parallel else None,
         )
-        model = ModelClass.from_pretrained(config.model_name, trust_remote_code=True, device_map='auto' if config.model_parallel else None)
 
     # if config.model.pt is not None:
     #     LOG.info(f"Loading model initialization from {config.model.pt}")
@@ -215,12 +217,12 @@ def get_tokenizer(config):
         if config.tokenizer_name is not None
         else config.model.name
     )
-    tokenizer =  getattr(transformers, config.tokenizer_class).from_pretrained(
+    tokenizer = getattr(transformers, config.tokenizer_class).from_pretrained(
         tok_name, cache_dir=scr()
     )
     if isinstance(tokenizer, GPT2Tokenizer) or isinstance(tokenizer, GPT2TokenizerFast):
-        tokenizer.pad_token_id  = tokenizer.eos_token_id
-        tokenizer.padding_side = 'left'
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        tokenizer.padding_side = "left"
     return tokenizer
 
 

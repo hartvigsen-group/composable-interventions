@@ -6,12 +6,12 @@
 #define mymin(a,b) ((a)<(b)?(a):(b))
 #define mymax(a,b) ((a)>(b)?(a):(b))
 inline
-void q2gemm_gs(const float* __restrict__ input, 
-const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
- const float* __restrict__ sums, 
+void q2gemm_gs(const float* __restrict__ input,
+const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+ const float* __restrict__ sums,
  float* __restrict__ output,
 const int n,
 const int m,
@@ -37,10 +37,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff: 
+ (tid-cutoff)*tt + (tt+tb)*cutoff:
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16: 
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16:
  tid*tt*m/16;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -405,15 +405,15 @@ _mm256_storeu_ps(&output[i*t + base_output + j + 24], o224);
 }
 }
 }
-inline void qforward(const float* __restrict__ input, 
- const int* __restrict__ W, 
-const float* __restrict__ scales, 
-const float* __restrict__ zeros, 
-const float* __restrict__ bias, 
-const float* __restrict__ sums, 
-float* __restrict__ output, 
-int n, 
- int m, 
+inline void qforward(const float* __restrict__ input,
+ const int* __restrict__ W,
+const float* __restrict__ scales,
+const float* __restrict__ zeros,
+const float* __restrict__ bias,
+const float* __restrict__ sums,
+float* __restrict__ output,
+int n,
+ int m,
  int t) {
 q2gemm_gs(input, W, scales, zeros, bias, sums, output, n, m, t, 1, 1024, 32, 224, 64, 8);
 }
@@ -424,7 +424,7 @@ inline void pack_input(float* A, float* B){
   const int M = 4096;
   const int nb = 1;
   const int mb = 1024;
-  for(int i = 0; i < N; i+=nb){ 
+  for(int i = 0; i < N; i+=nb){
              for(int j = 0; j < M; j+=mb){
                  for(int jj = j; jj < mymin(j+mb, M); jj++){
                      for(int ii = i; ii < mymin(i+nb, N); ii++){
@@ -463,7 +463,7 @@ inline void pack_output(float* A, float* B){
   const int M = 4096;
   const int nb = 1;
   const int mb = 32;
-  for(int i = 0; i < N; i+=nb){ 
+  for(int i = 0; i < N; i+=nb){
              for(int j = 0; j < M; j+=mb){
                  for(int ii = i; ii < mymin(i+nb, N); ii++){
                      for(int jj = j; jj < mymin(j+mb, M); jj++){

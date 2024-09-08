@@ -43,7 +43,9 @@ class EditTrainer(BaseTrainer):
         # Do the edit
         start = time.time()
         if "cond" in batch:
-            edited_model, model_info = self.model.edit(batch["edit_inner"], batch["cond"])
+            edited_model, model_info = self.model.edit(
+                batch["edit_inner"], batch["cond"]
+            )
         else:
             edited_model, model_info = self.model.edit(batch["edit_inner"])
         edit_time = time.time() - start
@@ -52,25 +54,31 @@ class EditTrainer(BaseTrainer):
             # Editing loss
             post_edit_logits = edited_model(**batch["edit_inner"])
             l_edit = self.model.edit_loss_fn(
-                self.config, post_edit_logits, batch["edit_inner"]["labels"],
+                self.config,
+                post_edit_logits,
+                batch["edit_inner"]["labels"],
             )["nll"]
 
             # Locality loss
-            post_base_logits = edited_model(**batch['loc'])
+            post_base_logits = edited_model(**batch["loc"])
             kl_mask = batch["loc"].get(
                 "decoder_attention_mask", batch["loc"]["attention_mask"]
             )
             if kl_mask.size(1) != base_logits.size(1):
-                base_logits = base_logits[:, -kl_mask.size(1):]
-                post_base_logits = post_base_logits[:, -kl_mask.size(1):]
+                base_logits = base_logits[:, -kl_mask.size(1) :]
+                post_base_logits = post_base_logits[:, -kl_mask.size(1) :]
             l_loc = kl_loc_loss(base_logits.detach(), post_base_logits, mask=kl_mask)
 
         l_total_edit = self.config.cedit * l_edit + self.config.cloc * l_loc
 
         if training:
             safe_backward(
-                l_total_edit, self.model.outer_parameters(), self.config.accumulate_bs, allow_unused=True if
-                self.config.alg=='MEND' and self.config.model_parallel else False
+                l_total_edit,
+                self.model.outer_parameters(),
+                self.config.accumulate_bs,
+                allow_unused=True
+                if self.config.alg == "MEND" and self.config.model_parallel
+                else False,
             )
 
         # Collect some useful metrics
@@ -138,9 +146,7 @@ class EditTrainer(BaseTrainer):
         return l_total, l_edit, l_loc, l_base, info_dict
 
     def train_step(self, batch):
-        l_total, l_edit, l_loc, l_base, info_dict = self.edit_step(
-            batch, training=True
-        )
+        l_total, l_edit, l_loc, l_base, info_dict = self.edit_step(batch, training=True)
 
         if self.global_iter > 0 and self.global_iter % self.config.accumulate_bs == 0:
             grad = torch.nn.utils.clip_grad_norm_(
@@ -199,10 +205,7 @@ class EditTrainer(BaseTrainer):
             _, _, _, _, info_dict = self.edit_step(batch, training=False)
             averager.add(info_dict)
 
-            if (
-                log
-                and (val_step + 1) % self.config.log_interval == 0
-            ):
+            if log and (val_step + 1) % self.config.log_interval == 0:
                 self._inline_validation_log(
                     val_step, averager.average(), start_time, steps
                 )

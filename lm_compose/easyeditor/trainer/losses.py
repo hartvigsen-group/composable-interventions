@@ -42,17 +42,22 @@ def binary_log_probs(pred, targ):
         "n_tokens": log_probs.shape[0],
     }
 
+
 def masked_mean(values, mask):
     assert mask.dtype == torch.bool
     assert values.shape == mask.shape
     return (values * mask.float()).sum() / mask.sum().float()
+
 
 def mask_hf_labels(labels, null_token=0):
     valid_mask = labels != -100
     valid_labels = labels.masked_fill(~valid_mask, null_token)
     return valid_mask, valid_labels
 
-def multiclass_log_probs(config, pred, targ, shift=False, eps=torch.finfo(torch.float32).eps, **kwargs):
+
+def multiclass_log_probs(
+    config, pred, targ, shift=False, eps=torch.finfo(torch.float32).eps, **kwargs
+):
     NULL_TOKEN = 0  # a placeholder used for masked target locations
 
     pred = pred.clone()
@@ -62,13 +67,13 @@ def multiclass_log_probs(config, pred, targ, shift=False, eps=torch.finfo(torch.
         if "inner_sent" in kwargs:
             targ = targ[:, 1:]
         else:
-            pred = pred[:, -targ.size(1):]
+            pred = pred[:, -targ.size(1) :]
         # targ = targ[:, 1:]  # Shift to align predictions and targets
 
     mask = targ != -100
     targ[~mask] = NULL_TOKEN  # Can be any valid token, since we'll throw them out
     unmasked_log_probs = pred.log_softmax(-1).gather(-1, targ.unsqueeze(-1)).squeeze(-1)
-    
+
     # debug
     # print(pred.shape, targ.shape)
     # if pred.size(1) > targ.size(1):
@@ -79,12 +84,12 @@ def multiclass_log_probs(config, pred, targ, shift=False, eps=torch.finfo(torch.
     correct = correct & mask
     num_non_padding = mask.sum().float().item()
 
-    if 't5' in config.model_class.lower():
+    if "t5" in config.model_class.lower():
         end_mask = targ != 1
         correct = correct & end_mask
         num_non_padding = (mask & end_mask).sum().float().item()
     acc = correct.sum() / num_non_padding
-    
+
     if "inner_sent" in kwargs:
         same_sent_mask = kwargs["same_mask"]
         good_mask = mask * same_sent_mask.unsqueeze(-1)
@@ -105,7 +110,7 @@ def multiclass_log_probs(config, pred, targ, shift=False, eps=torch.finfo(torch.
         n_tokens = mask.float().sum()
         log_prob = (unmasked_log_probs * mask.float()).sum() / n_tokens
         prob = (unmasked_log_probs.exp() * mask.float()).sum() / n_tokens
-        
+
         nll = -log_prob
     return {
         "acc": acc,
@@ -128,20 +133,22 @@ def masked_log_probs(config, pred, targ, shift=False, **kwargs):
         return multiclass_log_probs(config, pred, targ, shift=shift, **kwargs)
 
 
-
 def es(pre_logits, post_logits, targ, same_per_mask, q_mask, NULL_TOKEN=0):
     with torch.no_grad():
-        
         mask = targ != -100
-        targ[~mask] = NULL_TOKEN 
-        
+        targ[~mask] = NULL_TOKEN
+
         pos_mask = same_per_mask.unsqueeze(-1) * q_mask
         neg_mask = ~same_per_mask.unsqueeze(-1) * q_mask
-        
+
         # Compute log likelihoods of pos/neg samples
 
-        pre_edit_token_log_probs = pre_logits.log_softmax(-1).gather(-1, targ.unsqueeze(-1)).squeeze(-1)
-        post_edit_token_log_probs = post_logits.log_softmax(-1).gather(-1, targ.unsqueeze(-1)).squeeze(-1)
+        pre_edit_token_log_probs = (
+            pre_logits.log_softmax(-1).gather(-1, targ.unsqueeze(-1)).squeeze(-1)
+        )
+        post_edit_token_log_probs = (
+            post_logits.log_softmax(-1).gather(-1, targ.unsqueeze(-1)).squeeze(-1)
+        )
 
         mean_pos_pre = masked_mean(pre_edit_token_log_probs, pos_mask)
         mean_pos_post = masked_mean(post_edit_token_log_probs, pos_mask)

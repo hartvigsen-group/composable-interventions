@@ -63,19 +63,19 @@ class AutoGPTQForCausalLM:
         quantize_config: BaseQuantizeConfig,
         max_memory: Optional[dict] = None,
         trust_remote_code: bool = False,
-        **model_init_kwargs
+        **model_init_kwargs,
     ) -> BaseGPTQForCausalLM:
         model_type = check_and_get_model_type(
             pretrained_model_name_or_path, trust_remote_code
         )
         print(GPTQ_CAUSAL_LM_MODEL_MAP[model_type])
-        #print("fdjsljl")
+        # print("fdjsljl")
         return GPTQ_CAUSAL_LM_MODEL_MAP[model_type].from_pretrained(
             pretrained_model_name_or_path=pretrained_model_name_or_path,
             quantize_config=quantize_config,
             max_memory=max_memory,
             trust_remote_code=trust_remote_code,
-            **model_init_kwargs
+            **model_init_kwargs,
         )
 
     @classmethod
@@ -98,7 +98,7 @@ class AutoGPTQForCausalLM:
         trainable: bool = False,
         disable_exllama: Optional[bool] = None,
         disable_exllamav2: bool = False,
-        **kwargs
+        **kwargs,
     ) -> BaseGPTQForCausalLM:
         # If disable_exllamav2 is True, we want to fall back on the exllama kernel and not the cuda/cuda_old ones.
         if disable_exllama is None:
@@ -106,7 +106,7 @@ class AutoGPTQForCausalLM:
                 disable_exllama = False
             else:
                 disable_exllama = True
-        
+
         model_type = check_and_get_model_type(model_name_or_path, trust_remote_code)
         quant_func = GPTQ_CAUSAL_LM_MODEL_MAP[model_type].from_quantized
         # A static list of kwargs needed for huggingface_hub
@@ -120,12 +120,13 @@ class AutoGPTQForCausalLM:
             "revision",
             "subfolder",
             "_raise_exceptions_for_missing_entries",
-            "_commit_hash"
+            "_commit_hash",
         ]
         # TODO: do we need this filtering of kwargs? @PanQiWei is there a reason we can't just pass all kwargs?
         keywords = {
             key: kwargs[key]
-            for key in list(signature(quant_func).parameters.keys()) + huggingface_kwargs
+            for key in list(signature(quant_func).parameters.keys())
+            + huggingface_kwargs
             if key in kwargs
         }
         return quant_func(
@@ -146,7 +147,7 @@ class AutoGPTQForCausalLM:
             trainable=trainable,
             disable_exllama=disable_exllama,
             disable_exllamav2=disable_exllamav2,
-            **keywords
+            **keywords,
         )
 
 
