@@ -2,7 +2,6 @@ data/
 wmdp/data/
 models/
 outputs/
-calflops/
 *.zip
 out/
 wandb/

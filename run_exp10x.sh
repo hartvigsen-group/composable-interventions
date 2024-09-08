@@ -4,7 +4,6 @@
 #SBATCH --account=hartvigsen_lab
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-#SBATCH --constraint=a100_80gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -13,7 +12,11 @@
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 #SBATCH --array=1-10
-#SBATCH --exclude=udc-an36-13
+
+# udc-an28-1 is 40GB A100 which is not enough compute
+# udc-an34-7 is having CUDA issues
+# udc-an34-19 is having CUDA issues
+#SBATCH --exclude=udc-an34-7,udc-an34-19,udc-an34-19
 
 # Load necessary modules or activate virtual environment
 source activate lm-compose
