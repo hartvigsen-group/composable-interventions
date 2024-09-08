@@ -2,6 +2,9 @@
 requires = ["setuptools>=40.8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project.scripts]
+sae = "lm_compose.__main__:run"
+
 [tool.setuptools]
 py-modules = []
 
@@ -74,5 +77,19 @@ dependencies = [
     "typing_extensions==4.11.0",
     "urllib3==2.2.1",
     "wandb==0.17.0",
-    "urllib3==1.26.7",
+    "urllib3",
+    "isort"
 ]
+
+[tool.setuptools.packages.find]
+include = ["lm_compose*"]
+
+[tool.ruff]
+# Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes
+# See https://beta.ruff.rs/docs/rules/ for more possible rules
+select = ["E", "F", "I"]
+line-length = 150
+# Avoid automatically removing unused imports in __init__.py files.
+# Such imports will be flagged with a dedicated message suggesting
+# that the import is either added to the module's __all__ symbol
+ignore-init-module-imports = false

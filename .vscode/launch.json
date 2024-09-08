@@ -1,14 +1,11 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
             "name": "RMU",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
+            "module": "lm_compose",
             "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "justMyCode": true,
@@ -22,17 +19,14 @@
                 "save_ckpt=False",
                 "rmu_alpha=[1000,1000]",
                 "rmu_layer_id=6",
-                "rmu_max_num_batches=450",
-                // "rmu_max_num_batches=5",
-                // "qa_question_count_limit=10"
+                "rmu_max_num_batches=450"
             ]
         },
-        // run_xp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 tag=gd_mistral_hparam_search unlearn=gd interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_train_size=10 ga_lr=1e-3 ga_retain_weight=100
         {
             "name": "GD",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
+            "module": "lm_compose",
             "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "justMyCode": true,
@@ -48,6 +42,6 @@
                 "ga_lr=1e-3",
                 "ga_retain_weight=100"
             ]
-        },
+        }
     ]
 }
