@@ -8,15 +8,16 @@ import numpy as np
 import pandas as pd
 import torch
 import wandb
-from .easyeditor import ModelEditWrapper
 from lm_eval.models.huggingface import HFLM
-from .main_quantize import LLMPruningAndValidation
 from omegaconf import OmegaConf
 from tabulate import tabulate
 from transformers import AutoModelForCausalLM
 from unlearning import apply_ga, apply_rmu
 from utils import edit_generator, evals, save_ckpt_meta
 from utils.intervention_utils import get_dtype
+
+from .easyeditor import ModelEditWrapper
+from .main_quantize import LLMPruningAndValidation
 
 
 def edit_model(model, config, prompts, ground_truth, target_new, subject):
@@ -35,10 +36,7 @@ def edit_model(model, config, prompts, ground_truth, target_new, subject):
 def compress_model(model, config, pruning_and_validation):
     if config.method == "quant":
         model = model.to(dtype=get_dtype(config.compression))
-        # for param in model.parameters():
-        #     if param.requires_grad:
-        #         param.data.masked_fill_(torch.isnan(param.data), 0)
-
+        
         # Clean up model?
         del model
         torch.cuda.empty_cache()
@@ -97,10 +95,7 @@ def get_qa_results(model, config):
     return benchmark_results
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
-def main(config):
-    # To make sections backwards compatible with old code
-    # Capture command line arguments
+def format_config(config):
     command_line_args = sys.argv[1:]
     command_line_overrides = OmegaConf.from_dotlist(command_line_args)
 
@@ -122,14 +117,16 @@ def main(config):
     sections_to_flatten = ["edit", "compression", "unlearn"]
     for section in sections_to_flatten:
         if section in config:
-            # Move each sub-configuration to the top level
             for key, value in config[section].items():
                 config[key] = value
-            # Optionally delete the original section
-            # del config[section]
 
     # Apply command line overrides after flattening the configuration
-    config = OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
+    return OmegaConf.merge(config, OmegaConf.create(filtered_overrides))
+
+
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(config):
+    config = format_config(config)
 
     hparams = config.copy()
     config.dataset = config.compression_dataset  # hacky way to smuggle the dataset name into the config
@@ -166,7 +163,7 @@ def main(config):
     # Strange bug where config.device becomes a list somewhere. Cast back to an int.
     if not isinstance(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
         print("Resetting config.device")
-        config.device = int(config.device[-1])
+        config.deviswsvece = int(vevconfig.device[-1])
 
     if not isinstance(hparams.device, int) and len(hparams.device) == 2 and hparams.device[0] == "cuda":
         print("Resetting hparams.device")
