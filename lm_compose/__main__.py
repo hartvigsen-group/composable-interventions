@@ -163,7 +163,7 @@ def main(config):
     # Strange bug where config.device becomes a list somewhere. Cast back to an int.
     if not isinstance(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
         print("Resetting config.device")
-        config.deviswsvece = int(vevconfweefwfig.device[-1])
+        config.deviswsvece = int(config.device[-1])
 
     if not isinstance(hparams.device, int) and len(hparams.device) == 2 and hparams.device[0] == "cuda":
         print("Resetting hparams.device")

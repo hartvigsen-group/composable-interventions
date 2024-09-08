@@ -1,13 +1,11 @@
-import argparse
-import copy
-import gc
 import os
 import sys
-from importlib.metadata import version
 
 import numpy as np
 import torch
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from awq import AutoAWQForCausalLM
+from calflops.calflops import calculate_flops
 from sparsellm.lib.data import get_c4
 from sparsellm.lib.eval import eval_ppl, eval_zero_shot
 from sparsellm.lib.gptq import *
@@ -15,13 +13,9 @@ from sparsellm.lib.modelutils import *
 from sparsellm.lib.prune import AverageBits, check_sparsity, find_layers, prune_ablate, prune_magnitude, prune_sparsegpt, prune_wanda
 from sparsellm.lib.quant import *
 from torch.nn.functional import pad
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer
 
 DEV = torch.device("cuda:0")
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-from auto_gptq.utils import Perplexity
-from calflops.calflops import calculate_flops
-from transformers import AutoTokenizer, TextGenerationPipeline
 
 
 class Evaluator:
@@ -100,7 +94,8 @@ class LLMPruningAndValidation:
         self.model.seqlen = self.model.config.max_position_embeddings
         if self.args.method == "quant":
             self.model4Quant.model.seqlen = self.model4Quant.model.config.max_position_embeddings
-        # self.original_model=copy.deepcopy(self.model)           ####Here i do copy for the model in cause the editing operation need the whole weights. Note: Prune process do not need this.
+        #### Here i do copy for the model in causethe editing operation need the whole weights. Note: Prune process do not need this.
+        # self.original_model=copy.deepcopy(self.model)
         if self.model.config.model_type == "gpt_neox" or self.model.config.model_type == "gptj":
             use_fast = True
         else:
@@ -166,11 +161,11 @@ class LLMPruningAndValidation:
     def quantization(self):
         args = self.args
         if args.quant_method == "autogptq":
-            quantize_config = BaseQuantizeConfig(
-                bits=args.wbits,  # quantize model to 4-bit
-                group_size=args.groupsize,  # it is recommended to set the value to 128
-                desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
-            )
+            # quantize_config = BaseQuantizeConfig(
+            #     bits=args.wbits,  # quantize model to 4-bit
+            #     group_size=args.groupsize,  # it is recommended to set the value to 128
+            #     desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
+            # )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
             # model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config)
             # examples = [
@@ -215,11 +210,11 @@ class LLMPruningAndValidation:
         #     model,quantizers=llamaQuanti(self.model,self.device,self.args)
         #     self.model=model
         if args.quant_method == "autogptq":
-            quantize_config = BaseQuantizeConfig(
-                bits=args.wbits,  # quantize model to 4-bit
-                group_size=args.groupsize,  # it is recommended to set the value to 128
-                desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
-            )
+            # quantize_config = BaseQuantizeConfig(
+            #     bits=args.wbits,  # quantize model to 4-bit
+            #     group_size=args.groupsize,  # it is recommended to set the value to 128
+            #     desc_act=True,  # set to False can significantly speed up inference but the perplexity may slightly bad
+            # )
             # load un-quantized model, by default, the model will always be loaded into CPU memory
             # model = AutoGPTQForCausalLM.from_pretrained(self.args.model_name, quantize_config)
             # examples = [
@@ -346,7 +341,7 @@ class LLMPruningAndValidation:
 
         if not os.path.exists(args.save):
             os.makedirs(args.save)
-        save_filepath = os.path.join(args.save, f"log.txt")
+        save_filepath = os.path.join(args.save, "log.txt")
         with open(save_filepath, "w") as f:
             print("method\tactual_sparsity\tppl_test", file=f, flush=True)
             if type(ppl_test) is not float:
@@ -413,21 +408,3 @@ def get_args(parser):
     ############################################################################################################
     parser.add_argument("--zero_point", action="store_true", help="Whether to apply the activation order GPTQ heuristic")
     return parser
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser = get_args(parser)
-    args = parser.parse_args()
-
-    pruning_and_validation = LLMPruningAndValidation(args)
-    ##Test Sparse##########
-    # pruning_and_validation.get_Mask()           #Get Mask with (0,1) for weights, the masks will be saved in self.Masks.  Just do it one time, then fixed it.
-    # pruning_and_validation.prune()              # Mask out the weights.   Each time when you changed the updated model weights, then you can need to call this function before you do forward.
-    # pruning_and_validation.validate()           #It is a validation for general performance on common language benchmark such as wikitext.
-    ###Test Quantization###########
-    print("Starting Quantization")
-    pruning_and_validation.quantization()
-    print("Starting Validating")
-    pruning_and_validation.validate()
-    pruning_and_validation.CalculateLatency()
