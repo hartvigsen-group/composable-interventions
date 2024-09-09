@@ -19,7 +19,7 @@ def get_edits(dataset, *args, **kwargs):
         raise ValueError(f"Unknown dataset: {dataset}")
 
 
-def get_edits_counterfact(number_of_edits=3, edit_set=1, file_path="data/counterfact/counterfact-edit.json"):
+def get_edits_counterfact(number_of_edits=3, edit_set=1, file_path="lm_compose/data/counterfact/counterfact-edit.json"):
     # Assuming your JSON data is stored in a file named 'data.json'
     with open(file_path, "r") as file:
         json_data = json.load(file)
@@ -51,7 +51,7 @@ def get_edits_counterfact(number_of_edits=3, edit_set=1, file_path="data/counter
     return prompts, ground_truth, target_new, subject, rephrase_prompt, locality_inputs
 
 
-def get_edits_mquake(number_of_edits=3, edit_set=1, file_path="data/MQuAKE/MQuAKE-CF-3k.json"):
+def get_edits_mquake(number_of_edits=3, edit_set=1, file_path="lm_compose/data/MQuAKE/MQuAKE-CF-3k.json"):
     """
     Create data folder with strcutre:
 
@@ -107,11 +107,10 @@ def get_edits_zsre(number_of_edits=3, edit_set=1, train=True):
 
     This returns zsre train or eval data based on the train boolean param
     """
-
     if train:
-        file_path = "data/zsre/zsre_mend_train.json"
+        file_path = "lm_compose/data/zsre/zsre_mend_train.json"
     else:
-        file_path = "data/zsre/zsre_mend_eval.json"
+        file_path = "lm_compose/data/zsre/zsre_mend_eval.json"
 
     with open(file_path, "r") as file:
         json_data = json.load(file)
@@ -154,8 +153,8 @@ def get_edits_taxi(edit_method, number_of_edits=None):
     """
 
     # load datasets
-    edits_df = pd.read_json("data/edits.json")
-    eval_df = pd.read_json("data/edits-evaluation.json")
+    edits_df = pd.read_json("lm_compose/data/edits.json")
+    eval_df = pd.read_json("lm_compose/data/edits-evaluation.json")
 
     all_train_rewrites = []
     all_eval_query = []

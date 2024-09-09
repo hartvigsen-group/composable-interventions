@@ -5,23 +5,16 @@ import numpy as np
 import torch
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from awq import AutoAWQForCausalLM
-from calflops.calflops import calculate_flops
-from sparsellm.lib.data import get_c4
-from sparsellm.lib.eval import eval_ppl, eval_zero_shot
-from sparsellm.lib.gptq import *
-from sparsellm.lib.modelutils import *
-from sparsellm.lib.prune import (
-    AverageBits,
-    check_sparsity,
-    find_layers,
-    prune_ablate,
-    prune_magnitude,
-    prune_sparsegpt,
-    prune_wanda,
-)
-from sparsellm.lib.quant import *
 from torch.nn.functional import pad
 from transformers import AutoTokenizer
+
+from .calflops.calflops import calculate_flops
+from .sparsellm.lib.data import get_c4
+from .sparsellm.lib.eval import eval_ppl, eval_zero_shot
+from .sparsellm.lib.gptq import *
+from .sparsellm.lib.modelutils import *
+from .sparsellm.lib.prune import AverageBits, check_sparsity, find_layers, prune_ablate, prune_magnitude, prune_sparsegpt, prune_wanda
+from .sparsellm.lib.quant import *
 
 DEV = torch.device("cuda:0")
 

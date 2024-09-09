@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
-from transformers import AutoTokenizer
-from utils.intervention_utils import get_dtype
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from .utils.intervention_utils import get_dtype
 
 from .easyeditor import ModelEditWrapper
 from .wmdp.rmu import unlearn as rmu_unlearn
@@ -198,6 +198,65 @@ def get_ga_data(forget_corpora, retain_corpora, tokenizer, min_len=50, max_len=2
     return forget_set, retain_set
 
 
+def get_layer_device(model, layer_name):
+    try:
+        layer = dict(model.named_modules())[layer_name]
+        return next(layer.parameters()).device
+    except (StopIteration, KeyError):
+        return None
+
+
+def distribute_model_across_devices(source_model, target_model):
+    # Get the device map of the source model
+    device_map = {name: get_layer_device(source_model, name) for name, _ in source_model.named_modules()}
+
+    # Remove None values (layers without parameters or not found)
+    device_map = {k: v for k, v in device_map.items() if v is not None}
+
+    # Move each layer of the target model to the corresponding device
+    for name, module in target_model.named_modules():
+        if name in device_map:
+            module.to(device_map[name])
+
+    return target_model
+
+
+def move_module_to_device(module, device):
+    module.to(device)
+    for param in module.parameters():
+        param.data = param.data.to(device)
+        if param.grad is not None:
+            param.grad.data = param.grad.data.to(device)
+
+
+def copy_model_with_state_dict_and_device_map(original_model, device_map):
+    # Create a new instance of the model
+    new_model = copy.deepcopy(original_model)
+
+    # Get the state dict from the original model
+    state_dict = original_model.state_dict()
+
+    # Load the state dict into the new model
+    new_model.load_state_dict(state_dict)
+
+    # Apply the device map
+    for name, module in new_model.named_modules():
+        if name in device_map and device_map[name] > 0:
+            move_module_to_device(module, device_map[name])
+
+    return new_model
+
+
+def load_model_from_state_dict(model_class, state_dict, config):
+    # Initialize the model
+    model = model_class.from_config(config) if config else model_class()
+
+    # Load the state dict into the model
+    model.load_state_dict(state_dict)
+
+    return model
+
+
 def apply_rmu(model, config):
     """Unlearn WMDB Bio & Cyber with Representation Misdirection Unlearning (RMU)"""
 
@@ -210,8 +269,13 @@ def apply_rmu(model, config):
 
     # RMU only supports bfloat16
     model = model.to(get_dtype("rmu"))
+
     is_wrapper = isinstance(model, ModelEditWrapper)
-    frozen_copy_model = copy.deepcopy(model.model) if is_wrapper else copy.deepcopy(model)
+    frozen_copy_model = AutoModelForCausalLM.from_config(model.config)
+    frozen_copy_model.load_state_dict(model.state_dict())
+    for name, module in frozen_copy_model.named_modules():
+        if name in model.hf_device_map:
+            module.to(model.hf_device_map[name])
 
     rmu_config = {
         "model_name_or_path": config.model_name,

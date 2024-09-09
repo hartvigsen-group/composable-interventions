@@ -85,9 +85,9 @@ license = { "text" = "MIT" }
 dependencies = [
     # Required dependencies
     "hydra-core",
-    # "pytz",
-    # "python-dateutil",
-    "lm-eval==0.4.2",
+    "pytz",
+    "python-dateutil",
+    "lm-eval",
     "numpy",
     "pandas==1.4.0",
     "torch",
@@ -95,6 +95,8 @@ dependencies = [
     "tabulate",
     "transformers",
     "tqdm",
+    "matplotlib",
+    "openai",
 
     # Dev dependencies
     "wandb",

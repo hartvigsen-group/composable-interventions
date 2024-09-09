@@ -6,7 +6,7 @@ import torch
 from transformers import AdamW
 import tqdm as tqdm
 
-from wmdp.rmu.utils import load_model, get_params, forward_with_cache, get_data
+from lm_compose.wmdp.rmu.utils import load_model, get_params, forward_with_cache, get_data
 
 
 def run_rmu(

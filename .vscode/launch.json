@@ -9,13 +9,16 @@
             "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "justMyCode": true,
+            "env": {
+                // "CUDA_VISIBLE_DEVICES": "0"
+            },
             "args": [
                 "model_name=mistralai/Mistral-7B-Instruct-v0.3",
                 "tag=rmu_mistral_hparam_search",
                 "unlearn=rmu",
                 "interventions=[unlearn]",
                 "seed=42",
-                "wandb=online",
+                // "wandb=online",
                 "save_ckpt=False",
                 "rmu_alpha=[1000,1000]",
                 "rmu_layer_id=6",
