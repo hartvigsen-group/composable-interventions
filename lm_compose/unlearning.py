@@ -5,13 +5,14 @@ import random
 from types import SimpleNamespace
 
 import torch
-from easyeditor import ModelEditWrapper
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
 from utils.intervention_utils import get_dtype
-from wmdp.rmu import unlearn as rmu_unlearn
-from wmdp.rmu import utils as rmu_utils
+
+from .easyeditor import ModelEditWrapper
+from .wmdp.rmu import unlearn as rmu_unlearn
+from .wmdp.rmu import utils as rmu_utils
 
 
 def apply_ga(model, config, include_retain_loss=False):

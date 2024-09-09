@@ -3,7 +3,7 @@ import random
 import sys
 
 import pandas as pd
-from utils.edit_utils import make_edit_batches, make_rewrite
+from lm_compose.utils.edit_utils import make_edit_batches, make_rewrite
 
 sys.path.append("../../")
 

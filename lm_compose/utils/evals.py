@@ -1,6 +1,6 @@
 import torch
+from lm_compose.utils import edit_generator
 from transformers import AutoTokenizer
-from utils import edit_generator
 
 
 def get_exclude_tokens(tokenizer, device):

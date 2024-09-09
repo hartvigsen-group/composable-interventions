@@ -22,7 +22,7 @@ const int tb,
 int ogtt,
 const int gs,
 const int cutoff){
-#pragma omp parallel num_threads(20)
+#pragma omp parallel num_threads(48)
 {
 int tid;
 const int mu = 16;
@@ -415,7 +415,7 @@ float* __restrict__ output,
 int n,
  int m,
  int t) {
-q2gemm_gs(input, W, scales, zeros, bias, sums, output, n, m, t, 1, 1024, 32, 224, 64, 8);
+q2gemm_gs(input, W, scales, zeros, bias, sums, output, n, m, t, 1, 1024, 32, 96, 64, 32);
 }
 inline void pack_input(float* A, float* B){
   // copy the full matrix A in blocked format into B
@@ -477,5 +477,5 @@ inline void pack_output(float* A, float* B){
 void print_parameters(){
 std::ofstream outfile;
 outfile.open("./autogptq_extension/qigen/tmp.csv", std::ios_base::app);
-outfile << 2 << "," << 1 << "," << 16 << "," << 32 << "," << 8 << "," << 20  << "," << 64 << ",";
+outfile << 2 << "," << 1 << "," << 16 << "," << 32 << "," << 8 << "," << 48  << "," << 64 << ",";
 }

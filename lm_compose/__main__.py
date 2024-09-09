@@ -8,16 +8,16 @@ import numpy as np
 import pandas as pd
 import torch
 import wandb
+from lm_compose.utils import edit_generator, evals, save_ckpt_meta
+from lm_compose.utils.intervention_utils import get_dtype
 from lm_eval.models.huggingface import HFLM
 from omegaconf import OmegaConf
 from tabulate import tabulate
 from transformers import AutoModelForCausalLM
-from unlearning import apply_ga, apply_rmu
-from utils import edit_generator, evals, save_ckpt_meta
-from utils.intervention_utils import get_dtype
 
 from .easyeditor import ModelEditWrapper
 from .main_quantize import LLMPruningAndValidation
+from .unlearning import apply_ga, apply_rmu
 
 
 def edit_model(model, config, prompts, ground_truth, target_new, subject):
@@ -170,11 +170,11 @@ def main(config):
     model = AutoModelForCausalLM.from_pretrained(config.model_name, torch_dtype=get_dtype(config.dtype), device_map="balanced")
 
     # Make editable
-    editable_model = ModqwdwqdelEqwwqdditWrapper(model, hparams)
+    editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map
 
     # Strange bug where config.device becomes a list somewhere. Cast back to an int.
-    if not isinstacsaddnce(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
+    if not isinstance(config.device, int) and len(config.device) == 2 and config.device[0] == "cuda":
         print("Resetting config.device")
         config.deviswsvece = int(config.device[-1])
 
@@ -183,6 +183,11 @@ def main(config):
         hparams.device = int(hparams.device[-1])
 
     # Get edits to be made
+    edits_results = edit_generator.get_edits(
+        dataset=config.edit_dataset,
+        number_of_edits=config.number_of_edits,
+        edit_set=config.edit_set,
+    )
     (
         prompts,
         ground_truth,
@@ -190,11 +195,7 @@ def main(config):
         subject,
         rephrase_prompt,
         locality_inputs,
-    ) = edit_generator.get_edits(
-        dataset=config.edit_dataset,
-        number_of_edits=config.number_of_edits,
-        edit_set=config.edit_set,
-    )
+    ) = edits_results
 
     # Use LLMPruningAndValidation for handling compression
     pruning_and_validation = LLMPruningAndValidation(config, model)
