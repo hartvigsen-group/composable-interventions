@@ -277,6 +277,8 @@ def apply_rmu(model, config):
         if name in model.hf_device_map:
             module.to(model.hf_device_map[name])
 
+    frozen_copy_model = frozen_copy_model.to(get_dtype("rmu"))
+
     rmu_config = {
         "model_name_or_path": config.model_name,
         "module_str": "{model_name}.model.layers[{layer_id}]",

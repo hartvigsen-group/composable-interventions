@@ -12,6 +12,8 @@
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
 #SBATCH --array=1-10
+#SBATCH --gres=gpu:a100:1
+#SBATCH --constraint=a100,a100_80gb,gpupod
 
 # udc-an28-1 is 40GB A100 which is not enough compute
 # udc-an34-7 is having CUDA issues

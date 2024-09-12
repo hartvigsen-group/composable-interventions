@@ -69,20 +69,20 @@ sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False 
 # sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-ft"
 # sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-memit"
 # zsre
-sbatch run_exp10x.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-lora"
-sbatch run_exp10x.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-ft"
-sbatch run_exp10x.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-memit"
+sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-lora"
+sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-ft"
+sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[unlearn,edit] tag="rmu-memit"
 
 # ##Edit then RMU ###
 # # mquake
-# sbatch run_exp10x.sh save_ckpt=False wandb=online edit=lora edit_dataset=mquake compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="lora-rmu"
-# sbatch run_exp10x.sh save_ckpt=False wandb=online edit=ft edit_dataset=mquake compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="ft-rmu"
-# sbatch run_exp10x.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="memit-rmu"
+# sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=lora edit_dataset=mquake compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="lora-rmu"
+# sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=ft edit_dataset=mquake compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="ft-rmu"
+# sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=memit edit_dataset=mquake compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="memit-rmu"
 # # counterfact
-# sbatch run_exp10x.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="lora-rmu"
-# sbatch run_exp10x.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="ft-rmu"
-# sbatch run_exp10x.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="memit-rmu"
+# sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="lora-rmu"
+# sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="ft-rmu"
+# sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="memit-rmu"
 # zsre
-sbatch run_exp10x.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="lora-rmu"
-sbatch run_exp10x.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="ft-rmu"
-sbatch run_exp10x.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="memit-rmu"
+sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="lora-rmu"
+sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="ft-rmu"
+sbatch run_exp.sh model_name=mistralai/Mistral-7B-Instruct-v0.3 save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu rmu_alpha=[1000,1000] rmu_layer_id=6 rmu_max_num_batches=450 interventions=[edit,unlearn] tag="memit-rmu"
