@@ -103,6 +103,7 @@ dependencies = [
     "isort",
     "ruff",
     "pre-commit",
+    "ipykernel",
 ]
 
 [tool.setuptools.packages.find]
