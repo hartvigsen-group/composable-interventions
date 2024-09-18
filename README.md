@@ -36,7 +36,7 @@ conda create -n lm-compose python=3.11
 ```
 Dependencies can be installed via pip.
 ```bash
-pip install -e .
+pip install -e lm_compose
 pip install -e AutoAWQ
 pip install -e AutoGPTQ
 ```

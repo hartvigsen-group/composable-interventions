@@ -6,12 +6,12 @@
 #define mymin(a,b) ((a)<(b)?(a):(b))
 #define mymax(a,b) ((a)>(b)?(a):(b))
 inline
-void q2gemm_gs(const float* __restrict__ input,
-const int* __restrict__ W,
-const float* __restrict__ scales,
-const float* __restrict__ zeros,
-const float* __restrict__ bias,
- const float* __restrict__ sums,
+void q2gemm(const float* __restrict__ input, 
+const int* __restrict__ W, 
+const float* __restrict__ scales, 
+const float* __restrict__ zeros, 
+const float* __restrict__ bias, 
+ const float* __restrict__ sums, 
  float* __restrict__ output,
 const int n,
 const int m,
@@ -20,9 +20,8 @@ const int nb,
 const int mb,
 const int tb,
 int ogtt,
-const int gs,
 const int cutoff){
-#pragma omp parallel num_threads(48)
+#pragma omp parallel num_threads(20)
 {
 int tid;
 const int mu = 16;
@@ -37,10 +36,10 @@ if(tid >= cutoff){
 tt -= tb;
 }
 const int base_output = tid >= cutoff ?
- (tid-cutoff)*tt + (tt+tb)*cutoff:
+ (tid-cutoff)*tt + (tt+tb)*cutoff: 
  tid*tt;
 const int base_W = tid >= cutoff ?
- ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16:
+ ((tid-cutoff)*tt + (tt+tb)*cutoff)*m/16: 
  tid*tt*m/16;
 for(int j = 0; j < tt; j+=tb){
 for(int i = 0; i < on; i++) {
@@ -48,13 +47,12 @@ for(int k = 0; k < om; k++) {
 for(int i1 = 0; i1 < nb; i1+=nu) {
 int j1 = 0;
 for(; j1 < tb-tu+1; j1+=tu) {
-for(int k1 = 0; k1 < mb; k1+=gs) {
-__m256 acc0_0 = _mm256_setzero_ps();
-__m256 acc0_8 = _mm256_setzero_ps();
-__m256 acc0_16 = _mm256_setzero_ps();
-__m256 acc0_24 = _mm256_setzero_ps();
-for(int k2 = k1; k2 < k1+gs; k2+=16)
-{
+__m256 acc0_0 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+0]);
+__m256 acc0_8 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+8]);
+__m256 acc0_16 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+16]);
+__m256 acc0_24 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+24]);
+for(int k1 = 0; k1 < mb; k1+=mu) {
+for(int k2 = k1; k2 < k1+mu; k2+=16){
 __m256i w0 = _mm256_loadu_si256((__m256i*)&W[base_W + j*m/16 + k*mb*tb/16 + k2*tb/16 + j1+0]);
 __m256i w8 = _mm256_loadu_si256((__m256i*)&W[base_W + j*m/16 + k*mb*tb/16 + k2*tb/16 + j1+8]);
 __m256i w16 = _mm256_loadu_si256((__m256i*)&W[base_W + j*m/16 + k*mb*tb/16 + k2*tb/16 + j1+16]);
@@ -332,71 +330,44 @@ acc0_8 = _mm256_fmadd_ps(v0_7, l8_7, acc0_8);
 acc0_16 = _mm256_fmadd_ps(v0_7, l16_7, acc0_16);
 acc0_24 = _mm256_fmadd_ps(v0_7, l24_7, acc0_24);
 }
-__m256 o0_0 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+0]);
-__m256 o0_8 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+8]);
-__m256 o0_16 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+16]);
-__m256 o0_24 = _mm256_loadu_ps(&output[base_output + j + (i1+0)*t + j1+24]);
-__m256 s0_0 = _mm256_loadu_ps(&scales[(k*mb+k1)/gs * t + base_output + j + j1+0]);
-__m256 s0_8 = _mm256_loadu_ps(&scales[(k*mb+k1)/gs * t + base_output + j + j1+8]);
-__m256 s0_16 = _mm256_loadu_ps(&scales[(k*mb+k1)/gs * t + base_output + j + j1+16]);
-__m256 s0_24 = _mm256_loadu_ps(&scales[(k*mb+k1)/gs * t + base_output + j + j1+24]);
-__m256 f0_0 = _mm256_fmadd_ps(acc0_0, s0_0, o0_0);
-__m256 f0_8 = _mm256_fmadd_ps(acc0_8, s0_8, o0_8);
-__m256 f0_16 = _mm256_fmadd_ps(acc0_16, s0_16, o0_16);
-__m256 f0_24 = _mm256_fmadd_ps(acc0_24, s0_24, o0_24);
-_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+0], f0_0);
-_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+8], f0_8);
-_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+16], f0_16);
-_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+24], f0_24);
 }
+_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+0], acc0_0);
+_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+8], acc0_8);
+_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+16], acc0_16);
+_mm256_storeu_ps(&output[base_output + j + (i1+0)*t + j1+24], acc0_24);
 }
 }
 }
 }
 }
 #pragma omp barrier
-const int ngs = m/gs;
 for (int i = 0; i < n; i++) {
+__m256 r = _mm256_set1_ps(sums[i]);
 for (int j = 0; j < tt; j+=32){
-__m256 acc0 = _mm256_setzero_ps();
-__m256 acc8 = _mm256_setzero_ps();
-__m256 acc16 = _mm256_setzero_ps();
-__m256 acc24 = _mm256_setzero_ps();
-for (int i1 = 0; i1 < ngs; i1++){
-__m256 r = _mm256_set1_ps(sums[i*ngs + i1]);
-__m256 z0 = _mm256_loadu_ps(&zeros[base_output + i1* t + j + 0]);
-__m256 z8 = _mm256_loadu_ps(&zeros[base_output + i1* t + j + 8]);
-__m256 z16 = _mm256_loadu_ps(&zeros[base_output + i1* t + j + 16]);
-__m256 z24 = _mm256_loadu_ps(&zeros[base_output + i1* t + j + 24]);
-__m256 s0 = _mm256_loadu_ps(&scales[base_output + i1 * t + j + 0]);
-__m256 s8 = _mm256_loadu_ps(&scales[base_output + i1 * t + j + 8]);
-__m256 s16 = _mm256_loadu_ps(&scales[base_output + i1 * t + j + 16]);
-__m256 s24 = _mm256_loadu_ps(&scales[base_output + i1 * t + j + 24]);
-__m256 zs0 = _mm256_mul_ps(z0, s0);
-__m256 zs8 = _mm256_mul_ps(z8, s8);
-__m256 zs16 = _mm256_mul_ps(z16, s16);
-__m256 zs24 = _mm256_mul_ps(z24, s24);
-acc0 = _mm256_fmadd_ps(zs0, r, acc0);
-acc8 = _mm256_fmadd_ps(zs8, r, acc8);
-acc16 = _mm256_fmadd_ps(zs16, r, acc16);
-acc24 = _mm256_fmadd_ps(zs24, r, acc24);
-}
 __m256 o0 = _mm256_loadu_ps(&output[i*t + base_output + j + 0]);
 __m256 o8 = _mm256_loadu_ps(&output[i*t + base_output + j + 8]);
 __m256 o16 = _mm256_loadu_ps(&output[i*t + base_output + j + 16]);
 __m256 o24 = _mm256_loadu_ps(&output[i*t + base_output + j + 24]);
+__m256 z0 = _mm256_loadu_ps(&zeros[base_output + j + 0]);
+__m256 z8 = _mm256_loadu_ps(&zeros[base_output + j + 8]);
+__m256 z16 = _mm256_loadu_ps(&zeros[base_output + j + 16]);
+__m256 z24 = _mm256_loadu_ps(&zeros[base_output + j + 24]);
 __m256 b0 = _mm256_loadu_ps(&bias[base_output + j + 0]);
 __m256 b8 = _mm256_loadu_ps(&bias[base_output + j + 8]);
 __m256 b16 = _mm256_loadu_ps(&bias[base_output + j + 16]);
 __m256 b24 = _mm256_loadu_ps(&bias[base_output + j + 24]);
-__m256 o10 = _mm256_add_ps(o0, acc0);
-__m256 o18 = _mm256_add_ps(o8, acc8);
-__m256 o116 = _mm256_add_ps(o16, acc16);
-__m256 o124 = _mm256_add_ps(o24, acc24);
-__m256 o20 = _mm256_add_ps(o10, b0);
-__m256 o28 = _mm256_add_ps(o18, b8);
-__m256 o216 = _mm256_add_ps(o116, b16);
-__m256 o224 = _mm256_add_ps(o124, b24);
+__m256 s0 = _mm256_loadu_ps(&scales[base_output + j + 0]);
+__m256 s8 = _mm256_loadu_ps(&scales[base_output + j + 8]);
+__m256 s16 = _mm256_loadu_ps(&scales[base_output + j + 16]);
+__m256 s24 = _mm256_loadu_ps(&scales[base_output + j + 24]);
+__m256 zr0 = _mm256_fmadd_ps(z0, r, o0);
+__m256 zr8 = _mm256_fmadd_ps(z8, r, o8);
+__m256 zr16 = _mm256_fmadd_ps(z16, r, o16);
+__m256 zr24 = _mm256_fmadd_ps(z24, r, o24);
+__m256 o20 = _mm256_fmadd_ps(zr0, s0, b0);
+__m256 o28 = _mm256_fmadd_ps(zr8, s8, b8);
+__m256 o216 = _mm256_fmadd_ps(zr16, s16, b16);
+__m256 o224 = _mm256_fmadd_ps(zr24, s24, b24);
 _mm256_storeu_ps(&output[i*t + base_output + j + 0], o20);
 _mm256_storeu_ps(&output[i*t + base_output + j + 8], o28);
 _mm256_storeu_ps(&output[i*t + base_output + j + 16], o216);
@@ -405,17 +376,17 @@ _mm256_storeu_ps(&output[i*t + base_output + j + 24], o224);
 }
 }
 }
-inline void qforward(const float* __restrict__ input,
- const int* __restrict__ W,
-const float* __restrict__ scales,
-const float* __restrict__ zeros,
-const float* __restrict__ bias,
-const float* __restrict__ sums,
-float* __restrict__ output,
-int n,
- int m,
+inline void qforward(const float* __restrict__ input, 
+ const int* __restrict__ W, 
+const float* __restrict__ scales, 
+const float* __restrict__ zeros, 
+const float* __restrict__ bias, 
+const float* __restrict__ sums, 
+float* __restrict__ output, 
+int n, 
+ int m, 
  int t) {
-q2gemm_gs(input, W, scales, zeros, bias, sums, output, n, m, t, 1, 1024, 32, 96, 64, 32);
+q2gemm(input, W, scales, zeros, bias, sums, output, n, m, t, 1, 1024, 32, 224, 8);
 }
 inline void pack_input(float* A, float* B){
   // copy the full matrix A in blocked format into B
@@ -424,7 +395,7 @@ inline void pack_input(float* A, float* B){
   const int M = 4096;
   const int nb = 1;
   const int mb = 1024;
-  for(int i = 0; i < N; i+=nb){
+  for(int i = 0; i < N; i+=nb){ 
              for(int j = 0; j < M; j+=mb){
                  for(int jj = j; jj < mymin(j+mb, M); jj++){
                      for(int ii = i; ii < mymin(i+nb, N); ii++){
@@ -463,7 +434,7 @@ inline void pack_output(float* A, float* B){
   const int M = 4096;
   const int nb = 1;
   const int mb = 32;
-  for(int i = 0; i < N; i+=nb){
+  for(int i = 0; i < N; i+=nb){ 
              for(int j = 0; j < M; j+=mb){
                  for(int ii = i; ii < mymin(i+nb, N); ii++){
                      for(int jj = j; jj < mymin(j+mb, M); jj++){
@@ -477,5 +448,5 @@ inline void pack_output(float* A, float* B){
 void print_parameters(){
 std::ofstream outfile;
 outfile.open("./autogptq_extension/qigen/tmp.csv", std::ios_base::app);
-outfile << 2 << "," << 1 << "," << 16 << "," << 32 << "," << 8 << "," << 48  << "," << 64 << ",";
+outfile << 2 << "," << 1 << "," << 16 << "," << 32 << "," << 8 << "," << 20  << "," << -1 << ",";
 }

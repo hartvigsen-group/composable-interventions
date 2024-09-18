@@ -6,6 +6,8 @@
             "type": "debugpy",
             "request": "launch",
             "module": "lm_compose",
+            // python path: ~/miniconda3/envs/lm-compose/bin/python
+            // "python": "~/miniconda3/envs/lm-compose/bin/python",
             "python": "${command:python.interpreterPath}",
             "console": "integratedTerminal",
             "justMyCode": true,
