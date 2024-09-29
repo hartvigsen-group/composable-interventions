@@ -4,6 +4,8 @@ import numpy as np
 import random
 import torch
 from datasets import load_dataset
+import logging
+import time
 
 
 # Set seed for reproducibility
@@ -44,6 +46,7 @@ def get_wikitext2(nsamples, seed, seqlen, tokenizer):
 # Load and process c4 dataset
 def get_c4(nsamples, seed, seqlen, tokenizer):
     # Load train and validation datasets
+    logging.info("Loading C4 dataset...")
     traindata = load_dataset(
         "allenai/c4",
         data_files={"train": "en/c4-train.00000-of-01024.json.gz"},
@@ -55,31 +58,71 @@ def get_c4(nsamples, seed, seqlen, tokenizer):
         split="validation",
     )
 
+    logging.info(f"Loaded {len(traindata)} train samples and {len(valdata)} validation samples")
+
     # Generate samples from training set
     random.seed(seed)
     trainloader = []
-    for _ in range(nsamples):
-        while True:
-            i = random.randint(0, len(traindata) - 1)
-            trainenc = tokenizer(traindata[i]["text"], return_tensors="pt")
-            if trainenc.input_ids.shape[1] > seqlen:
-                break
-        i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
-        j = i + seqlen
-        inp = trainenc.input_ids[:, i:j]
-        tar = inp.clone()
-        tar[:, :-1] = -100
-        trainloader.append((inp, tar))
+    # for _ in range(nsamples):
+    #     while True:
+    #         i = random.randint(0, len(traindata) - 1)
+    #         trainenc = tokenizer(traindata[i]["text"], return_tensors="pt")
+    #         if trainenc.input_ids.shape[1] > seqlen:
+    #             break
+    #     i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
+    #     j = i + seqlen
+    #     inp = trainenc.input_ids[:, i:j]
+    #     tar = inp.clone()
+    #     tar[:, :-1] = -100
+    #     trainloader.append((inp, tar))
+
+    logging.info(f"Generating {nsamples} samples...")
+
+    all_text = " ".join(traindata[:1000]['text'])  # Join first 1000 samples
+    all_tokens = tokenizer.encode(all_text)
+    
+    for sample_idx in range(nsamples):
+        start_time = time.time()
+        
+        if len(all_tokens) < seqlen:
+            logging.warning(f"Not enough tokens to generate sample {sample_idx}. Tokenized text length: {len(all_tokens)}")
+            break
+        
+        start_idx = random.randint(0, len(all_tokens) - seqlen)
+        inp = all_tokens[start_idx:start_idx + seqlen]
+        tar = inp.copy()
+        tar[:-1] = [-100] * (len(tar) - 1)
+        
+        # Convert to tensors
+        inp_tensor = torch.tensor(inp).unsqueeze(0)  # Add batch dimension
+        tar_tensor = torch.tensor(tar).unsqueeze(0)
+        
+        trainloader.append((inp_tensor, tar_tensor))
+        end_time = time.time()
+        logging.info(f"Sample {sample_idx} processed in {end_time - start_time:.2f} seconds")
 
     # Prepare validation dataset
-    valenc = tokenizer(" ".join(valdata[:1100]["text"]), return_tensors="pt")
-    valenc = valenc.input_ids[:, : (256 * seqlen)]
-    valenc = TokenizerWrapper(valenc)
+    # valenc = tokenizer(" ".join(valdata[:1100]["text"]), return_tensors="pt")
+    # valenc = valenc.input_ids[:, : (256 * seqlen)]
+    # valenc = TokenizerWrapper(valenc)
+
+    logging.info("Preparing validation dataset...")
+    try:
+        val_text = " ".join(valdata[:1100]['text'])
+        valenc = tokenizer.encode(val_text)
+        valenc = valenc[:(256 * seqlen)]
+        valenc = torch.tensor(valenc).unsqueeze(0)  # Add batch dimension
+        valenc = TokenizerWrapper(valenc)
+        logging.info("Validation dataset prepared successfully")
+    except Exception as e:
+        logging.error(f"Error preparing validation dataset: {str(e)}")
+        valenc = None
+
     return trainloader, valenc
 
 
 # Function to select the appropriate loader based on dataset name
-def get_loaders(name, nsamples=128, seed=0, seqlen=2048, tokenizer=None):
+def get_loaders(name, nsamples=128, seed=0, seqlen=8192, tokenizer=None):
     print(f"Using {name}")
     if "wikitext2" in name:
         return get_wikitext2(nsamples, seed, seqlen, tokenizer)

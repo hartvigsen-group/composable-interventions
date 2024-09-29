@@ -16,6 +16,9 @@ if [ $unlearning_type == "ga" ]; then
     for freeze_layer in "${freeze_layers[@]}"; do
         for lr in "${learning_rates[@]}"; do
             for train_sample_size in "${num_training_samples[@]}"; do
+                # sleep 10 minutes
+                sleep 600
+
                 num_runs=$((num_runs + 1))
                 sbatch run_exp.sh model_name=$model_name tag="ga_${model_tag}_hparam_search" unlearn=ga interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_train_size=$train_sample_size ga_lr=$lr
             done
@@ -29,6 +32,7 @@ if [ $unlearning_type == "gd" ]; then
     for lr in "${learning_rates[@]}"; do
         for train_sample_size in "${num_training_samples[@]}"; do
             for retain_weight in "${retain_weights[@]}"; do
+                sleep 600
                 num_runs=$((num_runs + 1))
                 sbatch run_exp.sh model_name=$model_name tag="gd_${model_tag}_hparam_search" unlearn=gd interventions=[unlearn] seed=42 wandb=online save_ckpt=False ga_train_size=$train_sample_size ga_lr=$lr ga_retain_weight=$retain_weight
             done
@@ -37,7 +41,7 @@ if [ $unlearning_type == "gd" ]; then
 fi
 
 alphas=(10000 1000 100 10 1)
-layers=(17 3)
+layers=(4 8 12 16 20 24 28 32 36 40 44 48)
 num_batches=(300 250 200 150 100)
 if [ $unlearning_type == "rmu" ]; then
     for num_batch in "${num_batches[@]}"; do
@@ -45,6 +49,7 @@ if [ $unlearning_type == "rmu" ]; then
             for alpha in "${alphas[@]}"; do
                 num_runs=$((num_runs + 1))
                 sbatch run_exp.sh model_name=$model_name tag="rmu_${model_tag}_hparam_search" unlearn=rmu interventions=[unlearn] seed=42 wandb=online save_ckpt=False rmu_alpha=[$alpha,$alpha] rmu_layer_id=$layer rmu_max_num_batches=$num_batch
+                sleep 600
             done
         done
     done

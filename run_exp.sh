@@ -12,7 +12,8 @@
 #SBATCH --time=11:59:00
 #SBATCH --output=slurm_logs/hydra_job_%A_%a.out
 #SBATCH --error=slurm_logs/hydra_job_%A_%a.err
-
+# ignore udc-an36-1
+#SBATCH --exclude=udc-an36-1,udc-an36-13
 # Load necessary modules or activate virtual environment
 source activate lm-compose
 

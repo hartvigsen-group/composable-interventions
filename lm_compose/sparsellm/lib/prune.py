@@ -1,6 +1,7 @@
 import time
 import heapq
 import torch
+from tqdm import tqdm
 import torch.nn as nn
 from .sparsegpt import SparseGPT
 from .layerwrapper import WrappedGPT
@@ -116,7 +117,7 @@ def prepare_calibration_input(model, dataloader, device):
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros(
-        (128, model.seqlen, model.config.hidden_size), dtype=dtype, device=device
+        (128, 8192, model.config.hidden_size), dtype=dtype, device=device
     )
     inps.requires_grad = False
     cache = {"i": 0, "attention_mask": None, "position_ids": None}
@@ -217,7 +218,7 @@ def prune_wanda(
         args.dataset,
         nsamples=args.nsamples,
         seed=args.seed,
-        seqlen=model.seqlen,
+        # seqlen=8192,
         tokenizer=tokenizer,
     )
     print("dataset loading complete")
@@ -233,7 +234,7 @@ def prune_wanda(
     else:
         layers = model.model.layers
     Masks = {}
-    for i in range(len(layers)):
+    for i in tqdm(range(len(layers)), desc="WANDA: Applying Intervention"):
         layer = layers[i]
         subset = find_layers(layer)
 
@@ -351,7 +352,7 @@ def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
         args.dataset,
         nsamples=args.nsamples,
         seed=args.seed,
-        seqlen=model.seqlen,
+        seqlen=8192,
         tokenizer=tokenizer,
     )
 
@@ -369,7 +370,7 @@ def prune_sparsegpt(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros(
-        (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+        (args.nsamples, 8192, model.config.hidden_size), dtype=dtype, device=dev
     )
     cache = {"i": 0, "attention_mask": None, "position_ids": None}
 
@@ -484,7 +485,7 @@ def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
         args.dataset,
         nsamples=args.nsamples,
         seed=args.seed,
-        seqlen=model.seqlen,
+        seqlen=8192,
         tokenizer=tokenizer,
     )
 
@@ -503,7 +504,7 @@ def prune_ablate(args, model, tokenizer, dev, prune_n=0, prune_m=0):
 
     dtype = next(iter(model.parameters())).dtype
     inps = torch.zeros(
-        (args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev
+        (args.nsamples, 8192, model.config.hidden_size), dtype=dtype, device=dev
     )
     cache = {"i": 0, "attention_mask": None, "position_ids": None}
 

@@ -154,7 +154,11 @@ class BaseEditor:
                 )
                 self.tok.pad_token_id = self.tok.eos_token_id
             else:
-                raise NotImplementedError
+                # raise NotImplementedError
+                self.tok = AutoTokenizer.from_pretrained(
+                    self.model_name, trust_remote_code=True
+                )
+                self.tok.pad_token_id = self.tok.eos_token_id
             print(type(self.tok))
             if (
                 self.tok is not None

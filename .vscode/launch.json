@@ -13,7 +13,9 @@
                 // "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
-                "model_name=mistralai/Mistral-7B-Instruct-v0.3",
+                // "model_name=mistralai/Mistral-7B-Instruct-v0.3",
+                // "model_name=Qwen/Qwen2.5-14B-Instruct",
+                "model_name=Qwen/Qwen2.5-7B-Instruct",
                 "tag=rmu_mistral_hparam_search",
                 "unlearn=rmu",
                 "interventions=[unlearn]",
@@ -45,6 +47,23 @@
                 "ga_lr=1e-3",
                 "ga_retain_weight=100"
             ]
-        }
+        },
+        {
+            "name": "Wanda",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "lm_compose",
+            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "model_name=Qwen/Qwen2.5-7B-Instruct",
+                // "model_name=mistralai/Mistral-7B-Instruct-v0.3",
+                "tag=WANDA65%_DEBUG",
+                "interventions=[compression]",
+                "compression=wanda",
+                "sparsity_ratio=0.45",
+            ]
+        },
     ]
 }
