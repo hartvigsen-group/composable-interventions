@@ -56,14 +56,14 @@ Default values for the model and interventions are stored in `conf/config.yaml`.
 
 The following command applied the `memit` editing intervention and the `awq` quantization intervention. Quantization is applied with 8-bit weights. Llama3-8B is used as the model.
 ```bash
-python main.py model_name=meta-llama/Meta-Llama-3-8B interventions=[edit,compress] edit=memit compress=awq wbits=8
+python -m lm_compose model_name=meta-llama/Meta-Llama-3-8B interventions=[edit,compress] edit=memit compress=awq wbits=8
 ```
 
 ### Example: Unlearning + Editing
 
 The following command applied the `rmu` unlearning intervention and the `memit` editing intervention. The default values stored in `conf/config.yaml` for `model_name` and `interventions` are used.
 ```bash
-python main.py interventions=[unlearn,edit] unlearn=rmu edit=memit
+python -m lm_compose interventions=[unlearn,edit] unlearn=rmu edit=memit
 ```
 
 ## Saving Results
@@ -77,7 +77,7 @@ TODO
 `lm-compose` logs evaluation results to Weights & Biases. To enable logging, set `wandb` to `online` in the `conf/config.yaml` file or pass `wandb=online` as an argument to the `main.py` script. Users must also point to their own entity and project via the `wandb_entity` and `wandb_project` arguments. See `conf/config.yaml` for more details.
 
 ```bash
-python main.py wandb=online wandb_entity=your_entity wandb_project=your_project interventions=[unlearn,edit,compress] unlearn=rmu edit=memit compress=sparsegpt
+python -m lm_compose wandb=online wandb_entity=your_entity wandb_project=your_project interventions=[unlearn,edit,compress] unlearn=rmu edit=memit compress=sparsegpt
 ```
 ## Contributing
 
