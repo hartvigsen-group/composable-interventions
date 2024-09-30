@@ -12,19 +12,6 @@ py-modules = []
 name = "lm_compose"
 version = "0.1.0"
 description = "This project provides a end-to-end framework for defining, executing, and evaluating intervention compositions on language models."
-authors = [
-    { "name" = "Arinbjörn Kolbeinsson", email = "arinbjorn@virginia.edu" },
-    { "name" = "Tianjian Huang" },
-    { "name" = "Kyle O’Brien" },
-    { "name" = "Shanghua Gao" },
-    { "name" = "Shiwei Liu" },
-    { "name" = "Jonathan Richard Schwarz" },
-    { "name" = "Anurag Vaidya" },
-    { "name" = "Faisal Mahmood" },
-    { "name" = "Marinka Zitnik" },
-    { "name" = "Tianlong Chen" },
-    { "name" = "Thomas Hartvigsen" },
-]
 readme = "README.md"
 classifiers = [
     "Development Status :: 3 - Alpha",
