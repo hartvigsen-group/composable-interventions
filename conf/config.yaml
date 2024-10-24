@@ -5,8 +5,9 @@ defaults:
   - _self_
 
 # model_name: meta-llama/Meta-Llama-3-8B
-model_name: microsoft/Phi-3-mini-4k-instruct
+# model_name: microsoft/Phi-3-mini-4k-instruct
 # model_name: mistralai/Mistral-7B-Instruct-v0.3
+model_name: 01-ai/Yi-1.5-9B-Chat
 dtype: torch.bfloat16
 device: 0
 # model_parallel: true

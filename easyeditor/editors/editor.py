@@ -118,6 +118,8 @@ class BaseEditor:
             elif 'phi-3' in self.model_name.lower():
                 self.tok = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct") 
                 # self.tok.pad_token_id = self.tok.eos_token_id
+            elif 'yi-1.5' in self.model_name.lower():
+                self.tok = AutoTokenizer.from_pretrained("01-ai/Yi-1.5-9B-Chat")
             elif 'pythia' in self.model_name.lower():
                 # self.model = GPTNeoXForCausalLM.from_pretrained(
                 #       "EleutherAI/pythia-70m-deduped",
