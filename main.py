@@ -386,7 +386,7 @@ def main(config):
                 device_map="balanced",
                 trust_remote_code=True
             )
-
+    
     # Make editable
     editable_model = ModelEditWrapper(model, hparams)
     device_map = editable_model.model.hf_device_map

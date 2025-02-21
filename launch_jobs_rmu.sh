@@ -1,7 +1,13 @@
 #!/bin/bash
 
+
+sbatch run_exp10x.sh wandb=online edit=memit unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu (memit=3)"
+sbatch run_exp10x.sh wandb=online edit=memit unlearn=rmu interventions=[unlearn, edit] tag="rmu-memit (memit=3)"
+sbatch run_exp10x.sh wandb=online unlearn=rmu interventions=[unlearn] tag="rmu-none (memit=3)"
+sbatch run_exp10x.sh wandb=online edit=memit interventions=[edit] tag="memit-none (memit=3)"
+
 # ##RMU only ###
-# sbatch run_exp.sh save_ckpt=False wandb=online edit=none edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn] tag="rmu-none"
+# sbatch run_exp10x.sh wandb=online edit=memit unlearn=rmu interventions=[edit,unlearn] tag="rmu-none"
 
 # ##RMU then Compress ###
 # # # GPTQ

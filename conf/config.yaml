@@ -4,9 +4,9 @@ defaults:
   - unlearn: none  # Choose any of [rmu]
   - _self_
 
-# model_name: meta-llama/Meta-Llama-3-8B # our default llama
+model_name: meta-llama/Meta-Llama-3-8B # our default llama
 # model_name: meta-llama/Meta-Llama-3-8B-Instruct
-model_name: meta-llama/Llama-3.2-1B
+# model_name: meta-llama/Llama-3.2-1B
 # model_name: microsoft/Phi-3-mini-4k-instruct
 # model_name: mistralai/Mistral-7B-Instruct-v0.3
 # model_name: 01-ai/Yi-1.5-9B-Chat
@@ -20,7 +20,7 @@ interventions: []  # List of interventions, choose any number of [edit, compress
 # Weights and Biases Settings
 wandb: disabled # disabled or online
 wandb_entity: "dri-ice"
-wandb_project: "Composable_Interventions"
+wandb_project: "Layers"
 tag: "default"
 
 alg_name: FT # overwritten by edit config but needs to be here
