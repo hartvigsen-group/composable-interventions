@@ -1,7 +1,13 @@
 #!/bin/bash
 
+
+sbatch run_exp10x.sh wandb=online edit=memit unlearn=rmu interventions=[unlearn, edit] tag="rmu-memit(memit3)"
+sbatch run_exp10x.sh wandb=online edit=memit unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu(memit3)"
+sbatch run_exp10x.sh wandb=online unlearn=rmu interventions=[unlearn] tag="rmu-none(memit3)"
+sbatch run_exp10x.sh wandb=online edit=memit interventions=[edit] tag="memit-none(memit3)"
+
 # ##RMU only ###
-# sbatch run_exp.sh save_ckpt=False wandb=online edit=none edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn] tag="rmu-none"
+# sbatch run_exp10x.sh wandb=online edit=memit unlearn=rmu interventions=[edit,unlearn] tag="rmu-none"
 
 # ##RMU then Compress ###
 # # # GPTQ
@@ -60,29 +66,29 @@
 # sbatch run_exp.sh save_ckpt=False wandb=online edit=none compression=sparsegpt unlearn=rmu interventions=[compress,unlearn] sparsity_ratio=0.75 tag="sparsegpt0.75\%-rmu"
 
 # ##RMU then Edit ###
-# mquake
-sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
-# counterfact
-sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
-# mquake
-sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
+# # mquake
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
+# # counterfact
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
+# # mquake
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-lora"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-ft"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu interventions=[unlearn,edit] tag="rmu-memit"
 
-# ##Edit then RMU ###
-# mquake
-sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=mquake compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=mquake compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
-# counterfact
-sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
-# mquake
-sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
-sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
+# # ##Edit then RMU ###
+# # mquake
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=mquake compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=mquake compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=mquake compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
+# # counterfact
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=counterfact compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=counterfact compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=counterfact compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"
+# # mquake
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=lora edit_dataset=zsre compression=none unlearn=rmu interventions=[edit,unlearn] tag="lora-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=ft edit_dataset=zsre compression=none unlearn=rmu interventions=[edit,unlearn] tag="ft-rmu"
+# sbatch run_exp.sh save_ckpt=False wandb=online edit=memit edit_dataset=zsre compression=none unlearn=rmu interventions=[edit,unlearn] tag="memit-rmu"

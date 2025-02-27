@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the common editor for all jobs, set this as required
-editors=("ft")
+editors=("lora" "ft" "memit")
 
 # Define sparsity levels and wbit levels to apply
 sparsity_levels=(0.25)
@@ -19,15 +19,15 @@ for editor in "${editors[@]}"; do
     configs+=("edit=${editor} compression=none unlearn=none interventions=[edit] tag='${editor}_Edit'")
 done
 
-# # Compress only - Wanda at different sparsity levels
-# for sparsity in "${sparsity_levels[@]}"; do
-#     configs+=("edit=none compression=wanda unlearn=none interventions=[compress] sparsity_ratio=${sparsity} tag='Compress_Wanda${sparsity}%'")
-# done
+# Compress only - Wanda at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=none compression=wanda unlearn=none interventions=[compress] sparsity_ratio=${sparsity} tag='Compress_Wanda${sparsity}%'")
+done
 
-# # Compress only - SparseGPT at different sparsity levels
-# for sparsity in "${sparsity_levels[@]}"; do
-#     configs+=("edit=none compression=sparsegpt unlearn=none interventions=[compress] sparsity_ratio=${sparsity} tag='Compress_SparseGPT${sparsity}%'")
-# done
+# Compress only - SparseGPT at different sparsity levels
+for sparsity in "${sparsity_levels[@]}"; do
+    configs+=("edit=none compression=sparsegpt unlearn=none interventions=[compress] sparsity_ratio=${sparsity} tag='Compress_SparseGPT${sparsity}%'")
+done
 
 for editor in "${editors[@]}"; do
     # Edit then Compress - Wanda at different sparsity levels
@@ -57,15 +57,15 @@ for editor in "${editors[@]}"; do
     done
 done
 
-# # Compress only - AWQ at different wbit levels
-# for wbit in "${wbit_levels[@]}"; do
-#     configs+=("edit=none compression=awq unlearn=none interventions=[compress] wbits=${wbit} tag='Compress_AWQ${wbit}bit'")
-# done
+# Compress only - AWQ at different wbit levels
+for wbit in "${wbit_levels[@]}"; do
+    configs+=("edit=none compression=awq unlearn=none interventions=[compress] wbits=${wbit} tag='Compress_AWQ${wbit}bit'")
+done
 
-# # Compress only - GPTQ at different wbit levels
-# for wbit in "${wbit_levels[@]}"; do
-#     configs+=("edit=none compression=gptq unlearn=none interventions=[compress] wbits=${wbit} tag='Compress_GPTQ${wbit}bit'")
-# done
+# Compress only - GPTQ at different wbit levels
+for wbit in "${wbit_levels[@]}"; do
+    configs+=("edit=none compression=gptq unlearn=none interventions=[compress] wbits=${wbit} tag='Compress_GPTQ${wbit}bit'")
+done
 
 for editor in "${editors[@]}"; do
     # Edit then Compress - AWQ at different wbit levels

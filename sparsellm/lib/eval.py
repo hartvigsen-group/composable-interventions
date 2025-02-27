@@ -84,8 +84,11 @@ def eval_ppl_wikitext(model, testenc, bs=1, device=None):
     # Get input IDs
     testenc = testenc.input_ids
 
+    # set seqlen to be not larger than llama-3 default
+    seqlen = min(model.seqlen, 8192)
+
     # Calculate number of samples
-    nsamples = testenc.numel() // model.seqlen
+    nsamples = testenc.numel() // seqlen
 
     # List to store negative log likelihoods
     nlls = []
@@ -100,8 +103,8 @@ def eval_ppl_wikitext(model, testenc, bs=1, device=None):
         j = min(i+bs, nsamples)
 
         # Prepare inputs and move to device
-        inputs = testenc[:,(i * model.seqlen):(j * model.seqlen)].to(device)
-        inputs = inputs.reshape(j-i, model.seqlen)
+        inputs = testenc[:,(i * seqlen):(j * seqlen)].to(device)
+        inputs = inputs.reshape(j-i, seqlen)
 
         # Forward pass through the model
         lm_logits = model(inputs).logits
@@ -115,13 +118,13 @@ def eval_ppl_wikitext(model, testenc, bs=1, device=None):
         loss = loss_fct(shift_logits.reshape(-1, shift_logits.size(-1)), shift_labels.reshape(-1))
 
         # Calculate negative log likelihood
-        neg_log_likelihood = loss.float() * model.seqlen * (j-i)
+        neg_log_likelihood = loss.float() * seqlen * (j-i)
 
         # Append to list of negative log likelihoods
         nlls.append(neg_log_likelihood)
 
     # Compute perplexity
-    ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
+    ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * seqlen))
 
     # Empty CUDA cache to save memory
     torch.cuda.empty_cache()

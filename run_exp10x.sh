@@ -4,7 +4,7 @@
 #SBATCH --account=hartvigsen_lab
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-# --constraint=a100_80gb
+#SBATCH --constraint=a100_80gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
