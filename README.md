@@ -86,5 +86,12 @@ New interventions, tests, and bug fixes are more than welcome.
 ## Cite
 
 ```
-TODO
+@inproceedings{
+kolbeinsson2025composable,
+title={Composable Interventions for Language Models},
+author={Arinbj{\"o}rn Kolbeinsson and Kyle O'Brien and Tianjin Huang and Shanghua Gao and Shiwei Liu and Jonathan Richard Schwarz and Anurag Jayant Vaidya and Faisal Mahmood and Marinka Zitnik and Tianlong Chen and Thomas Hartvigsen},
+booktitle={The Thirteenth International Conference on Learning Representations},
+year={2025},
+url={https://openreview.net/forum?id=tu3qwNjrtw}
+}
 ```
